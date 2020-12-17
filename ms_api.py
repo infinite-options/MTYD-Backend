@@ -17,7 +17,7 @@ import string
 import random
 #regex
 import re
-from env_keys import BING_API_KEY, RDS_PW
+#from env_keys import BING_API_KEY, RDS_PW
 
 import decimal
 import sys
@@ -27,6 +27,7 @@ import pymysql
 import requests
 import stripe
 import binascii
+import os
 s3 = boto3.client('s3')
 stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
 stripe_secret_key = 'sk_test_fe99fW2owhFEGTACgW3qaykd006gHUwj1j'
@@ -53,6 +54,8 @@ app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = os.environ.get('SUPPORT_EMAIL')
 app.config['MAIL_PASSWORD'] = os.environ.get('SUPPORT_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('SUPPORT_EMAIL')
+
+RDS_PW = os.environ.get('RDS_PW')
 
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
