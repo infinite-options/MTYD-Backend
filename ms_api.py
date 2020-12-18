@@ -2629,8 +2629,7 @@ class Menu (Resource):
                         menu_meal_id = '""" + menu_meal_id + """',
                         default_meal = '""" + default_meal + """',
                         delivery_days = """ + delivery_days + """,
-                        meal_price = '""" + meal_price + """'
-                    WHERE menu_uid = '""" + menu_uid + """';
+                        meal_price = '""" + meal_price + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
             print(response[1])
