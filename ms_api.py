@@ -57,6 +57,8 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('SUPPORT_EMAIL')
 
 RDS_PW = os.environ.get('RDS_PW')
 
+RDS_PW="prashant"
+
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 # app.config['MAIL_DEBUG'] = True
@@ -259,6 +261,24 @@ def helper_upload_meal_img(file, key):
 
 
 
+paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
+paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
+
+
+#stripe_public_test_key for ocal testing
+stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
+
+stripe_public_test_key = os.environ.get('stripe_public_test_key')
+stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
+
+stripe_public_live_key = os.environ.get('stripe_public_live_key')
+stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
+
+paypal_client_test_key = os.environ.get('paypal_client_test_key')
+paypal_client_live_key = os.environ.get('paypal_client_live_key')
+
+
+#print("Key: ", paypal_secret_test_key)
 
 # def helper_upload_meal_img(file, key):
 #     bucket = 'servingfresh'
@@ -2585,6 +2605,45 @@ class Menu (Resource):
         finally:
             disconnect(conn)
 
+
+#working here
+    def put(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            menu_uid = data['menu_uid']
+            menu_date = data['menu_date']
+            menu_category = data['menu_category']
+            menu_type = data['menu_type']
+            meal_cat = data['meal_cat']
+            menu_meal_id = data['menu_meal_id']
+            default_meal = data['default_meal']
+            delivery_days = "'[" + ", ".join([str(item) for item in data['delivery_days']]) + "]'"
+            meal_price = data['meal_price']
+            query = """
+                    UPDATE menu
+                    SET menu_date = '""" + menu_date + """',
+                        menu_category = '""" + menu_category + """',
+                        menu_type = '""" + menu_type + """',
+                        meal_cat = '""" + meal_cat + """',
+                        menu_meal_id = '""" + menu_meal_id + """',
+                        default_meal = '""" + default_meal + """',
+                        delivery_days = """ + delivery_days + """,
+                        meal_price = '""" + meal_price + """'
+                    WHERE menu_uid = '""" + menu_uid + """';
+                    """
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            print(response[1])
+            if response[1] != 201:
+                return response
+            response[0]['meal_uid'] = menu_uid
+            return response
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
     def delete(self):
         try:
             conn = connect()
@@ -2651,7 +2710,7 @@ class Meals (Resource):
             meal_name = data['meal_name']
             meal_desc = data['meal_desc']
             meal_hint = "'" + data['meal_hint'] + "'" if data['meal_hint'] else 'NULL'
-            meal_photo_url = "'" + data['meal_photo_url'] + "'" if data['meal_photo_url'] else 'NULL'
+            meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
             meal_calories = data['meal_calories']
             meal_protein = data['meal_protein']
             meal_carbs = data['meal_carbs']
@@ -2700,7 +2759,7 @@ class Meals (Resource):
             meal_name = data['meal_name']
             meal_desc = data['meal_desc']
             meal_hint = "'" + data['meal_hint'] + "'" if data['meal_hint'] else 'NULL'
-            meal_photo_url = "'" + data['meal_photo_url'] + "'" if data['meal_photo_url'] else 'NULL'
+            meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
             meal_calories = data['meal_calories']
             meal_protein = data['meal_protein']
             meal_carbs = data['meal_carbs']
@@ -6903,9 +6962,9 @@ class Paypal_Payment_key_checker(Resource):
     def post(self):
         response = {}
         data = request.get_json(force=True)
-        key_test = "ATnaX-KW9jaomOfSgQqmVbQNt2s8IsnhikKOIiMw47YzB--uWlLZgWoPuxoRuHPqhgZFXnmrGCu4jmVr"
-        key_live = "AXhkFKdvsXMoQ5gHgwBM03cKUumitEDI779oyWp5VidFf9jSbW8ls5yZxVxebaA1JVdRhfEzwRYLg3P1"
-
+        key_test = paypal_client_test_key
+        key_live = paypal_client_live_key
+        #print("Key:", key_test)
         if data['key'] == key_test:
             # if app is in testing
             paypal_status = 'Test'
