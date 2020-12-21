@@ -2606,7 +2606,7 @@ class Menu (Resource):
             disconnect(conn)
 
 
-#working here
+#working here-finished
     def put(self):
         try:
             conn = connect()
@@ -2619,7 +2619,7 @@ class Menu (Resource):
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
             delivery_days = "'[" + ", ".join([str(item) for item in data['delivery_days']]) + "]'"
-            meal_price = data['meal_price']
+            meal_price = str(data['meal_price'])
             query = """
                     UPDATE menu
                     SET menu_date = '""" + menu_date + """',
