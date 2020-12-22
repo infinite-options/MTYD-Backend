@@ -6985,6 +6985,30 @@ class Paypal_Payment_key_checker(Resource):
 
 
 
+class Ingredients_Recipe_Specific (Resource):
+    def get(self, recipe_uid):
+        try:
+            conn = connect()
+            query = """
+                    #  ADMIN QUERY 4: 
+                    #  MEALS & MENUS  5. CREATE NEW INGREDIENT:
+                    SELECT * FROM sf.ingredients
+                    LEFT JOIN sf.inventory
+                        ON ingredient_uid = inventory_ingredient_id
+                    LEFT JOIN sf.conversion_units
+                        ON inventory_measure_id = measure_unit_uid
+                    inner join recipes
+                        on recipe_ingredient_id=ingredient_uid
+                    where recipe_meal_id= \'""" + recipe_uid + """\' ;
+                    """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
+
+
 
 # Define API routes
 # Customer APIs
@@ -7232,6 +7256,8 @@ api.add_resource(Paypal_Payment_key_checker, '/api/v2/Paypal_Payment_key_checker
 api.add_resource(Order_by_items_with_Date, '/api/v2/Order_by_items_with_Date/<string:date>')
 
 api.add_resource(Orders_by_Purchase_Id_with_Date, '/api/v2/Orders_by_Purchase_Id_with_Date/<string:date>')
+
+api.add_resource(Ingredients_Recipe_Specific, '/api/v2/Ingredients_Recipe_Specific/<string:recipe_uid>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
