@@ -2618,7 +2618,12 @@ class Menu (Resource):
             meal_cat = data['meal_cat']
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
-            delivery_days = "'[" + ", ".join([str(item) for item in data['delivery_days']]) + "]'"
+            #print(data["delivery_days"])
+            #print([str(item) for item in data['delivery_days']])
+            #print(type(data["delivery_days"]))
+            #temp=  data["delivery_days"].split(",")
+            delivery_days = data["delivery_days"]#''.join([letter for item in temp if letter.isalnum()])#data["delivery_days"].split(',')
+            #print(delivery_days)
             meal_price = str(data['meal_price'])
             query = """
                     UPDATE menu
@@ -2628,7 +2633,7 @@ class Menu (Resource):
                         meal_cat = '""" + meal_cat + """',
                         menu_meal_id = '""" + menu_meal_id + """',
                         default_meal = '""" + default_meal + """',
-                        delivery_days = """ + delivery_days + """,
+                        delivery_days = '""" + delivery_days + """',
                         meal_price = '""" + meal_price + """'
                     where menu_uid = '""" + menu_uid + """';
                     """
