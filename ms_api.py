@@ -3631,7 +3631,10 @@ class Edit_Recipe(Resource):
                                                             recipe_measure_id
                                                             ) 
                                                             VALUES (
-                                                            \'""" + str(meal_id) + """\',\'""" + str(ingredient_id) + """\',\'""" + str(qty) + """\',\'""" + str(measure_id) + """\'
+                                                            \'""" + str(meal_id) + """\',
+                                                            \'""" + str(ingredient_id) + """\',
+                                                            \'""" + str(qty) + """\',
+                                                            \'""" + str(measure_id) + """\'
                                                             );
                                                             """, 'post', conn)
                 i += 1
@@ -4481,7 +4484,7 @@ class get_recipes(Resource):
         finally:
             disconnect(conn)
 
-
+#working here- needs update 
 class update_recipe(Resource):
 
     def post(self):
@@ -4494,15 +4497,18 @@ class update_recipe(Resource):
             id = data["id"]
             measure = data["measure"]
             meal_id = data["meal_id"]
+            recipe_uid = data["recipe_uid"]
+            
             print("2")
             query = """
                     update recipes
                     set recipe_ingredient_id = \'""" + id + """\', 
                         recipe_ingredient_qty = \'""" + qty + """\', 
                         recipe_measure_id = \'""" + measure + """\'
-                    where recipe_meal_id = \'""" + meal_id + """\';
+                    where recipe_meal_id = \'""" + meal_id + """\'
+                        and recipe_uid = \'""" + recipe_uid + """\';
                     """
-            print(query)
+            #print(query)
             items = execute(query, 'post', conn)
             if items['code'] == 281:
                 items['message'] = 'recipe updated successfully'
@@ -4518,6 +4524,63 @@ class update_recipe(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+#meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
+
+
+
+class add_new_ingredient_recipe(Resource):
+
+    def post(self):
+        items={}
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print("1")
+            qty = data["qty"]
+            id = data["id"]
+            measure = data["measure"]
+            meal_id = data["meal_id"]
+            #recipe_uid = get_new_id("CALL new_recipe_uid", "get_new_recipe_uid", conn)
+
+            query1 = "CALL sf.new_recipe_uid"
+            recipe_uid_query = execute(query1, 'get', conn)
+            recipe_uid = recipe_uid_query['result'][0]['new_id']
+            print(recipe_uid)
+            query = """
+                    INSERT INTO recipes (
+                        recipe_uid, 
+                        recipe_ingredient_id, 
+                        recipe_ingredient_qty, 
+                        recipe_measure_id,
+                        recipe_meal_id
+                        ) 
+                        VALUES (
+                        \'""" + recipe_uid + """\',
+                        \'""" + id + """\',
+                        \'""" + qty + """\',
+                        \'""" + measure + """\',
+                        \'""" + meal_id + """\'
+                        );
+                    """
+            #print(query)
+            items = execute(query, 'post', conn)
+            print(items)
+            if items['code'] == 281:
+                items['message'] = 'recipe updated successfully'
+                print(items['code'])
+                items['code'] = 200
+                #return items
+            else:
+                items['message'] = 'Check sql query'
+                items['code'] = 400
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 
 
@@ -7263,6 +7326,8 @@ api.add_resource(Order_by_items_with_Date, '/api/v2/Order_by_items_with_Date/<st
 api.add_resource(Orders_by_Purchase_Id_with_Date, '/api/v2/Orders_by_Purchase_Id_with_Date/<string:date>')
 
 api.add_resource(Ingredients_Recipe_Specific, '/api/v2/Ingredients_Recipe_Specific/<string:recipe_uid>')
+
+api.add_resource(add_new_ingredient_recipe, '/api/v2/add_new_ingredient_recipe')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
