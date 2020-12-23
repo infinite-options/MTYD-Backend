@@ -2823,7 +2823,7 @@ class Recipes (Resource):
         finally:
             disconnect(conn)
 
-
+#working ingredient here
 class Ingredients (Resource):
     def get(self):
         try:
@@ -2853,7 +2853,11 @@ class Ingredients (Resource):
             package_measure = data['package_measure']
             package_unit = data['package_unit']
             package_cost = data['package_cost']
-
+            inventory_date = data['inventory_date']
+            inventory_qty = data['inventory_qty']
+            inventory_measure_id = data['inventory_measure_id']
+            unit_cost = data['unit_cost']
+            inventory_location = data['inventory_location']
             ingredient_uid_request = get_new_id("CALL new_ingredient_uid();", "Get_New_Ingredient_uid", conn)
 
             if ingredient_uid_request[1]!= 200:
@@ -2872,6 +2876,21 @@ class Ingredients (Resource):
             if response[1] != 201:
                 return response
             response[0]['ingredient_uid'] = ingredient_uid
+
+            query2 = "CALL sf.new_inventory_uid"
+            inventory_uid_query = execute(query2, 'get', conn)
+            inventory_uid = inventory_uid_query['result'][0]['new_id']
+            query1 = """
+                    INSERT INTO inventory
+                    SET inventory_uid = '""" + inventory_uid + """',
+                        inventory_ingredient_id = '""" + ingredient_uid + """',
+                        inventory_date = '""" + inventory_date + """',
+                        inventory_qty = '""" + inventory_qty + """',
+                        inventory_measure_id = '""" + inventory_measure_id + """',
+                        unit_cost = '""" + unit_cost + """',
+                        inventory_location = '""" + inventory_location + """';
+                    """
+            response1 = simple_post_execute([query1], [__class__.__name__], conn)
             return response
         except:
             raise BadRequest("Request failed, please try again later.")
