@@ -2850,14 +2850,14 @@ class Ingredients (Resource):
 
             ingredient_desc = data['ingredient_desc']
             package_size = data['package_size']
-            package_measure = data['package_measure']
+            #package_measure = data['package_measure']
             package_unit = data['package_unit']
             package_cost = data['package_cost']
-            inventory_date = data['inventory_date']
-            inventory_qty = data['inventory_qty']
-            inventory_measure_id = data['inventory_measure_id']
-            unit_cost = data['unit_cost']
-            inventory_location = data['inventory_location']
+            #inventory_date = data['inventory_date']
+            #inventory_qty = data['inventory_qty']
+            #inventory_measure_id = data['inventory_measure_id']
+            #unit_cost = data['unit_cost']
+            #inventory_location = data['inventory_location']
             ingredient_uid_request = get_new_id("CALL new_ingredient_uid();", "Get_New_Ingredient_uid", conn)
 
             if ingredient_uid_request[1]!= 200:
@@ -2868,7 +2868,6 @@ class Ingredients (Resource):
                     SET ingredient_uid = '""" + ingredient_uid + """',
                         ingredient_desc = '""" + ingredient_desc + """',
                         package_size = '""" + package_size + """',
-                        package_measure = '""" + package_measure + """',
                         package_unit = '""" + package_unit + """',
                         package_cost = '""" + package_cost + """';
                     """
@@ -2884,11 +2883,11 @@ class Ingredients (Resource):
                     INSERT INTO inventory
                     SET inventory_uid = '""" + inventory_uid + """',
                         inventory_ingredient_id = '""" + ingredient_uid + """',
-                        inventory_date = '""" + inventory_date + """',
-                        inventory_qty = '""" + inventory_qty + """',
-                        inventory_measure_id = '""" + inventory_measure_id + """',
-                        unit_cost = '""" + unit_cost + """',
-                        inventory_location = '""" + inventory_location + """';
+                        inventory_date = currentdate(),
+                        inventory_qty = 0,
+                        inventory_measure_id = '""" + package_unit + """',
+                        unit_cost = '""" + package_cost/package_size + """',
+                        inventory_location = "CA";
                     """
             response1 = simple_post_execute([query1], [__class__.__name__], conn)
             return response
@@ -2904,7 +2903,7 @@ class Ingredients (Resource):
             ingredient_uid = data['ingredient_uid']
             ingredient_desc = data['ingredient_desc']
             package_size = data['package_size']
-            package_measure = data['package_measure']
+            #package_measure = data['package_measure']
             package_unit = data['package_unit']
             package_cost = data['package_cost']
 
@@ -2913,7 +2912,6 @@ class Ingredients (Resource):
                     SET 
                         ingredient_desc = '""" + ingredient_desc + """',
                         package_size = '""" + package_size + """',
-                        package_measure = '""" + package_measure + """',
                         package_unit = '""" + package_unit + """',
                         package_cost = '""" + package_cost + """'
                     WHERE ingredient_uid = '""" + ingredient_uid + """';
