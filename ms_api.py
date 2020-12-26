@@ -7367,6 +7367,8 @@ api.add_resource(Orders_by_Purchase_Id_with_Date, '/api/v2/Orders_by_Purchase_Id
 api.add_resource(Ingredients_Recipe_Specific, '/api/v2/Ingredients_Recipe_Specific/<string:recipe_uid>')
 
 api.add_resource(add_new_ingredient_recipe, '/api/v2/add_new_ingredient_recipe')
+
+api.add_resource(Delete_Recipe_Specific, '/api/v2/Delete_Recipe_Specific')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
