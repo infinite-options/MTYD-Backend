@@ -2827,7 +2827,7 @@ class Delete_Recipe_Specific (Resource):
     def delete(self):
         try:
             conn = connect()
-            recipe_uid = request.args['recipe_uid']
+            recipe_uid = data['recipe_uid']
             print("1")
             query = """
                     DELETE FROM recipes WHERE recipe_uid = '""" + recipe_uid + """';
