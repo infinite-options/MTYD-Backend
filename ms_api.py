@@ -2878,7 +2878,7 @@ class Ingredients (Resource):
             #inventory_date = data['inventory_date']
             #inventory_qty = data['inventory_qty']
             #inventory_measure_id = data['inventory_measure_id']
-            #unit_cost = data['unit_cost']
+            unit_cost = float(package_cost)/float(package_size)
             #inventory_location = data['inventory_location']
             ingredient_uid_request = get_new_id("CALL new_ingredient_uid();", "Get_New_Ingredient_uid", conn)
 
