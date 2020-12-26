@@ -2827,6 +2827,7 @@ class Delete_Recipe_Specific (Resource):
     def delete(self):
         try:
             conn = connect()
+            data = request.get_json(force=True)
             recipe_uid = data['recipe_uid']
             print("1")
             query = """
