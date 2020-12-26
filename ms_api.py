@@ -2831,7 +2831,7 @@ class Ingredients (Resource):
             query = """
                     #  ADMIN QUERY 4: 
                     #  MEALS & MENUS  5. CREATE NEW INGREDIENT:
-                    SELECT * FROM sf.ingredients
+                    SELECT DISTINCT ingredient_uid, ingredient_desc FROM sf.ingredients
                     LEFT JOIN sf.inventory
                         ON ingredient_uid = inventory_ingredient_id
                     LEFT JOIN sf.conversion_units
@@ -4512,6 +4512,7 @@ class update_recipe(Resource):
             print("1")
             qty = data["qty"]
             id = data["id"]
+            #quantity=float(qty)-0
             measure = data["measure"]
             meal_id = data["meal_id"]
             recipe_uid = data["recipe_uid"]
@@ -4525,7 +4526,7 @@ class update_recipe(Resource):
                     where recipe_meal_id = \'""" + meal_id + """\'
                         and recipe_uid = \'""" + recipe_uid + """\';
                     """
-            #print(query)
+            print(query)
             items = execute(query, 'post', conn)
             if items['code'] == 281:
                 items['message'] = 'recipe updated successfully'
