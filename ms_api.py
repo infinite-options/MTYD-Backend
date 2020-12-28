@@ -2827,8 +2827,8 @@ class Delete_Recipe_Specific (Resource):
     def delete(self):
         try:
             conn = connect()
-            data = request.get_json(force=True)
-            recipe_uid = data['recipe_uid']
+            #data = request.get_json(force=True)
+            recipe_uid = request.args['recipe_uid']
             print("1")
             query = """
                     DELETE FROM recipes WHERE recipe_uid = '""" + recipe_uid + """';
@@ -2879,6 +2879,7 @@ class Ingredients (Resource):
             #inventory_qty = data['inventory_qty']
             #inventory_measure_id = data['inventory_measure_id']
             unit_cost = float(package_cost)/float(package_size)
+            print(unit_cost)
             #inventory_location = data['inventory_location']
             ingredient_uid_request = get_new_id("CALL new_ingredient_uid();", "Get_New_Ingredient_uid", conn)
 
