@@ -3127,13 +3127,12 @@ class Coupons(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-
             coupon_uid = data['coupon_uid']
             coupon_id = data['coupon_id']
             valid = data['valid']
-            discount_percent = data['discount_percent']
-            discount_amount = data['discount_amount']
-            discount_shipping = data['discount_shipping']
+            discount_percent = str(data['discount_percent'])
+            discount_amount = str(data['discount_amount'])
+            discount_shipping = str(data['discount_shipping'])
             expire_date = data['expire_date']
             limits = data['limits']
             notes = data['notes']
@@ -3141,7 +3140,7 @@ class Coupons(Resource):
             recurring = data['recurring']
             email_id = "'" + data['email_id'] + "'" if data['email_id'] else 'NULL'
             cup_business_uid = data['cup_business_uid']
-
+            print("1")
             query = """
                     UPDATE coupons
                     SET coupon_id = '""" + coupon_id + """',
@@ -3159,6 +3158,8 @@ class Coupons(Resource):
                     WHERE coupon_uid = '""" + coupon_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
+            print("2")
+            print(response)
             if response[1] != 201:
                 return response
             return response[0], 200
