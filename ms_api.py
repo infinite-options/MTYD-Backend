@@ -7117,6 +7117,63 @@ class Ingredients_Recipe_Specific (Resource):
             disconnect(conn)
 
 
+class Edit_Meal_Plan (Resource):
+    def put(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            item_uid= data['item_uid']
+            item_name= data['item_name']
+            item_desc= data['item_desc']
+            item_price= data['item_price']
+            item_sizes= data['item_sizes']
+            num_items= data['num_items']
+            item_photo= data['item_photo']
+            #deliveries_per_week= data['menu_uid']
+            info_headline= data['info_headline']
+            info_footer= data['info_footer']
+            info_weekly_price= data['info_weekly_price']
+            payment_frequency= data['payment_frequency']
+            shipping= data['shipping']
+
+            #print(data["delivery_days"])
+            #print([str(item) for item in data['delivery_days']])
+            #print(type(data["delivery_days"]))
+            #temp=  data["delivery_days"].split(",")
+            #delivery_days = data["delivery_days"]#''.join([letter for item in temp if letter.isalnum()])#data["delivery_days"].split(',')
+            #print(delivery_days)
+            #meal_price = str(data['meal_price'])
+            query = """
+                    UPDATE subscription_items
+                    SET item_name = '""" + item_name + """',
+                        item_desc = '""" + item_desc + """',
+                        item_price = '""" + item_price + """',
+                        item_sizes = '""" + item_sizes + """',
+                        num_items = '""" + num_items + """',
+                        item_photo = '""" + item_photo + """',
+                        info_headline = '""" + info_headline + """',
+                        info_footer = '""" + info_footer + """',
+                        info_weekly_price = '""" + info_weekly_price + """',
+                        payment_frequency = '""" + payment_frequency + """',
+                        shipping = '""" + shipping + """'
+                    where item_uid = '""" + item_uid + """';
+                    """
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            print(response[1])
+            if response[1] != 201:
+                return response
+            response[0]['item_uid'] = item_uid
+            return response
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
+
+
 
 
 # Define API routes
@@ -7371,6 +7428,8 @@ api.add_resource(Ingredients_Recipe_Specific, '/api/v2/Ingredients_Recipe_Specif
 api.add_resource(add_new_ingredient_recipe, '/api/v2/add_new_ingredient_recipe')
 
 api.add_resource(Delete_Recipe_Specific, '/api/v2/Delete_Recipe_Specific')
+
+api.add_resource(Edit_Meal_Plan, '/api/v2/Edit_Meal_Plan')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
