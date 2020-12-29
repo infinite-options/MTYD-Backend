@@ -2878,7 +2878,9 @@ class Ingredients (Resource):
             #inventory_date = data['inventory_date']
             #inventory_qty = data['inventory_qty']
             #inventory_measure_id = data['inventory_measure_id']
-            unit_cost = float(package_cost)/float(package_size)
+            print("0")
+            
+            unit_cost = str(float(package_cost)/float(package_size))
             print(unit_cost)
             #inventory_location = data['inventory_location']
             ingredient_uid_request = get_new_id("CALL new_ingredient_uid();", "Get_New_Ingredient_uid", conn)
@@ -2895,6 +2897,7 @@ class Ingredients (Resource):
                         package_cost = '""" + package_cost + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
+            print(response)
             if response[1] != 201:
                 return response
             response[0]['ingredient_uid'] = ingredient_uid
@@ -2902,18 +2905,24 @@ class Ingredients (Resource):
             query2 = "CALL sf.new_inventory_uid"
             inventory_uid_query = execute(query2, 'get', conn)
             inventory_uid = inventory_uid_query['result'][0]['new_id']
+            print("2")
+            print(inventory_uid)
             query1 = """
                     INSERT INTO inventory
-                    SET inventory_uid = '""" + inventory_uid + """',
-                        inventory_ingredient_id = '""" + ingredient_uid + """',
-                        inventory_date = currentdate(),
+                    SET inventory_uid = \'""" + inventory_uid + """\',
+                        inventory_ingredient_id = \'""" + ingredient_uid + """\',
+                        inventory_date = curdate(),
                         inventory_qty = 0,
-                        inventory_measure_id = '""" + package_unit + """',
-                        unit_cost = '""" + package_cost/package_size + """',
+                        inventory_measure_id = \'""" + package_unit + """\',
+                        unit_cost = \'""" + unit_cost + """\',
                         inventory_location = "CA";
                     """
+            print("3")
             response1 = simple_post_execute([query1], [__class__.__name__], conn)
-            return response
+            print(response1)
+            if response[1] != 201:
+                return response1
+            return response[0], 200
         except:
             raise BadRequest("Request failed, please try again later.")
         finally:
