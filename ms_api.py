@@ -7250,7 +7250,7 @@ class get_Zones (Resource):
             if items['code'] != 280:
                 items['message'] = 'Check sql query'
                 return items
-            items['result'] = items['result'][0]
+            #items['result'] = items['result'][0]
             return items
         except:
                 print("Error happened while getting zones")
