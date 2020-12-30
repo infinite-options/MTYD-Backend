@@ -7205,11 +7205,11 @@ class get_Fee_Tax(Resource):
             print('process completed')
 
 
-class Update_Fee_Tax (Resource):#
-    def put(self, z_id, day):
-        try:
-            conn = conneect()
-            query = ""
+# class Update_Fee_Tax (Resource):#
+#     def put(self, z_id, day):
+#         try:
+#             conn = conneect()
+#             query = ""
 
 
 # Define API routes
