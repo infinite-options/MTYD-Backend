@@ -7182,8 +7182,34 @@ class Edit_Meal_Plan (Resource):
 
 
 
+class get_Fee_Tax(Resource):
+    def get(self, z_id, day):
+        try:
+            conn = connect()
+            query = """
+                    SELECT service_fee, tax_rate, delivery_fee, z_delivery_time AS delivery_time
+                    FROM sf.zones
+                    WHERE zone = \'""" + z_id + """\' AND z_delivery_day = \'""" + day + """\';
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting taxes")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
 
 
+class Update_Fee_Tax (Resource):#
+    def put(self, z_id, day):
+        try:
+            conn = conneect()
+            query = ""
 
 
 # Define API routes
@@ -7440,6 +7466,8 @@ api.add_resource(add_new_ingredient_recipe, '/api/v2/add_new_ingredient_recipe')
 api.add_resource(Delete_Recipe_Specific, '/api/v2/Delete_Recipe_Specific')
 
 api.add_resource(Edit_Meal_Plan, '/api/v2/Edit_Meal_Plan')
+
+api.add_resource(get_Fee_Tax, '/api/v2/get_Fee_Tax/<string:z_id>,<string:day>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
