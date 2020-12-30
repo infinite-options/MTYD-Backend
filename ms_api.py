@@ -7186,6 +7186,7 @@ class get_Fee_Tax(Resource):
     def get(self, z_id, day):
         try:
             conn = connect()
+            
             query = """
                     SELECT service_fee, tax_rate, delivery_fee, z_delivery_time AS delivery_time
                     FROM sf.zones
@@ -7205,11 +7206,59 @@ class get_Fee_Tax(Resource):
             print('process completed')
 
 
-# class Update_Fee_Tax (Resource):#
-#     def put(self, z_id, day):
-#         try:
-#             conn = conneect()
-#             query = ""
+class Update_Fee_Tax (Resource):
+    def put(self):
+        try:
+            conn = conneect()
+            data = request.get_json(force=True)
+            service_fee= data['service_fee']
+            tax_rate= data['tax_rate']
+            delivery_fee= data['delivery_fee']
+            zone= data['zone']
+            query = """
+                    Update zones
+                    set
+                        service_fee = \'""" + service_fee + """\',
+                        tax_rate = \'""" + tax_rate + """\',
+                        delivery_fee = \'""" + delivery_fee + """\'
+                    WHERE zone = \'""" + zone + """\';
+                    """
+            items = execute(query, 'post', conn)
+            if items['code'] != 281:
+                items['message'] = 'Check sql query'
+                return items
+            items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting taxes")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+class get_Zones (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM sf.zones;
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting zones")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
 
 
 # Define API routes
@@ -7468,6 +7517,8 @@ api.add_resource(Delete_Recipe_Specific, '/api/v2/Delete_Recipe_Specific')
 api.add_resource(Edit_Meal_Plan, '/api/v2/Edit_Meal_Plan')
 
 api.add_resource(get_Fee_Tax, '/api/v2/get_Fee_Tax/<string:z_id>,<string:day>')
+
+api.add_resource(get_Zones, '/api/v2/get_Zones')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
