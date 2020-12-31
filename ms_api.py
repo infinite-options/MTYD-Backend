@@ -7210,7 +7210,7 @@ class get_Fee_Tax(Resource):
 class Update_Fee_Tax (Resource):
     def put(self):
         try:
-            conn = conneect()
+            conn = connect()
             data = request.get_json(force=True)
             service_fee= data['service_fee']
             tax_rate= data['tax_rate']
@@ -7228,7 +7228,7 @@ class Update_Fee_Tax (Resource):
             if items['code'] != 281:
                 items['message'] = 'Check sql query'
                 return items
-            items['result'] = items['result'][0]
+            #items['result'] = items['result'][0]
             return items
         except:
                 print("Error happened while getting taxes")
@@ -7265,37 +7265,41 @@ class get_Zones (Resource):
 class Update_Zone (Resource):
     def put(self):
         try:
-            conn = conneect()
+            conn = connect()
             data = request.get_json(force=True)
+            print("0")
             zone_uid= data['zone_uid']
             z_business_uid= data['z_business_uid']
             area= data['area']
             zone= data['zone']
             zone_name= data['zone_name']
+            print("0.5")
             z_businesses= data['z_businesses']
             z_delivery_day= data['z_delivery_day']
             z_delivery_time= data['z_delivery_time']
             z_accepting_day= data['z_accepting_day']
-            z_accepting_time= data['z_acccepting_time']
+            z_accepting_time= data['z_accepting_time']
+            print("1")
             query = """
                     update zones
                     set
-                        z_business_uid= \'""" + z_business_uid + """\',
-                        area= \'""" + area + """\',
-                        zone= \'""" + zone + """\',
-                        zone_name= \'""" + zone_name + """\',
-                        z_businesses= \'""" + z_businesses + """\',
-                        z_delivery_day= \'""" + z_delivery_day + """\',
-                        z_delivery_time= \'""" + z_delivery_time + """\',
-                        z_accepting_day= \'""" + z_accepting_day + """\',
-                        z_accepting_time= \'""" + z_accepting_time + """\'
-                    where zone_uid= \'""" + zone_uid + """\';
+                        z_business_uid= '""" + z_business_uid + """',
+                        area= '""" + area + """',
+                        zone= '""" + zone + """',
+                        zone_name= '""" + zone_name + """',
+                        z_businesses= '""" + z_businesses + """',
+                        z_delivery_day= '""" + z_delivery_day + """',
+                        z_delivery_time= '""" + z_delivery_time + """',
+                        z_accepting_day= '""" + z_accepting_day + """',
+                        z_accepting_time= '""" + z_accepting_time + """'
+                    where zone_uid= '""" + zone_uid + """';
                     """
             items = execute(query, 'post', conn)
+            print(items)
             if items['code'] != 281:
                 items['message'] = 'Check sql query'
                 return items
-            items['result'] = items['result'][0]
+            #items['result'] = items['result'][0]
             return items
         except:
                 print("Error happened while updating zones")
