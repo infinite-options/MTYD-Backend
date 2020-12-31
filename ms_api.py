@@ -4712,7 +4712,8 @@ class get_orders(Resource):
                         lplpibr_jt_price
                     from customers
                     inner join sf.lplp_items_by_row
-                    on customer_uid = lplpibr_customer_uid;
+                    on customer_uid = lplpibr_customer_uid
+                    where lplpibr_jt_business_uid = "200-000001";
                     """
             items = execute(query, 'get', conn)
             print(items["code"])
@@ -7517,6 +7518,8 @@ api.add_resource(Delete_Recipe_Specific, '/api/v2/Delete_Recipe_Specific')
 api.add_resource(Edit_Meal_Plan, '/api/v2/Edit_Meal_Plan')
 
 api.add_resource(get_Fee_Tax, '/api/v2/get_Fee_Tax/<string:z_id>,<string:day>')
+
+api.add_resource(Update_Fee_Tax, '/api/v2/Update_Fee_Tax')
 
 api.add_resource(get_Zones, '/api/v2/get_Zones')
 # Run on below IP address and port
