@@ -7268,7 +7268,7 @@ class Update_Zone (Resource):
             conn = connect()
             data = request.get_json(force=True)
             print("0")
-            #zone_uid= data['zone_uid']
+            zone_uid= data['zone_uid']
             z_business_uid= data['z_business_uid']
             area= data['area']
             zone= data['zone']
@@ -7293,9 +7293,8 @@ class Update_Zone (Resource):
             
             print("1")
             query = """
-                    insert into zones
+                    update zones
                     set
-                        zone_uid= '""" + zone_uid + """',
                         z_business_uid= '""" + z_business_uid + """',
                         area= '""" + area + """',
                         zone= '""" + zone + """',
@@ -7316,6 +7315,7 @@ class Update_Zone (Resource):
                         RT_lat = \'""" + RT_lat + """\',
                         RB_long = \'""" + RB_long + """\',
                         RB_lat = \'""" + RB_lat + """\'
+                    where zone_uid= '""" + zone_uid + """';
                     """
             items = execute(query, 'post', conn)
             print(items)
@@ -7352,7 +7352,7 @@ class create_zone (Resource):
             z_accepting_time= data['z_accepting_time']
             print("1")
             query = """
-                    update zones
+                    insert into zones
                     set
                         z_business_uid= '""" + z_business_uid + """',
                         area= '""" + area + """',
