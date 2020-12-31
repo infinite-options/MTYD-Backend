@@ -7268,6 +7268,77 @@ class Update_Zone (Resource):
             conn = connect()
             data = request.get_json(force=True)
             print("0")
+            #zone_uid= data['zone_uid']
+            z_business_uid= data['z_business_uid']
+            area= data['area']
+            zone= data['zone']
+            zone_name= data['zone_name']
+            print("0.5")
+            z_businesses= data['z_businesses']
+            z_delivery_day= data['z_delivery_day']
+            z_delivery_time= data['z_delivery_time']
+            z_accepting_day= data['z_accepting_day']
+            z_accepting_time= data['z_accepting_time']
+            service_fee= data['service_fee']
+            tax_rate= data['tax_rate']
+            delivery_fee= data['delivery_fee']
+            LB_long= data['LB_long']
+            LB_lat= data['LB_lat']
+            LT_long= data['LT_long']
+            LT_lat= data['LT_lat']
+            RT_long= data['RT_long']
+            RT_lat= data['RT_lat']
+            RB_long= data['RB_long']
+            RB_lat= data['RB_lat']
+            
+            print("1")
+            query = """
+                    insert into zones
+                    set
+                        zone_uid= '""" + zone_uid + """',
+                        z_business_uid= '""" + z_business_uid + """',
+                        area= '""" + area + """',
+                        zone= '""" + zone + """',
+                        zone_name= '""" + zone_name + """',
+                        z_businesses= '""" + z_businesses + """',
+                        z_delivery_day= '""" + z_delivery_day + """',
+                        z_delivery_time= '""" + z_delivery_time + """',
+                        z_accepting_day= '""" + z_accepting_day + """',
+                        z_accepting_time= '""" + z_accepting_time + """',
+                        service_fee = \'""" + service_fee + """\',
+                        tax_rate = \'""" + tax_rate + """\',
+                        delivery_fee = \'""" + delivery_fee + """\',
+                        LB_long = \'""" + LB_long + """\',
+                        LB_lat = \'""" + LB_lat + """\',
+                        LT_long = \'""" + LT_long + """\',
+                        LT_lat = \'""" + LT_lat + """\',
+                        RT_long = \'""" + RT_long + """\',
+                        RT_lat = \'""" + RT_lat + """\',
+                        RB_long = \'""" + RB_long + """\',
+                        RB_lat = \'""" + RB_lat + """\'
+                    """
+            items = execute(query, 'post', conn)
+            print(items)
+            if items['code'] != 281:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while updating zones")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+
+class create_zone (Resource):
+    def post(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print("0")
             zone_uid= data['zone_uid']
             z_business_uid= data['z_business_uid']
             area= data['area']
@@ -7307,7 +7378,6 @@ class Update_Zone (Resource):
         finally:
             disconnect(conn)
             print('process completed')
-
 
 
 # Define API routes
