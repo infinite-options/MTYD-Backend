@@ -7566,6 +7566,8 @@ api.add_resource(get_Fee_Tax, '/api/v2/get_Fee_Tax/<string:z_id>,<string:day>')
 api.add_resource(Update_Fee_Tax, '/api/v2/Update_Fee_Tax')
 
 api.add_resource(get_Zones, '/api/v2/get_Zones')
+
+api.add_resource(Update_Zone, '/api/v2/Update_Zone')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
