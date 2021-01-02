@@ -38,7 +38,7 @@ stripe.api_key = stripe_secret_key
 RDS_HOST = 'io-mysqldb8.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
 RDS_PORT = 3306
 RDS_USER = 'admin'
-RDS_DB = 'sf'
+RDS_DB = 'M4ME'
 
 app = Flask(__name__)
 cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
@@ -372,7 +372,7 @@ paypal_client_live_key = os.environ.get('paypal_client_live_key')
 
 #                 query = '''
 #                             SELECT user_access_token, user_refresh_token, mobile_access_token, mobile_refresh_token 
-#                             FROM sf.customers
+#                             FROM M4ME.customers
 #                             WHERE customer_uid = \'''' + cust_id + '''\';
 #                        '''
 #                 it = execute(query, 'get', conn)
@@ -391,7 +391,7 @@ paypal_client_live_key = os.environ.get('paypal_client_live_key')
 #                     mobile_refresh_token = it['result'][0]['mobile_refresh_token']
 
 #                 customer_insert_query =  ['''
-#                                     UPDATE sf.customers 
+#                                     UPDATE M4ME.customers 
 #                                     SET 
 #                                     customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
 #                                     customer_first_name = \'''' + firstName + '''\',
@@ -419,7 +419,7 @@ paypal_client_live_key = os.environ.get('paypal_client_live_key')
 
 #                 # check if there is a same customer_id existing
 #                 query = """
-#                         SELECT customer_email FROM sf.customers
+#                         SELECT customer_email FROM M4ME.customers
 #                         WHERE customer_email = \'""" + email + "\';"
 #                 print('email---------')
 #                 items = execute(query, 'get', conn)
@@ -441,7 +441,7 @@ paypal_client_live_key = os.environ.get('paypal_client_live_key')
 
 #                 # write everything to database
 #                 customer_insert_query = ["""
-#                                         INSERT INTO sf.customers 
+#                                         INSERT INTO M4ME.customers 
 #                                         (
 #                                             customer_uid,
 #                                             customer_created_at,
@@ -672,7 +672,7 @@ class createAccount(Resource):
 
                 query = '''
                             SELECT user_access_token, user_refresh_token, mobile_access_token, mobile_refresh_token 
-                            FROM sf.customers
+                            FROM M4ME.customers
                             WHERE customer_uid = \'''' + cust_id + '''\';
                        '''
                 it = execute(query, 'get', conn)
@@ -691,7 +691,7 @@ class createAccount(Resource):
                     mobile_refresh_token = it['result'][0]['mobile_refresh_token']
 
                 customer_insert_query =  ['''
-                                    UPDATE sf.customers 
+                                    UPDATE M4ME.customers 
                                     SET 
                                     customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
                                     customer_first_name = \'''' + firstName + '''\',
@@ -719,7 +719,7 @@ class createAccount(Resource):
 
                 # check if there is a same customer_id existing
                 query = """
-                        SELECT customer_email FROM sf.customers
+                        SELECT customer_email FROM M4ME.customers
                         WHERE customer_email = \'""" + email + "\';"
                 print('email---------')
                 items = execute(query, 'get', conn)
@@ -741,7 +741,7 @@ class createAccount(Resource):
 
                 # write everything to database
                 customer_insert_query = ["""
-                                        INSERT INTO sf.customers 
+                                        INSERT INTO M4ME.customers 
                                         (
                                             customer_uid,
                                             customer_created_at,
@@ -845,7 +845,7 @@ class email_verification(Resource):
             email = data['email']
             query = """
                     SELECT password_hashed
-                    FROM sf.customers c
+                    FROM M4ME.customers c
                     WHERE customer_email = \'""" + email + """\'
                     """
             items = execute(query, 'get', conn)
@@ -950,7 +950,7 @@ class Login(Resource):
                         user_access_token,
                         user_refresh_token,
                         social_id
-                    FROM sf.customers c
+                    FROM M4ME.customers c
                     -- WHERE customer_email = "1m4kfun@gmail.com";
                     WHERE customer_email = \'""" + email + """\';
                     """
@@ -1026,7 +1026,7 @@ class Login(Resource):
                 del items['result'][0]['password_hashed']
                 del items['result'][0]['email_verified']
 
-                query = "SELECT * from sf.customers WHERE customer_email = \'" + email + "\';"
+                query = "SELECT * from M4ME.customers WHERE customer_email = \'" + email + "\';"
                 items = execute(query, 'get', conn)
                 items['message'] = "Authenticated successfully."
                 items['code'] = 200
@@ -1060,7 +1060,7 @@ class Login(Resource):
 #                         user_social_media,
 #                         user_access_token,
 #                         user_refresh_token
-#                     FROM sf.customers c
+#                     FROM M4ME.customers c
 #                     -- WHERE customer_email = "1m4kfun@gmail.com";
 #                     WHERE customer_email = \'""" + email + """\';
 #                     """
@@ -1137,7 +1137,7 @@ class Login(Resource):
 #                 del items['result'][0]['password_hashed']
 #                 del items['result'][0]['email_verified']
 
-#                 query = "SELECT * from sf.customers WHERE customer_email = \'" + email + "\';"
+#                 query = "SELECT * from M4ME.customers WHERE customer_email = \'" + email + "\';"
 #                 items = execute(query, 'get', conn)
 #                 items['message'] = "Authenticated successfully."
 #                 items['code'] = 200
@@ -1183,7 +1183,7 @@ class AppleLogin (Resource):
                         user_access_token,
                         user_refresh_token,
                         social_id
-                    FROM sf.customers c
+                    FROM M4ME.customers c
                     WHERE social_id = \'""" + sub + """\';
                     """
                     items = execute(query, 'get', conn)
@@ -1218,7 +1218,7 @@ class AppleLogin (Resource):
 
 
                         customer_insert_query = """
-                                    INSERT INTO sf.customers 
+                                    INSERT INTO M4ME.customers 
                                     (
                                         customer_uid,
                                         customer_created_at,
@@ -1323,7 +1323,7 @@ class AppleLogin (Resource):
 #                         user_social_media,
 #                         user_access_token,
 #                         user_refresh_token
-#                     FROM sf.customers c
+#                     FROM M4ME.customers c
 #                     WHERE customer_email = \'""" + email + """\';
 #                     """
 #                     items = execute(query, 'get', conn)
@@ -1354,7 +1354,7 @@ class AppleLogin (Resource):
 #                         print('NewUserID', NewUserID)
 #                         #only works for mysql, and only allows for inserting one row at a time
 #                         customer_insert_query = """
-#                                     INSERT INTO sf.customers 
+#                                     INSERT INTO M4ME.customers 
 #                                     set
 #                                         customer_uid = \'""" + NewUserID + """\',
 #                                         customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
@@ -1365,7 +1365,7 @@ class AppleLogin (Resource):
 
 
 #                                     #original code for reference
-#                                     #   INSERT INTO sf.customers 
+#                                     #   INSERT INTO M4ME.customers 
 #                                     # (
 #                                     #     customer_uid,
 #                                     #     customer_created_at,
@@ -1541,8 +1541,8 @@ class Meals_Selected(Resource):
             customer_uid = request.args['customer_uid']
             query = """
                     # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
-                    SELECT * FROM sf.latest_combined_meal lcm
-                    LEFT JOIN sf.lplp
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
                         ON lcm.sel_purchase_id = lplp.purchase_id
                     WHERE pur_customer_uid = '""" + customer_uid + """'
                         and items like "%200-000001%"; 
@@ -1550,7 +1550,6 @@ class Meals_Selected(Resource):
 
             
             items = execute(query, 'get', conn)
-            #print(items)
             if items['code']!=280:
                 items['message'] = "Failed"
                 items['code'] = 404
@@ -1577,8 +1576,8 @@ class Meals_Selected_Specific(Resource):
             menu_date = request.args['menu_date']
             query = """
                     # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
-                    SELECT * FROM sf.latest_combined_meal lcm
-                    LEFT JOIN sf.lplp
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
                         ON lcm.sel_purchase_id = lplp.purchase_id
                     WHERE pur_customer_uid = '""" + customer_uid + """'
                     and purchase_id = '""" + purchase_id + """'
@@ -1614,8 +1613,8 @@ class Get_Upcoming_Menu(Resource):
             # menu_date = request.args['menu_date']
             query = """
                     # CUSTOMER QUERY 4: UPCOMING MENUS
-                    SELECT * FROM sf.menu
-                    LEFT JOIN sf.meals m
+                    SELECT * FROM M4ME.menu
+                    LEFT JOIN M4ME.meals m
                         ON menu.menu_meal_id = m.meal_uid
                     WHERE menu_date > CURDATE();
                     """
@@ -1646,8 +1645,8 @@ class Get_Latest_Purchases_Payments(Resource):
             query = """
                     # CUSTOMER QUERY 2: CUSTOMER LATEST PURCHASE AND LATEST PAYMENT HISTORY
                     # NEED CUSTOMER ADDRESS IN CASE CUSTOMER HAS NOT ORDERED BEFORE
-                    SELECT * FROM sf.lplp lp
-                    LEFT JOIN sf.customers c
+                    SELECT * FROM M4ME.lplp lp
+                    LEFT JOIN M4ME.customers c
                         ON lp.pur_customer_uid = c.customer_uid
                     WHERE pur_customer_uid = '""" + customer_uid + """'
                     and items like "%200-000001%";
@@ -1680,10 +1679,10 @@ class Next_Billing_Date(Resource):
                             SELECT lplpibr.*,
                                 si.*,
                                 ts.true_skips
-                            FROM sf.lplp_items_by_row AS lplpibr
-                            LEFT JOIN sf.subscription_items si
+                            FROM M4ME.lplp_items_by_row AS lplpibr
+                            LEFT JOIN M4ME.subscription_items si
                                 ON lplpibr.lplpibr_jt_item_uid = si.item_uid
-                            LEFT JOIN sf.true_skips AS ts
+                            LEFT JOIN M4ME.true_skips AS ts
                                 ON lplpibr.lplpibr_purchase_id = ts.d_purchase_id) AS nbd
                         WHERE lplpibr_customer_uid = '""" + customer_uid + """';
                         """
@@ -1708,7 +1707,7 @@ class Next_Addon_Charge(Resource):
                                 FROM (
                                     SELECT *,
                                         jt_qty * jt_price AS addon_charge
-                                    FROM sf.selected_addons_by_row
+                                    FROM M4ME.selected_addons_by_row
                                     WHERE sel_menu_date >= ADDDATE(CURDATE(), -28) ) 
                                     AS meal_aoc
                                 GROUP BY selection_uid
@@ -1742,7 +1741,7 @@ class AccountSalt(Resource):
                     SELECT password_algorithm, 
                             password_salt,
                             user_social_media 
-                    FROM sf.customers cus
+                    FROM M4ME.customers cus
                     WHERE customer_email = \'""" + email + """\';
                     """
             items = execute(query, 'get', conn)
@@ -1932,7 +1931,7 @@ class Checkout(Resource):
                 # write into Payments table
                 queries = [
                             '''
-                            INSERT INTO sf.payments
+                            INSERT INTO M4ME.payments
                             SET payment_uid = \'''' + paymentId + '''\',
                                 payment_time_stamp = \'''' + getNow() + '''\',
                                 start_delivery_date = \'''' + start_delivery_date + '''\',
@@ -1952,7 +1951,7 @@ class Checkout(Resource):
                                 cc_zip = \'''' + cc_zip + '''\';
                             ''',
                             '''
-                            INSERT INTO  sf.purchases
+                            INSERT INTO  M4ME.purchases
                             SET purchase_uid = \'''' + purchaseId + '''\',
                                 purchase_date = \'''' + getNow() + '''\',
                                 purchase_id = \'''' + purchaseId + '''\',
@@ -2144,8 +2143,8 @@ class Change_Purchase (Resource):
         # if refund amount left on current charge_id < refund amount needed then trace back the latest previous payment
         # to get the next stripe_charge_id.
         #list all charge ids which are associated with current purchase_id
-        query = '''SELECT charge_id from sf.payments
-	                WHERE pay_purchase_id = (SELECT pay_purchase_id FROM sf.payments 
+        query = '''SELECT charge_id from M4ME.payments
+	                WHERE pay_purchase_id = (SELECT pay_purchase_id FROM M4ME.payments 
 	                                        WHERE pay_purchase_uid = "''' + refund_info['purchase_uid'] + '''")
                     ORDER BY payment_time_stamp DESC;'''
         res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
@@ -2288,7 +2287,7 @@ class Change_Purchase (Resource):
                 #charge with stripe
                 #wrap credit_card info
                 query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date 
-                                FROM sf.payments
+                                FROM M4ME.payments
                                 WHERE pay_purchase_uid = "''' + purchaseID + '";'
                 res = simple_get_execute(query, "GET CREDIT CARD INFO FOR CHANGING MEAL PLAN", conn)
                 if res[1] != 200:
@@ -2361,7 +2360,7 @@ class Change_Purchase (Resource):
                 # write into Payments table
             queries = [
                 '''
-                INSERT INTO sf.payments
+                INSERT INTO M4ME.payments
                 SET payment_uid = "''' + payment_uid + '''",
                                         payment_time_stamp = "''' + getNow() + '''",
                                         start_delivery_date = "''' + start_delivery_date + '''",
@@ -2381,7 +2380,7 @@ class Change_Purchase (Resource):
                                         cc_zip = "''' + str(cc_zip) + '''";
                 ''',
                 '''
-                INSERT INTO  sf.purchases
+                INSERT INTO  M4ME.purchases
                 SET purchase_uid = "''' + purchase_uid + '''",
                                         purchase_date = "''' + getNow() + '''",
                                         purchase_id = "''' + purchase_id + '''",
@@ -2410,7 +2409,7 @@ class Change_Purchase (Resource):
                 refund_uid = res_refund_uid[0]['result']
                 print("refund_uid: ", refund_uid)
 
-                query = '''INSERT INTO sf.refunds
+                query = '''INSERT INTO M4ME.refunds
                                     SET refund_uid = "''' + refund_uid + '''",
                                         created_at = "''' + getNow() + '''",
                                         email_id = "''' + customer_email + '''",
@@ -2431,7 +2430,7 @@ class Change_Purchase (Resource):
                     response[0]['refund_uid'] = refund_uid
                 response[0]['payment_id'] = payment_uid
                 response[0]['purchase_id'] = purchase_uid
-                query = '''UPDATE sf.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
+                query = '''UPDATE M4ME.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
                 simple_post_execute([query], ["UPDATE OLD PURCHASES"], conn)
 
                 return response
@@ -2493,7 +2492,7 @@ class Update_Delivery_Info (Resource):
             #print("1")
             #should re-calculator the longtitude and latitude before update address
             
-            queries = ['''UPDATE sf.purchases 
+            queries = ['''UPDATE M4ME.purchases 
                             SET delivery_first_name= "''' + first_name + '''",
                                 delivery_last_name = "''' + last_name + '''",
                                 delivery_phone_num = "''' + phone + '''",
@@ -2505,7 +2504,7 @@ class Update_Delivery_Info (Resource):
                                 delivery_zip = "''' + zip + '''"
                             WHERE purchase_uid = "''' + purchase_uid + '";'
                     ,
-                    ''' UPDATE sf.payments
+                    ''' UPDATE M4ME.payments
                             SET cc_num = "''' + cc_num + '''",
                                 cc_cvv = "''' + cc_cvv + '''",
                                 cc_zip = "''' + cc_zip + '''",
@@ -2536,7 +2535,7 @@ class Plans(Resource):
             business_uid = request.args['business_uid']
             query = """
                     # ADMIN QUERY 5: PLANS 
-                    SELECT * FROM sf.subscription_items si 
+                    SELECT * FROM M4ME.subscription_items si 
                     -- WHERE itm_business_uid = "200-000007"; 
                     WHERE itm_business_uid = \'""" + business_uid + """\';
                     """
@@ -2553,8 +2552,8 @@ class Menu (Resource):
             query = """
                     #  ADMIN QUERY 1: 
                     #  MEALS & MENUS: 1. CREATE/EDIT MENUS: SEE MENU FOR A PARTICULAR DAY  (ADD/DELETE MENU ITEM)
-                    SELECT * FROM sf.menu
-                    LEFT JOIN sf.meals
+                    SELECT * FROM M4ME.menu
+                    LEFT JOIN M4ME.meals
                         ON menu_meal_id = meal_uid
                     WHERE menu_date > ADDDATE(CURDATE(),-21) AND menu_date < ADDDATE(CURDATE(),45);
                     """
@@ -2699,7 +2698,7 @@ class Meals (Resource):
             conn = connect()
             query = """
                     # ADMIN QUERY 2: MEAL OPTIONS
-                    SELECT * FROM sf.meals m;
+                    SELECT * FROM M4ME.meals m;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
         except:
@@ -2809,12 +2808,12 @@ class Recipes (Resource):
             query = """
                     #  ADMIN QUERY 3: 
                     #  MEALS & MENUS  4. EDIT MEAL RECIPE: 
-                    SELECT * FROM sf.meals
-                    LEFT JOIN sf.recipes
+                    SELECT * FROM M4ME.meals
+                    LEFT JOIN M4ME.recipes
                         ON meal_uid = recipe_meal_id
-                    LEFT JOIN sf.ingredients
+                    LEFT JOIN M4ME.ingredients
                         ON recipe_ingredient_id = ingredient_uid
-                    LEFT JOIN sf.conversion_units
+                    LEFT JOIN M4ME.conversion_units
                         ON recipe_measure_id = measure_unit_uid;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
@@ -2853,10 +2852,10 @@ class Ingredients (Resource):
             query = """
                     #  ADMIN QUERY 4: 
                     #  MEALS & MENUS  5. CREATE NEW INGREDIENT:
-                    SELECT DISTINCT ingredient_uid, ingredient_desc FROM sf.ingredients
-                    LEFT JOIN sf.inventory
+                    SELECT DISTINCT ingredient_uid, ingredient_desc FROM M4ME.ingredients
+                    LEFT JOIN M4ME.inventory
                         ON ingredient_uid = inventory_ingredient_id
-                    LEFT JOIN sf.conversion_units
+                    LEFT JOIN M4ME.conversion_units
                         ON inventory_measure_id = measure_unit_uid;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
@@ -2902,7 +2901,7 @@ class Ingredients (Resource):
                 return response
             response[0]['ingredient_uid'] = ingredient_uid
 
-            query2 = "CALL sf.new_inventory_uid"
+            query2 = "CALL M4ME.new_inventory_uid"
             inventory_uid_query = execute(query2, 'get', conn)
             inventory_uid = inventory_uid_query['result'][0]['new_id']
             print("2")
@@ -2982,7 +2981,7 @@ class Measure_Unit (Resource):
             query = """
                     #  ADMIN QUERY 5: 
                     #  MEALS & MENUS  6. CREATE NEW MEASURE UNIT: 
-                    SELECT * FROM sf.conversion_units;
+                    SELECT * FROM M4ME.conversion_units;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
         except:
@@ -3076,7 +3075,7 @@ class Coupons(Resource):
             query = """
                     #  ADMIN QUERY 7: 
                     # PLANS & COUPONS  2. SHOW ALL COUPONS
-                    SELECT * FROM sf.coupons;
+                    SELECT * FROM M4ME.coupons;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
         except:
@@ -3203,7 +3202,7 @@ class CouponDetails(Resource):
         try:
             conn = connect()
             query = """
-                    SELECT * FROM sf.coupons
+                    SELECT * FROM M4ME.coupons
                     WHERE coupon_id = \'""" + coupon_id + """\'
                     """
             items = execute(query, 'get', conn)
@@ -3235,7 +3234,7 @@ class CouponDetails(Resource):
 
 
             query = '''
-                    UPDATE sf.coupons
+                    UPDATE M4ME.coupons
                     SET num_used = \'''' + str(num_used) + '''\'
                     WHERE coupon_uid = \'''' + str(coupon_uid) + '''\';
                     '''
@@ -3268,7 +3267,7 @@ class Ordered_By_Date(Resource):
                         sum(jt_qty)
                     FROM(
                         SELECT *
-                        FROM sf.final_meal_selection AS jot,
+                        FROM M4ME.final_meal_selection AS jot,
                         JSON_TABLE (jot.final_combined_selection, '$[*]' 
                             COLUMNS (
                                     jt_id FOR ORDINALITY,
@@ -3310,7 +3309,7 @@ class Ingredients_Need (Resource):
                             sum(jt_qty)
                         FROM(
                             SELECT *
-                            FROM sf.final_meal_selection AS jot,
+                            FROM M4ME.final_meal_selection AS jot,
                             JSON_TABLE (jot.final_combined_selection, '$[*]' 
                                 COLUMNS (
                                         jt_id FOR ORDINALITY,
@@ -3322,11 +3321,11 @@ class Ingredients_Need (Resource):
                                     AS total_ordered
                         GROUP BY d_menu_date, jt_name) 
                         AS ordered
-                    LEFT JOIN sf.recipes
+                    LEFT JOIN M4ME.recipes
                         ON jt_item_uid = recipe_meal_id
-                    LEFT JOIN sf.ingredients
+                    LEFT JOIN M4ME.ingredients
                         ON recipe_ingredient_id = ingredient_uid
-                    LEFT JOIN sf.conversion_units
+                    LEFT JOIN M4ME.conversion_units
                         ON recipe_measure_id = measure_unit_uid)
                         AS ing
                     GROUP BY d_menu_date, ingredient_uid;
@@ -3354,8 +3353,8 @@ class Edit_Menu(Resource):
         try:
             conn = connect()
 
-            items = execute(""" select meal_name from sf.meals;""", 'get', conn)
-            items2 = execute(""" select * from sf.menu;""", 'get', conn)
+            items = execute(""" select meal_name from M4ME.meals;""", 'get', conn)
+            items2 = execute(""" select * from M4ME.menu;""", 'get', conn)
 
             response['message'] = 'Request successful.'
             response['result'] = items
@@ -3398,7 +3397,7 @@ class Edit_Menu(Resource):
                 print(meal_name)
                 print(default_meal)
 
-                query = """insert into sf.menu 
+                query = """insert into M4ME.menu 
                         values 
                         (\'""" + menu_date + """\',
                         \'""" + menu_category + """\',
@@ -3830,7 +3829,7 @@ class Profile(Resource):
             conn = connect()
             query = """
                     SELECT *
-                    FROM sf.customers c
+                    FROM M4ME.customers c
                     WHERE customer_uid = \'""" + id + """\'
                     """
             items = execute(query, 'get', conn)
@@ -3863,7 +3862,7 @@ class UpdateProfile(Resource):
                 conn = connect()
                 data = request.get_json(force=True)
 
-                #query = "CALL sf.new_profile"
+                #query = "CALL M4ME.new_profile"
                 #new_profile_query = execute(query, 'get', conn)
                 #new_profile = newPaymentUID_query['result'][0]['new_id']
 
@@ -3881,7 +3880,7 @@ class UpdateProfile(Resource):
                 print(data)
 
                 customer_insert_query = [""" 
-                                    UPDATE sf.customers
+                                    UPDATE M4ME.customers
                                     SET
                                     customer_first_name = \'""" + f_name + """\',
                                     customer_last_name = \'""" + l_name + """\',
@@ -3928,7 +3927,7 @@ class access_refresh_update(Resource):
             conn = connect()
             data = request.get_json(force=True)
             query = """
-                    UPDATE sf.customers SET user_access_token = \'""" + data['access_token'] + """\', user_refresh_token = \'""" + data['refresh_token'] + """\', social_timestamp =  \'""" + data['social_timestamp'] + """\' WHERE (customer_uid = \'""" + data['uid'] + """\'); ;
+                    UPDATE M4ME.customers SET user_access_token = \'""" + data['access_token'] + """\', user_refresh_token = \'""" + data['refresh_token'] + """\', social_timestamp =  \'""" + data['social_timestamp'] + """\' WHERE (customer_uid = \'""" + data['uid'] + """\'); ;
                     """
             print(query)
             items = execute(query, 'post', conn)
@@ -3956,7 +3955,7 @@ class access_refresh_update(Resource):
 #             conn = connect()
 #             data = request.get_json(force=True)
 #             query = """
-#                     UPDATE sf.customers SET 
+#                     UPDATE M4ME.customers SET 
 #                     user_access_token = \'""" + data['access_token'] + """\', 
 #                     user_refresh_token = \'""" + data['refresh_token'] + """\', 
 #                     social_timestamp =  \'""" + data['social_timestamp'] + """\' 
@@ -3996,7 +3995,7 @@ class access_refresh_update(Resource):
 #             if action == 'get':
 #                 query = """
 #                         SELECT *
-#                         FROM sf.customers c
+#                         FROM M4ME.customers c
 #                         WHERE customer_email = \'""" + email + """\';
 #                         """
 #                 items = execute(query, 'get', conn)
@@ -4014,7 +4013,7 @@ class access_refresh_update(Resource):
 #                     return items
 #             elif action == 'update':
 #                 query = """
-#                         UPDATE sf.customers 
+#                         UPDATE M4ME.customers 
 #                         SET  
 #                         user_access_token = \'""" + data['user_access_token'] + """\', 
 #                         user_refresh_token = \'""" + data['user_refresh_token'] + """\',
@@ -4064,7 +4063,7 @@ class token_fetch_update (Resource):
             if action == 'get':
                 query = """
                         SELECT *
-                        FROM sf.customers c
+                        FROM M4ME.customers c
                         WHERE customer_uid = \'""" + uid + """\';
                         """
                 items = execute(query, 'get', conn)
@@ -4083,7 +4082,7 @@ class token_fetch_update (Resource):
 
             elif action == 'update_mobile':
                 query = """
-                        UPDATE sf.customers 
+                        UPDATE M4ME.customers 
                         SET  
                         mobile_access_token = \'""" + data['mobile_access_token'] + """\', 
                         mobile_refresh_token = \'""" + data['mobile_refresh_token'] + """\', 
@@ -4108,7 +4107,7 @@ class token_fetch_update (Resource):
 
             elif action == 'update_web':
                 query = """
-                        UPDATE sf.customers 
+                        UPDATE M4ME.customers 
                         SET  
                         user_access_token = \'""" + data['user_access_token'] + """\', 
                         user_refresh_token = \'""" + data['user_refresh_token'] + """\',
@@ -4152,7 +4151,7 @@ class customer_infos(Resource):
                 print("1")
                 #data = request.get_json(force=True)
                 print("2")
-                #query = "CALL sf.new_profile"
+                #query = "CALL M4ME.new_profile"
                 #new_profile_query = execute(query, 'get', conn)
                 #new_profile = newPaymentUID_query['result'][0]['new_id']
 
@@ -4594,7 +4593,7 @@ class add_new_ingredient_recipe(Resource):
             meal_id = data["meal_id"]
             #recipe_uid = get_new_id("CALL new_recipe_uid", "get_new_recipe_uid", conn)
 
-            query1 = "CALL sf.new_recipe_uid"
+            query1 = "CALL M4ME.new_recipe_uid"
             recipe_uid_query = execute(query1, 'get', conn)
             recipe_uid = recipe_uid_query['result'][0]['new_id']
             print(recipe_uid)
@@ -4711,7 +4710,7 @@ class get_orders(Resource):
                         lplpibr_jt_qty,
                         lplpibr_jt_price
                     from customers
-                    inner join sf.lplp_items_by_row
+                    inner join M4ME.lplp_items_by_row
                     on customer_uid = lplpibr_customer_uid;
                     """
             items = execute(query, 'get', conn)
@@ -4759,7 +4758,7 @@ class get_supplys_by_date(Resource):
                         customer_uid
                         #SUM(lplpibr_jt_qty * lplpibr_jt_price) AS total
                         #count(
-                    from sf.lplp_items_by_row
+                    from M4ME.lplp_items_by_row
                     inner join purchases
                         on purchase_uid = lplpibr_purchase_uid
                     inner join customers
@@ -4810,7 +4809,7 @@ class get_item_revenue(Resource):
                         #purchase_date,
                         SUM(lplpibr_jt_qty)*round(lplpibr_jt_price,2) AS total
                         #count(
-                    from sf.lplp_items_by_row
+                    from M4ME.lplp_items_by_row
                     inner join purchases
                         on purchase_uid = lplpibr_purchase_uid
                     where lplpibr_jt_business_uid is not null
@@ -4853,7 +4852,7 @@ class get_total_revenue(Resource):
                     FROM (
                         SELECT
                             lplpibr_jt_business_uid, (SUM(lplpibr_jt_qty)*lplpibr_jt_price) AS sumCol
-                        FROM sf.lplp_items_by_row
+                        FROM M4ME.lplp_items_by_row
                         INNER JOIN
                             purchases
                             on purchase_uid = lplpibr_purchase_uid
@@ -4942,7 +4941,7 @@ class update_guid_notification(Resource):
                 notification = data['notification']
                 query = """
                         SELECT *
-                        FROM sf.customers c
+                        FROM M4ME.customers c
                         WHERE customer_uid = \'""" + uid + """\'
                         """
                 items = execute(query, 'get', conn)
@@ -4955,7 +4954,7 @@ class update_guid_notification(Resource):
                 if items['result']:
 
                     query = " " \
-                            "UPDATE sf.customers " \
+                            "UPDATE M4ME.customers " \
                             "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
                             "WHERE customer_uid = '" + str(uid) + "';" \
                             ""
@@ -4978,7 +4977,7 @@ class update_guid_notification(Resource):
                 guid = data['guid']
                 query = """
                         SELECT *
-                        FROM sf.businesses b
+                        FROM M4ME.businesses b
                         WHERE business_uid = \'""" + uid + """\'
                         """
                 items = execute(query, 'get', conn)
@@ -4991,7 +4990,7 @@ class update_guid_notification(Resource):
                 if items['result']:
                     data
                     query = " " \
-                            "UPDATE sf.businesses " \
+                            "UPDATE M4ME.businesses " \
                             "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
                             "WHERE business_uid = '" + str(uid) + "';" \
                             ""
@@ -5050,7 +5049,7 @@ class Categorical_Options(Resource): #NEED TO FIX
                      
                     FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
                     FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
-                    FROM sf.zones z) AS DD
+                    FROM M4ME.zones z) AS DD
                     WHERE In_Zone = 'True'
                     ;
                     """
@@ -5068,9 +5067,9 @@ class Categorical_Options(Resource): #NEED TO FIX
             #query for getting categorical data
             query = """
                     SELECT * 
-                    FROM sf.businesses as bus,
+                    FROM M4ME.businesses as bus,
                     (SELECT itm_business_uid, GROUP_CONCAT(DISTINCT item_type SEPARATOR ',') AS item_type
-                    FROM sf.items
+                    FROM M4ME.items
                     GROUP BY itm_business_uid) as itm
                     WHERE bus.business_uid = itm.itm_business_uid AND bus.business_uid IN """ + str(tuple(ids)) + """;
                     """
@@ -5103,7 +5102,7 @@ class getItems(Resource): #NED TO FIX
             '''
             query = """
                     SELECT business_delivery_hours,business_uid
-                    FROM sf.businesses;
+                    FROM M4ME.businesses;
                     """
             items = execute(query, 'get', conn)
             uids = []
@@ -5115,7 +5114,7 @@ class getItems(Resource): #NED TO FIX
                 uids.append(vals['business_uid'])
             query = """
                     SELECT it.*, bs.business_delivery_hours
-                    FROM sf.items AS it, sf.businesses AS bs
+                    FROM M4ME.items AS it, M4ME.businesses AS bs
                     WHERE it.itm_business_uid = bs.business_uid
                     AND bs.business_uid IN """ + str(tuple(uids)) + """;
                     """
@@ -5135,7 +5134,7 @@ class getItems(Resource): #NED TO FIX
 
             query = """
                     SELECT * 
-                    FROM sf.items
+                    FROM M4ME.items
                     WHERE item_type IN """ + str(tuple(type)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """;
                     """
             print(query)
@@ -5176,7 +5175,7 @@ class Refund(Resource): #add column called ref_payment_id
             NewRefundIDresponse = execute(query[0], 'get', conn)
             NewRefundID = NewRefundIDresponse['result'][0]['new_id']
             print('INN')
-            customer_phone = execute("""SELECT customer_phone_num FROM sf.customers WHERE customer_email = \'""" + email + "\';", 'get', conn)
+            customer_phone = execute("""SELECT customer_phone_num FROM M4ME.customers WHERE customer_email = \'""" + email + "\';", 'get', conn)
             print('customer_phone---', customer_phone, '--dd')
             if not customer_phone['result']:
 
@@ -5194,8 +5193,8 @@ class Refund(Resource): #add column called ref_payment_id
             print(item_photo_url)
 
             phone = customer_phone['result'][0]['customer_phone_num']
-            query_email = ["SELECT customer_email FROM sf.customers WHERE customer_email = \'" + email + "\';"]
-            query_insert = [""" INSERT INTO sf.refunds
+            query_email = ["SELECT customer_email FROM M4ME.customers WHERE customer_email = \'" + email + "\';"]
+            query_insert = [""" INSERT INTO M4ME.refunds
                             (
                                 refund_uid,
                                 created_at,
@@ -5246,7 +5245,7 @@ class business_details_update(Resource):
                 data = request.get_json(force=True)
 
                 if action == 'Get':
-                    query = "SELECT * FROM sf.businesses WHERE business_uid = \'" + data['business_uid'] + "\';"
+                    query = "SELECT * FROM M4ME.businesses WHERE business_uid = \'" + data['business_uid'] + "\';"
                     item = execute(query, 'get', conn)
                     if item['code'] == 280:
                         if not item['result']:
@@ -5274,7 +5273,7 @@ class business_details_update(Resource):
                     business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
 
                     query = """
-                               UPDATE sf.businesses
+                               UPDATE M4ME.businesses
                                SET 
                                business_created_at = \'""" + data["business_created_at"] + """\',
                                business_name = \'""" + data["business_name"] + """\',
@@ -5338,7 +5337,7 @@ class orders_by_business(Resource): #need to fix
             conn = connect()
             query = """
                     SELECT *,deconstruct.* 
-                    FROM sf.purchases, 
+                    FROM M4ME.purchases, 
                          JSON_TABLE(items, '$[*]' COLUMNS (
                                     qty VARCHAR(255)  PATH '$.qty',
                                     name VARCHAR(255)  PATH '$.name',
@@ -5379,7 +5378,7 @@ class order_actions(Resource):
                     return 'UID Incorrect'
 
                 query_pur = """
-                        DELETE FROM sf.purchases WHERE (purchase_uid = \'""" + purchase_uid + """\');
+                        DELETE FROM M4ME.purchases WHERE (purchase_uid = \'""" + purchase_uid + """\');
                         """
                 item = execute(query_pur, 'post', conn)
                 if item['code'] == 281:
@@ -5389,7 +5388,7 @@ class order_actions(Resource):
                     item['message'] = 'Check sql query'
 
                 query_pay = """
-                        DELETE FROM sf.payments WHERE (pay_purchase_uid = \'""" + purchase_uid + """\');
+                        DELETE FROM M4ME.payments WHERE (pay_purchase_uid = \'""" + purchase_uid + """\');
                         """
                 item = execute(query_pay, 'post', conn)
                 if item['code'] == 281:
@@ -5402,7 +5401,7 @@ class order_actions(Resource):
                 print('DELIVERY_YES')
 
                 query = """
-                        UPDATE sf.purchases 
+                        UPDATE M4ME.purchases 
                         SET delivery_status = 'Yes' 
                         WHERE purchase_uid = \'""" + purchase_uid + """\';
                         """
@@ -5421,7 +5420,7 @@ class order_actions(Resource):
 
                 print('DELIVERY_NO')
                 query = """
-                        UPDATE sf.purchases 
+                        UPDATE M4ME.purchases 
                         SET delivery_status = 'No' 
                         WHERE purchase_uid = \'""" + purchase_uid + """\';
                         """
@@ -5443,7 +5442,7 @@ class order_actions(Resource):
                 itm = "'[" + ", ".join([str(val).replace("'", "\"") if val else "NULL" for val in data['item_data']]) + "]'"
 
                 query = """ 
-                        UPDATE sf.purchases 
+                        UPDATE M4ME.purchases 
                         SET 
                         items = """  + itm + """
                         WHERE (purchase_uid = \'""" + purchase_uid + """\');
@@ -5481,7 +5480,7 @@ class admin_report(Resource):
 
             query = """
                     SELECT *,deconstruct.*, sum(price) as Amount  
-                    FROM sf.purchases, 
+                    FROM M4ME.purchases, 
                          JSON_TABLE(items, '$[*]' COLUMNS (
                                     qty VARCHAR(255)  PATH '$.qty',
                                     name VARCHAR(255)  PATH '$.name',
@@ -5530,18 +5529,18 @@ class customer_info(Resource):
                     cust.cust_notification_approval,
                     cust.SMS_freq_preference,
                     cust.SMS_last_notification,
-                    (SELECT business_name FROM sf.businesses AS bus WHERE bus.business_uid = deconstruct.itm_business_uid) AS business_name,
+                    (SELECT business_name FROM M4ME.businesses AS bus WHERE bus.business_uid = deconstruct.itm_business_uid) AS business_name,
                     deconstruct.*, 
                     count(deconstruct.itm_business_uid) AS number_of_orders, 
                     max(pay.payment_time_stamp) AS latest_order_date
-                                FROM sf.purchases , 
+                                FROM M4ME.purchases , 
                                      JSON_TABLE(items, '$[*]' COLUMNS (
                                                 qty VARCHAR(255)  PATH '$.qty',
                                                 name VARCHAR(255)  PATH '$.name',
                                                 price VARCHAR(255)  PATH '$.price',
                                                 item_uid VARCHAR(255)  PATH '$.item_uid',
                                                 itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
-                                     ) AS deconstruct, sf.payments AS pay, sf.customers AS cust
+                                     ) AS deconstruct, M4ME.payments AS pay, M4ME.customers AS cust
                     WHERE purchase_uid = pay.pay_purchase_uid AND pur_customer_uid = cust.customer_uid
                             and items like "%200-000001%"
                     GROUP BY deconstruct.itm_business_uid, pur_customer_uid
@@ -5577,7 +5576,7 @@ class Send_Notification(Resource):
             output = []
             for uid in uids_array:
                 if role == 'customer':
-                    query = """SELECT cust_guid_device_id_notification FROM sf.customers WHERE customer_uid = \'""" + uid + """\';"""
+                    query = """SELECT cust_guid_device_id_notification FROM M4ME.customers WHERE customer_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
 
                     if items['code'] != 280:
@@ -5589,7 +5588,7 @@ class Send_Notification(Resource):
 
                 else:
 
-                    query = """SELECT bus_guid_device_id_notification FROM sf.businesses WHERE business_uid = \'""" + uid + """\';"""
+                    query = """SELECT bus_guid_device_id_notification FROM M4ME.businesses WHERE business_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
 
                     if items['code'] != 280:
@@ -5777,7 +5776,7 @@ class history(Resource):
             conn = connect()
             query = """
                     SELECT * 
-                    FROM sf.purchases as pur, sf.payments as pay
+                    FROM M4ME.purchases as pur, M4ME.payments as pay
                     WHERE pur.purchase_uid = pay.pay_purchase_uid AND pur.delivery_email = \'""" + email + """\'
                     ORDER BY pur.purchase_date DESC; 
                     """
@@ -5803,7 +5802,7 @@ class purchase_Data_SF(Resource):
 
                 # Purchases start here
 
-                query = "CALL sf.new_purchase_uid"
+                query = "CALL M4ME.new_purchase_uid"
                 newPurchaseUID_query = execute(query, 'get', conn)
                 newPurchaseUID = newPurchaseUID_query['result'][0]['new_id']
 
@@ -5832,7 +5831,7 @@ class purchase_Data_SF(Resource):
                 delivery_longitude = data['delivery_longitude']
                 purchase_notes = data['purchase_notes']
 
-                query = "SELECT * FROM sf.customers " \
+                query = "SELECT * FROM M4ME.customers " \
                         "WHERE customer_email =\'"+delivery_email+"\';"
 
                 items = execute(query, 'get', conn)
@@ -5847,7 +5846,7 @@ class purchase_Data_SF(Resource):
                 print('in insert-------')
 
                 query_insert = """ 
-                                    INSERT INTO sf.purchases
+                                    INSERT INTO M4ME.purchases
                                     SET
                                     purchase_uid = \'""" + newPurchaseUID + """\',
                                     purchase_date = \'""" + purchase_date + """\',
@@ -5886,7 +5885,7 @@ class purchase_Data_SF(Resource):
                 # Payments start here
 
 
-                query = "CALL sf.new_payment_uid"
+                query = "CALL M4ME.new_payment_uid"
                 newPaymentUID_query = execute(query, 'get', conn)
                 newPaymentUID = newPaymentUID_query['result'][0]['new_id']
 
@@ -5909,7 +5908,7 @@ class purchase_Data_SF(Resource):
                 payment_type = data['payment_type']
 
                 query_insert = [""" 
-                                    INSERT INTO  sf.payments
+                                    INSERT INTO  M4ME.payments
                                     SET
                                     payment_uid = \'""" + payment_uid + """\',
                                     payment_id = \'""" + payment_id + """\',
@@ -5959,7 +5958,7 @@ class update_all_items(Resource):
         try:
             conn = connect()
             query = """
-                    UPDATE sf.items
+                    UPDATE M4ME.items
                     SET item_status = 'Active'
                     WHERE itm_business_uid = \'""" + uid + """\';
                     """
@@ -5984,7 +5983,7 @@ class all_businesses(Resource):
             conn = connect()
 
             query = """
-                    SELECT business_uid, business_name FROM sf.businesses; 
+                    SELECT business_uid, business_name FROM M4ME.businesses; 
                     """
             items = execute(query, 'get', conn)
             if items['code'] == 280:
@@ -6021,7 +6020,7 @@ class addItems(Resource):
                 exp_date = request.form.get('exp_date')
                 print('IN')
 
-                query = ["CALL sf.new_items_uid;"]
+                query = ["CALL M4ME.new_items_uid;"]
                 NewIDresponse = execute(query[0], 'get', conn)
                 NewID = NewIDresponse['result'][0]['new_id']
                 key =  "items/" + NewID
@@ -6036,7 +6035,7 @@ class addItems(Resource):
 
                 # INSERT query
                 query_insert =  '''
-                                INSERT INTO sf.items
+                                INSERT INTO M4ME.items
                                 SET 
                                 itm_business_uid = \'''' + itm_business_uid + '''\',
                                 item_name = \'''' + item_name + '''\',
@@ -6086,7 +6085,7 @@ class addItems(Resource):
                     print('IFFFFF------')
 
                     query_update =  '''
-                                    UPDATE sf.items
+                                    UPDATE M4ME.items
                                     SET 
                                     itm_business_uid = \'''' + itm_business_uid + '''\',
                                     item_name = \'''' + item_name + '''\',
@@ -6104,7 +6103,7 @@ class addItems(Resource):
                     print('ELSE--------')
                     item_photo_url = helper_upload_meal_img(item_photo, key)
                     query_update =  '''
-                                    UPDATE sf.items
+                                    UPDATE M4ME.items
                                     SET 
                                     itm_business_uid = \'''' + itm_business_uid + '''\',
                                     item_name = \'''' + item_name + '''\',
@@ -6138,7 +6137,7 @@ class addItems(Resource):
                 item_uid = request.form.get('item_uid')
                 item_status = request.form.get('item_status')
                 query_status =  '''
-                                UPDATE sf.items
+                                UPDATE M4ME.items
                                 SET 
                                 item_status = \'''' + item_status + '''\'
                                 WHERE item_uid = \'''' + item_uid + '''\';
@@ -6174,7 +6173,7 @@ class pid_history(Resource):
             conn = connect()
             query = """
                     SELECT * 
-                    FROM sf.purchases as pur, sf.payments as pay
+                    FROM M4ME.purchases as pur, M4ME.payments as pay
                     WHERE pur.purchase_uid = pay.pay_purchase_uid AND pur.purchase_id = \'""" + pid + """\'
                     ORDER BY pur.purchase_date DESC; 
                     """
@@ -6198,7 +6197,7 @@ class UpdatePassword(Resource):
                 conn = connect()
                 data = request.get_json(force=True)
 
-                #query = "CALL sf.new_profile"
+                #query = "CALL M4ME.new_profile"
                 #new_profile_query = execute(query, 'get', conn)
                 #new_profile = newPaymentUID_query['result'][0]['new_id']
                 print("1")
@@ -6211,7 +6210,7 @@ class UpdatePassword(Resource):
                 algorithm = "SHA512"
                 #new_password = sha512((data['password'] + salt).encode()).hexdigest()
                 customer_insert_query = [""" 
-                                    update sf.customers
+                                    update M4ME.customers
                                     set
                                     password_hashed = \'""" + new_password + """\'
                                     WHERE customer_uid =\'""" + uid + """\'
@@ -6476,7 +6475,7 @@ class Change_Purchase_ID (Resource):
                 # write into Payments table
             queries = [
                 '''
-                INSERT INTO sf.payments
+                INSERT INTO M4ME.payments
                 SET payment_uid = "''' + payment_uid + '''",
                                         payment_time_stamp = "''' + getNow() + '''",
                                         start_delivery_date = "''' + start_delivery_date + '''",
@@ -6496,7 +6495,7 @@ class Change_Purchase_ID (Resource):
                                         cc_zip = "''' + str(cc_zip) + '''";
                 ''',
                 '''
-                INSERT INTO  sf.purchases
+                INSERT INTO  M4ME.purchases
                 SET purchase_uid = "''' + purchase_uid + '''",
                                         purchase_date = "''' + getNow() + '''",
                                         purchase_id = "''' + purchase_id + '''",
@@ -6524,7 +6523,7 @@ class Change_Purchase_ID (Resource):
             if response[1] == 201:
                 response[0]['payment_id'] = payment_uid
                 response[0]['purchase_id'] = purchase_uid
-                query = '''UPDATE sf.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
+                query = '''UPDATE M4ME.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
                 simple_post_execute([query], ["UPDATE OLD PURCHASES"], conn)
                 return response
 
@@ -6550,7 +6549,7 @@ class Get_Upcoming_Menu_Date(Resource):
             query = """
                     # CUSTOMER QUERY 4A: UPCOMING MENUS
                     SELECT DISTINCT menu_date
-                    FROM sf.menu
+                    FROM M4ME.menu
                     WHERE menu_date > CURDATE() AND
                     menu_date <= ADDDATE(CURDATE(), 43);
                     """
@@ -6590,7 +6589,7 @@ class Update_Delivery_Info_Address (Resource):
             #print("1")
             #should re-calculator the longtitude and latitude before update address
             
-            queries = ['''UPDATE sf.purchases 
+            queries = ['''UPDATE M4ME.purchases 
                             SET delivery_first_name= "''' + first_name + '''",
                                 delivery_last_name = "''' + last_name + '''",
                                 delivery_phone_num = "''' + phone + '''",
@@ -6628,8 +6627,8 @@ class report_order_customer_pivot_detail(Resource):
             conn = connect()
             if report == 'order':
                 query = """
-                        SELECT purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from sf.businesses WHERE business_uid = itm_business_uid) AS business_name
-                        FROM sf.purchases, sf.payments,
+                        SELECT purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from M4ME.businesses WHERE business_uid = itm_business_uid) AS business_name
+                        FROM M4ME.purchases, M4ME.payments,
                              JSON_TABLE(items, '$[*]' COLUMNS (
                                         qty VARCHAR(255)  PATH '$.qty',
                                         name VARCHAR(255)  PATH '$.name',
@@ -6696,7 +6695,7 @@ class report_order_customer_pivot_detail(Resource):
             elif report == 'customer':
                 query = """
                         SELECT pur_customer_uid, purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, sum(price) as Amount
-                        FROM sf.purchases, sf.payments,
+                        FROM M4ME.purchases, M4ME.payments,
                              JSON_TABLE(items, '$[*]' COLUMNS (
                                         qty VARCHAR(255)  PATH '$.qty',
                                         name VARCHAR(255)  PATH '$.name',
@@ -6751,8 +6750,8 @@ class report_order_customer_pivot_detail(Resource):
                     return output
             elif report == 'pivot':
                 query = """
-                        SELECT pur_customer_uid, purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from sf.businesses WHERE business_uid = itm_business_uid) AS business_name
-                        FROM sf.purchases, sf.payments,
+                        SELECT pur_customer_uid, purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from M4ME.businesses WHERE business_uid = itm_business_uid) AS business_name
+                        FROM M4ME.purchases, M4ME.payments,
                              JSON_TABLE(items, '$[*]' COLUMNS (
                                         qty VARCHAR(255)  PATH '$.qty',
                                         name VARCHAR(255)  PATH '$.name',
@@ -6945,7 +6944,7 @@ class AppleEmail(Resource):
 
             query = """
                     SELECT customer_email
-                    FROM sf.customers c
+                    FROM M4ME.customers c
                     WHERE social_id = \'""" + social_id + """\'
                     """
 
@@ -7111,10 +7110,10 @@ class Ingredients_Recipe_Specific (Resource):
             query = """
                     #  ADMIN QUERY 4: 
                     #  MEALS & MENUS  5. CREATE NEW INGREDIENT:
-                    SELECT * FROM sf.ingredients
-                    LEFT JOIN sf.inventory
+                    SELECT * FROM M4ME.ingredients
+                    LEFT JOIN M4ME.inventory
                         ON ingredient_uid = inventory_ingredient_id
-                    LEFT JOIN sf.conversion_units
+                    LEFT JOIN M4ME.conversion_units
                         ON inventory_measure_id = measure_unit_uid
                     inner join recipes
                         on recipe_ingredient_id=ingredient_uid
@@ -7188,7 +7187,7 @@ class get_Fee_Tax(Resource):
             conn = connect()
             query = """
                     SELECT service_fee, tax_rate, delivery_fee, z_delivery_time AS delivery_time
-                    FROM sf.zones
+                    FROM M4ME.zones
                     WHERE zone = \'""" + z_id + """\' AND z_delivery_day = \'""" + day + """\';
                     """
             items = execute(query, 'get', conn)
@@ -7205,23 +7204,25 @@ class get_Fee_Tax(Resource):
             print('process completed')
 
 
-class Update_Fee_Tax (Resource):#
-    def put(self, z_id, day):
-        try:
-            conn = conneect()
-            query = ""
+# class Update_Fee_Tax (Resource):#
+#     def put(self, z_id, day):
+#         try:
+#             conn = conneect()
+#             query = ""
 
 
 # Define API routes
 # Customer APIs
 
+#NEW BASE URL 
+#https://kur4j57ved.execute-api.us-west-1.amazonaws.com/dev
 
 #--------------------- Signup/ Login page / Change Password ---------------------#
 #api.add_resource(SignUp, '/api/v2/signup')
 #  * The "signup" endpoint accepts only POST request with appropriate named      #
 #  parameters. Please check the documentation for the right format of those named#
 #  parameters.                                                                   #
-api.add_resource(Login, '/api/v2/login')
+api.add_resource(Login,'/api/v2/login')
 #  * The "Login" endpoint accepts only POST request with at least 2 parameters   #
 # in its body. The first param is "email" and the second one is either "password"#
 # or "refresh_token". We are gonna re-use the token we got from facebook or      #
