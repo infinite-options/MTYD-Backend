@@ -4712,6 +4712,7 @@ class get_orders(Resource):
                     from customers
                     inner join M4ME.lplp_items_by_row
                     on customer_uid = lplpibr_customer_uid;
+                    where lplpibr_jt_business_uid = "200-000001";
                     """
             items = execute(query, 'get', conn)
             print(items["code"])
@@ -7185,6 +7186,7 @@ class get_Fee_Tax(Resource):
     def get(self, z_id, day):
         try:
             conn = connect()
+            
             query = """
                     SELECT service_fee, tax_rate, delivery_fee, z_delivery_time AS delivery_time
                     FROM M4ME.zones
@@ -7204,11 +7206,177 @@ class get_Fee_Tax(Resource):
             print('process completed')
 
 
-# class Update_Fee_Tax (Resource):#
-#     def put(self, z_id, day):
-#         try:
-#             conn = conneect()
-#             query = ""
+class Update_Fee_Tax (Resource):
+    def put(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            service_fee= data['service_fee']
+            tax_rate= data['tax_rate']
+            delivery_fee= data['delivery_fee']
+            zone= data['zone']
+            query = """
+                    Update zones
+                    set
+                        service_fee = \'""" + service_fee + """\',
+                        tax_rate = \'""" + tax_rate + """\',
+                        delivery_fee = \'""" + delivery_fee + """\'
+                    WHERE zone = \'""" + zone + """\';
+                    """
+            items = execute(query, 'post', conn)
+            if items['code'] != 281:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting taxes")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+class get_Zones (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM sf.zones;
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting zones")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+
+class Update_Zone (Resource):
+    def put(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print("0")
+            zone_uid= data['zone_uid']
+            z_business_uid= data['z_business_uid']
+            area= data['area']
+            zone= data['zone']
+            zone_name= data['zone_name']
+            print("0.5")
+            z_businesses= data['z_businesses']
+            z_delivery_day= data['z_delivery_day']
+            z_delivery_time= data['z_delivery_time']
+            z_accepting_day= data['z_accepting_day']
+            z_accepting_time= data['z_accepting_time']
+            service_fee= data['service_fee']
+            tax_rate= data['tax_rate']
+            delivery_fee= data['delivery_fee']
+            LB_long= data['LB_long']
+            LB_lat= data['LB_lat']
+            LT_long= data['LT_long']
+            LT_lat= data['LT_lat']
+            RT_long= data['RT_long']
+            RT_lat= data['RT_lat']
+            RB_long= data['RB_long']
+            RB_lat= data['RB_lat']
+            
+            print("1")
+            query = """
+                    update zones
+                    set
+                        z_business_uid= '""" + z_business_uid + """',
+                        area= '""" + area + """',
+                        zone= '""" + zone + """',
+                        zone_name= '""" + zone_name + """',
+                        z_businesses= '""" + z_businesses + """',
+                        z_delivery_day= '""" + z_delivery_day + """',
+                        z_delivery_time= '""" + z_delivery_time + """',
+                        z_accepting_day= '""" + z_accepting_day + """',
+                        z_accepting_time= '""" + z_accepting_time + """',
+                        service_fee = \'""" + service_fee + """\',
+                        tax_rate = \'""" + tax_rate + """\',
+                        delivery_fee = \'""" + delivery_fee + """\',
+                        LB_long = \'""" + LB_long + """\',
+                        LB_lat = \'""" + LB_lat + """\',
+                        LT_long = \'""" + LT_long + """\',
+                        LT_lat = \'""" + LT_lat + """\',
+                        RT_long = \'""" + RT_long + """\',
+                        RT_lat = \'""" + RT_lat + """\',
+                        RB_long = \'""" + RB_long + """\',
+                        RB_lat = \'""" + RB_lat + """\'
+                    where zone_uid= '""" + zone_uid + """';
+                    """
+            items = execute(query, 'post', conn)
+            print(items)
+            if items['code'] != 281:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while updating zones")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+
+class create_zone (Resource):
+    def post(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print("0")
+            zone_uid= data['zone_uid']
+            z_business_uid= data['z_business_uid']
+            area= data['area']
+            zone= data['zone']
+            zone_name= data['zone_name']
+            print("0.5")
+            z_businesses= data['z_businesses']
+            z_delivery_day= data['z_delivery_day']
+            z_delivery_time= data['z_delivery_time']
+            z_accepting_day= data['z_accepting_day']
+            z_accepting_time= data['z_accepting_time']
+            print("1")
+            query = """
+                    insert into zones
+                    set
+                        z_business_uid= '""" + z_business_uid + """',
+                        area= '""" + area + """',
+                        zone= '""" + zone + """',
+                        zone_name= '""" + zone_name + """',
+                        z_businesses= '""" + z_businesses + """',
+                        z_delivery_day= '""" + z_delivery_day + """',
+                        z_delivery_time= '""" + z_delivery_time + """',
+                        z_accepting_day= '""" + z_accepting_day + """',
+                        z_accepting_time= '""" + z_accepting_time + """'
+                    where zone_uid= '""" + zone_uid + """';
+                    """
+            items = execute(query, 'post', conn)
+            print(items)
+            if items['code'] != 281:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while updating zones")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
 
 
 # Define API routes
@@ -7469,6 +7637,12 @@ api.add_resource(Delete_Recipe_Specific, '/api/v2/Delete_Recipe_Specific')
 api.add_resource(Edit_Meal_Plan, '/api/v2/Edit_Meal_Plan')
 
 api.add_resource(get_Fee_Tax, '/api/v2/get_Fee_Tax/<string:z_id>,<string:day>')
+
+api.add_resource(Update_Fee_Tax, '/api/v2/Update_Fee_Tax')
+
+api.add_resource(get_Zones, '/api/v2/get_Zones')
+
+api.add_resource(Update_Zone, '/api/v2/Update_Zone')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
