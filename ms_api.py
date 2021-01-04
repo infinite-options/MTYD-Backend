@@ -7331,75 +7331,114 @@ class Update_Zone (Resource):
             print('process completed')
 
 
-	class create_zone (Resource):	
-	    def post(self):	
-	        try:	
-	            conn = connect()	
-	            data = request.get_json(force=True)	
-	            print("0")	
-	            #zone_uid= data['zone_uid']	
-	            get_zone_uid = execute("""CALL get_new_meal_plan_id();""", 'get', conn)	
-	            zone_uid = get_zone_uid['result'][0]['new_id']	
-	            z_business_uid= data['z_business_uid']	
-	            area= data['area']	
-	            zone= data['zone']	
-	            zone_name= data['zone_name']	
-	            print("0.5")	
-	            z_businesses= data['z_businesses']	
-	            z_delivery_day= data['z_delivery_day']	
-	            z_delivery_time= data['z_delivery_time']	
-	            z_accepting_day= data['z_accepting_day']	
-	            z_accepting_time= data['z_accepting_time']	
-	            service_fee= data['service_fee']	
-	            tax_rate= data['tax_rate']	
-	            delivery_fee= data['delivery_fee']	
-	            LB_long= data['LB_long']	
-	            LB_lat= data['LB_lat']	
-	            LT_long= data['LT_long']	
-	            LT_lat= data['LT_lat']	
-	            RT_long= data['RT_long']	
-	            RT_lat= data['RT_lat']	
-	            RB_long= data['RB_long']	
-	            RB_lat= data['RB_lat']	
-	            print("1")	
-	            query = """	
-	                    insert into zones	
-	                    set	
-	                        zone_uid= '""" + zone_uid + """',	
-	                        z_business_uid= '""" + z_business_uid + """',	
-	                        area= '""" + area + """',	
-	                        zone= '""" + zone + """',	
-	                        zone_name= '""" + zone_name + """',	
-	                        z_businesses= '""" + z_businesses + """',	
-	                        z_delivery_day= '""" + z_delivery_day + """',	
-	                        z_delivery_time= '""" + z_delivery_time + """',	
-	                        z_accepting_day= '""" + z_accepting_day + """',	
-	                        z_accepting_time= '""" + z_accepting_time + """',	
-	                        service_fee = \'""" + service_fee + """\',	
-	                        tax_rate = \'""" + tax_rate + """\',	
-	                        delivery_fee = \'""" + delivery_fee + """\',	
-	                        LB_long = \'""" + LB_long + """\',	
-	                        LB_lat = \'""" + LB_lat + """\',	
-	                        LT_long = \'""" + LT_long + """\',	
-	                        LT_lat = \'""" + LT_lat + """\',	
-	                        RT_long = \'""" + RT_long + """\',	
-	                        RT_lat = \'""" + RT_lat + """\',	
-	                        RB_long = \'""" + RB_long + """\',	
-	                        RB_lat = \'""" + RB_lat + """\'	
-	                    """	
-	            items = execute(query, 'post', conn)	
-	            print(items)	
-	            if items['code'] != 281:	
-	                items['message'] = 'Check sql query'	
-	                return items	
-	            #items['result'] = items['result'][0]	
-	            return items	
-	        except:	
-	                print("Error happened while updating zones")	
-	                raise BadRequest('Request failed, please try again later.')	
-	        finally:	
-	            disconnect(conn)	
-	            print('process completed')
+class update_zones(Resource):
+
+    def post(self, action):
+
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            if action == 'create':
+
+                get_uid = "CALL sf.new_zone_uid();"
+                items = execute(get_uid, 'get', conn)
+                if items['code'] != 280:
+                    items['message'] = 'check sql query for getting zone uid'
+                    return items
+                print(items)
+                uid = items['result'][0]['new_id']
+                print(uid)
+                z_businesses = str(data['z_businesses'])
+                z_businesses = "'" + z_businesses.replace("'", "\"") + "'"
+                query = """
+                        INSERT INTO sf.zones 
+                        (zone_uid, z_business_uid, area, zone, zone_name, z_businesses, z_delivery_day, z_delivery_time, z_accepting_day, z_accepting_time, service_fee, delivery_fee, tax_rate, LB_long, LB_lat, LT_long, LT_lat, RT_long, RT_lat, RB_long, RB_lat)
+                         VALUES(
+                         \'""" + uid + """\',
+                          \'""" + data['z_business_uid'] + """\',
+                          \'""" + data['area'] + """\',
+                           \'""" + data['zone'] + """\',
+                            \'""" + data['zone_name'] + """\',
+                            """ + z_businesses + """,
+                            \'""" + data['z_delivery_day'] + """\',
+                            \'""" + data['z_delivery_time'] + """\',
+                            \'""" + data['z_accepting_day'] + """\',
+                            \'""" + data['z_accepting_time'] + """\',
+                            \'""" + data['service_fee'] + """\',
+                            \'""" + data['delivery_fee'] + """\',
+                            \'""" + data['tax_rate'] + """\',
+                            \'""" + data['LB_long'] + """\',
+                            \'""" + data['LB_lat'] + """\',
+                            \'""" + data['LT_long'] + """\',
+                            \'""" + data['LT_lat'] + """\',
+                            \'""" + data['RT_long'] + """\',
+                            \'""" + data['RT_lat'] + """\',
+                            \'""" + data['RB_long'] + """\',
+                            \'""" + data['RB_lat'] + """\')
+                        """
+                print('QUERY--', query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = 'check sql query for creating zones'
+                return items
+
+            elif action == 'update':
+                z_businesses = str(data['z_businesses'])
+                z_businesses = "'" + z_businesses.replace("'", "\"") + "'"
+                query = """
+                        UPDATE sf.zones
+                        SET
+                        z_business_uid = \'""" + data['z_business_uid'] + """\',
+                        area = \'""" + data['area'] + """\',
+                        zone = \'""" + data['zone'] + """\',
+                        zone_name = \'""" + data['zone_name'] + """\',
+                        z_businesses = """ + z_businesses + """,
+                        z_delivery_day = \'""" + data['z_delivery_day'] + """\',
+                        z_delivery_time = \'""" + data['z_delivery_time'] + """\',
+                        z_accepting_day = \'""" + data['z_accepting_day'] + """\',
+                        z_accepting_time = \'""" + data['z_accepting_time'] + """\',
+                        service_fee = \'""" + data['service_fee'] + """\',
+                        delivery_fee = \'""" + data['delivery_fee'] + """\',
+                        tax_rate = \'""" + data['tax_rate'] + """\',
+                        LB_long = \'""" + data['LB_long'] + """\',
+                        LB_lat = \'""" + data['LB_lat'] + """\',
+                        LT_long = \'""" + data['LT_long'] + """\',
+                        LT_lat = \'""" + data['LT_lat'] + """\',
+                        RT_long = \'""" + data['RT_long'] + """\',
+                        RT_lat = \'""" + data['RT_lat'] + """\',
+                        RB_long = \'""" + data['RB_long'] + """\',
+                        RB_lat = \'""" + data['RB_lat'] + """\'
+                        WHERE zone_uid = \'""" + data['zone_uid'] + """\';
+                        """
+
+                print(query)
+
+                items = execute(query, 'post', conn)
+
+                print(items)
+
+                if items['code'] != 281:
+                    items['message'] = 'check sql query to update zones'
+                return items
+
+            elif action == 'get':
+                query = """
+                        SELECT * FROM sf.zones;
+                        """
+
+                items = execute(query, 'get', conn)
+                if items['code'] != 280:
+                    items['message'] = 'check sql query for get request'
+                return items
+
+            else:
+                return 'choose correct option'
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
 # Define API routes
