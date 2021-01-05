@@ -2605,11 +2605,11 @@ class Menu (Resource):
             disconnect(conn)
 
 
-#working here-finished
     def put(self):
         try:
             conn = connect()
             data = request.get_json(force=True)
+            print("1")
             menu_uid = data['menu_uid']
             menu_date = data['menu_date']
             menu_category = data['menu_category']
@@ -2617,6 +2617,7 @@ class Menu (Resource):
             meal_cat = data['meal_cat']
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
+            print("2")
             #print(data["delivery_days"])
             #print([str(item) for item in data['delivery_days']])
             #print(type(data["delivery_days"]))
@@ -2624,6 +2625,7 @@ class Menu (Resource):
             delivery_days = data["delivery_days"]#''.join([letter for item in temp if letter.isalnum()])#data["delivery_days"].split(',')
             #print(delivery_days)
             meal_price = str(data['meal_price'])
+            print("3")
             query = """
                     UPDATE menu
                     SET menu_date = '""" + menu_date + """',
@@ -2691,7 +2693,7 @@ class Delete_Menu_Specific (Resource):
 
 
 
-
+#working
 class Meals (Resource):
     def get(self):
         try:
@@ -2714,7 +2716,9 @@ class Meals (Resource):
             meal_name = data['meal_name']
             meal_desc = data['meal_desc']
             meal_hint = "'" + data['meal_hint'] + "'" if data['meal_hint'] else 'NULL'
+            print("2")
             meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
+            print("3")
             meal_calories = data['meal_calories']
             meal_protein = data['meal_protein']
             meal_carbs = data['meal_carbs']
@@ -2722,7 +2726,7 @@ class Meals (Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
-
+            print("1")
             meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
             if meal_uid[1] != 200:
                 return meal_uid
@@ -2745,6 +2749,7 @@ class Meals (Resource):
                         meal_sat = '""" + meal_sat + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
+            #item_photo_url = helper_upload_meal_img(item_photo, key)
             if response[1] != 201:
                 return response
             response[0]['meal_uid'] = meal_uid
@@ -7341,7 +7346,7 @@ class update_zones(Resource):
 
             if action == 'create':
 
-                get_uid = "CALL sf.new_zone_uid();"
+                get_uid = "CALL M4ME.new_zone_uid();"
                 items = execute(get_uid, 'get', conn)
                 if items['code'] != 280:
                     items['message'] = 'check sql query for getting zone uid'
@@ -7352,7 +7357,7 @@ class update_zones(Resource):
                 z_businesses = str(data['z_businesses'])
                 z_businesses = "'" + z_businesses.replace("'", "\"") + "'"
                 query = """
-                        INSERT INTO sf.zones 
+                        INSERT INTO M4ME.zones 
                         (zone_uid, z_business_uid, area, zone, zone_name, z_businesses, z_delivery_day, z_delivery_time, z_accepting_day, z_accepting_time, service_fee, delivery_fee, tax_rate, LB_long, LB_lat, LT_long, LT_lat, RT_long, RT_lat, RB_long, RB_lat)
                          VALUES(
                          \'""" + uid + """\',
@@ -7377,7 +7382,7 @@ class update_zones(Resource):
                             \'""" + data['RB_long'] + """\',
                             \'""" + data['RB_lat'] + """\')
                         """
-                print('QUERY--', query)
+                #print('QUERY--', query)
                 items = execute(query, 'post', conn)
                 if items['code'] != 281:
                     items['message'] = 'check sql query for creating zones'
@@ -7387,7 +7392,7 @@ class update_zones(Resource):
                 z_businesses = str(data['z_businesses'])
                 z_businesses = "'" + z_businesses.replace("'", "\"") + "'"
                 query = """
-                        UPDATE sf.zones
+                        UPDATE M4ME.zones
                         SET
                         z_business_uid = \'""" + data['z_business_uid'] + """\',
                         area = \'""" + data['area'] + """\',
@@ -7412,7 +7417,7 @@ class update_zones(Resource):
                         WHERE zone_uid = \'""" + data['zone_uid'] + """\';
                         """
 
-                print(query)
+                #print(query)
 
                 items = execute(query, 'post', conn)
 
@@ -7424,7 +7429,7 @@ class update_zones(Resource):
 
             elif action == 'get':
                 query = """
-                        SELECT * FROM sf.zones;
+                        SELECT * FROM M4ME.zones;
                         """
 
                 items = execute(query, 'get', conn)
@@ -7704,7 +7709,7 @@ api.add_resource(Update_Fee_Tax, '/api/v2/Update_Fee_Tax')
 
 api.add_resource(get_Zones, '/api/v2/get_Zones')
 
-api.add_resource(Update_Zone, '/api/v2/Update_Zone')
+api.add_resource(update_zones, '/api/v2/update_zones/<string:action>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
