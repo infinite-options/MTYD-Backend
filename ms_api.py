@@ -1544,8 +1544,7 @@ class Meals_Selected(Resource):
                     SELECT * FROM M4ME.latest_combined_meal lcm
                     LEFT JOIN M4ME.lplp
                         ON lcm.sel_purchase_id = lplp.purchase_id
-                    WHERE pur_customer_uid = '""" + customer_uid + """'
-                        and items like "%200-000001%"; 
+                    WHERE pur_customer_uid = '""" + customer_uid + """'; 
                     """
 
             
@@ -1581,8 +1580,7 @@ class Meals_Selected_Specific(Resource):
                         ON lcm.sel_purchase_id = lplp.purchase_id
                     WHERE pur_customer_uid = '""" + customer_uid + """'
                     and purchase_id = '""" + purchase_id + """'
-                    and sel_menu_date= '""" + menu_date + """'
-                    and items like "%200-000001%";
+                    and sel_menu_date= '""" + menu_date + """';
                     """
 
             items = execute(query, 'get', conn)
