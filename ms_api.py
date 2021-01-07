@@ -7249,7 +7249,7 @@ class get_Zones (Resource):
             
             query = """
                     SELECT *
-                    FROM sf.zones;
+                    FROM M4ME.zones;
                     """
             items = execute(query, 'get', conn)
             if items['code'] != 280:
@@ -7445,6 +7445,29 @@ class update_zones(Resource):
         finally:
             disconnect(conn)
 
+
+class meal_type (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT distinct meal_category
+                    FROM meals
+                    order by meal_category;
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting meal types")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
 
 # Define API routes
 # Customer APIs
@@ -7709,7 +7732,11 @@ api.add_resource(Update_Fee_Tax, '/api/v2/Update_Fee_Tax')
 
 api.add_resource(get_Zones, '/api/v2/get_Zones')
 
+api.add_resource(Update_Zone, '/api/v2/Update_Zone')
+
 api.add_resource(update_zones, '/api/v2/update_zones/<string:action>')
+
+api.add_resource(meal_type, '/api/v2/meal_type')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
