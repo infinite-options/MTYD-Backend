@@ -4899,24 +4899,24 @@ class get_delivery_info(Resource):
             print("1")
             query = """
                     select order_instructions, delivery_instructions, 
-                            delivery_instructions, delivery_first_name,
+                            delivery_first_name,
                             delivery_last_name, delivery_phone_num,
                             delivery_email, delivery_address,
                             delivery_unit, delivery_city,
                             delivery_state, delivery_zip,
                             delivery_latitude, delivery_longitude
                     from lplp
-                    where purchase_uid=\'""" + purchase_id + """\'
-                    and items like "%200-000001%";
+                    where purchase_uid=\'""" + purchase_id + """\';
                     """
             items = execute(query, 'get', conn)
+            print(items)
             print(items["code"])
             if items['code']==280:
                 response['message'] = 'Info Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
                 print("2")
-                return response, 200
+                return items, 200
             else:
                 items['message'] = "Date doesn't exists"
                 items['result'] = items['result']
