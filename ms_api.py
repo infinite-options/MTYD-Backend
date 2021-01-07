@@ -7469,6 +7469,30 @@ class meal_type (Resource):
             disconnect(conn)
             print('process completed')
 
+
+class payment_info (Resource):
+    def get(self, p_id):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM payments
+                    WHERE payment_uid = \'""" + p_id + """\';
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
 # Define API routes
 # Customer APIs
 
@@ -7739,6 +7763,8 @@ api.add_resource(update_zones, '/api/v2/update_zones/<string:action>')
 api.add_resource(meal_type, '/api/v2/meal_type')
 
 api.add_resource(customer_infos, '/api/v2/customer_infos')
+
+api.add_resource(payment_info, '/api/v2/payment_info/<string:p_id>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
