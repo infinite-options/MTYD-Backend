@@ -4191,11 +4191,10 @@ class customer_infos(Resource):
                             from customers
                             left join lplp lp
                             on customer_uid = pur_customer_uid
-                            where items like "%200-000001%"
                             group by customer_uid;  
                             """
 
-                print(query)
+                #print(query)
                 items = execute(query, 'get', conn)
                 print("3")
                 print(items["code"])
@@ -7739,7 +7738,7 @@ api.add_resource(update_zones, '/api/v2/update_zones/<string:action>')
 
 api.add_resource(meal_type, '/api/v2/meal_type')
 
-api.add_resource(customer_infos, '/api/v2/customer_info')
+api.add_resource(customer_infos, '/api/v2/customer_infos')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
