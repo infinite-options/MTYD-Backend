@@ -2711,13 +2711,14 @@ class Meals (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-
+            print("1")
             meal_category = data['meal_category']
             meal_name = data['meal_name']
             meal_desc = data['meal_desc']
             meal_hint = "'" + data['meal_hint'] + "'" if data['meal_hint'] else 'NULL'
             print("2")
-            meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
+            meal_photo_url = data['meal_photo_url'] if data.get('meal_photo_url') is not None else 'NULL'
+            #meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
             print("3")
             meal_calories = data['meal_calories']
             meal_protein = data['meal_protein']
@@ -2726,12 +2727,12 @@ class Meals (Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
-            print("1")
+            print("4")
             meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
             if meal_uid[1] != 200:
                 return meal_uid
             meal_uid = meal_uid[0]['result']
-
+            print("5")
             query = """
                     INSERT INTO meals
                     SET meal_uid = '""" + meal_uid + """',
@@ -7737,6 +7738,8 @@ api.add_resource(Update_Zone, '/api/v2/Update_Zone')
 api.add_resource(update_zones, '/api/v2/update_zones/<string:action>')
 
 api.add_resource(meal_type, '/api/v2/meal_type')
+
+api.add_resource(customer_infos, '/api/v2/customer_info')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
