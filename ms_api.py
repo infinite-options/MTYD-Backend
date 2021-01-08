@@ -5533,6 +5533,7 @@ class customer_info(Resource):
                     cust.customer_created_at,
                     cust.cust_notification_approval,
                     cust.SMS_freq_preference,
+                    cust.cust_guid_device_id_notification,
                     cust.SMS_last_notification,
                     (SELECT business_name FROM M4ME.businesses AS bus WHERE bus.business_uid = deconstruct.itm_business_uid) AS business_name,
                     deconstruct.*, 
