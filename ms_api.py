@@ -7518,6 +7518,39 @@ class payment_info_history (Resource):
             print('process completed')
 
 
+
+class Meals_Selected_pid(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            purchase_id = request.args['purchase_id']
+            query = """
+                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
+                        ON lcm.sel_purchase_id = lplp.purchase_id
+                    WHERE purchase_id = '""" + purchase_id + """'; 
+                    """
+
+            
+            items = execute(query, 'get', conn)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Meals selected"
+                items['code'] = 200
+                #return items
+            return items
+
+
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 # Define API routes
 # Customer APIs
 
@@ -7792,6 +7825,8 @@ api.add_resource(customer_infos, '/api/v2/customer_infos')
 api.add_resource(payment_info, '/api/v2/payment_info/<string:p_id>')
 
 api.add_resource(payment_info_history, '/api/v2/payment_info_history/<string:p_id>')
+
+api.add_resource(Meals_Selected_pid, '/api/v2/Meals_Selected_pid')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
