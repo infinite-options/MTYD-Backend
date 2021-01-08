@@ -7194,9 +7194,11 @@ class get_Fee_Tax(Resource):
             query = """
                     SELECT service_fee, tax_rate, delivery_fee, z_delivery_time AS delivery_time
                     FROM M4ME.zones
-                    WHERE zone = \'""" + z_id + """\' AND z_delivery_day = \'""" + day + """\';
+                    WHERE zone_uid = \'""" + z_id + """\' AND z_delivery_day = \'""" + day + """\';
                     """
             items = execute(query, 'get', conn)
+            print("1")
+            print(items)
             if items['code'] != 280:
                 items['message'] = 'Check sql query'
                 return items
