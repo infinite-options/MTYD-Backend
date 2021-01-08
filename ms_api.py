@@ -2553,7 +2553,8 @@ class Menu (Resource):
                     SELECT * FROM M4ME.menu
                     LEFT JOIN M4ME.meals
                         ON menu_meal_id = meal_uid
-                    WHERE menu_date > ADDDATE(CURDATE(),-21) AND menu_date < ADDDATE(CURDATE(),45);
+                    WHERE menu_date > ADDDATE(CURDATE(),-21) AND menu_date < ADDDATE(CURDATE(),45)
+                    ordered by meal_type;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
         except:
