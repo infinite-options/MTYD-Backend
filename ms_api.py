@@ -7017,7 +7017,7 @@ class Order_by_items_with_Date(Resource):
 
 
 
-
+#make a copy that takes input of purchase_id
 class Orders_by_Purchase_Id_with_Date(Resource):
     def get(self, date):
         response = {}
@@ -7589,6 +7589,78 @@ class orders_by_business_specific(Resource): #need to fix
 
 
 
+
+
+class Orders_by_Purchase_Id_with_Pid(Resource):
+    def get(self, p_id):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_purchase_id = \'""" + p_id + """\' 
+                    group by d_purchase_id, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class Orders_by_Purchase_Id_with_Pid_and_date(Resource):
+    def get(self, p_id, date):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_purchase_id = \'""" + p_id + """\' and d_menu_date = \'""" + date + """\'
+                    group by d_purchase_id, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 # Define API routes
 # Customer APIs
 
@@ -7867,6 +7939,10 @@ api.add_resource(payment_info_history, '/api/v2/payment_info_history/<string:p_i
 api.add_resource(Meals_Selected_pid, '/api/v2/Meals_Selected_pid')
 
 api.add_resource(orders_by_business_specific, '/api/v2/orders_by_business_specific/<string:b_id>')
+
+api.add_resource(Orders_by_Purchase_Id_with_Pid, '/api/v2/Orders_by_Purchase_Id_with_Pid/<string:p_id>')
+
+api.add_resource(Orders_by_Purchase_Id_with_Pid_and_date, '/api/v2/Orders_by_Purchase_Id_with_Pid_and_date/<string:p_id>,<string:date>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
