@@ -5336,7 +5336,7 @@ class business_details_update(Resource):
 
 class orders_by_business(Resource): #need to fix
 
-    def get(self, id):
+    def get(self):
 
         try:
             conn = connect()
@@ -7555,6 +7555,40 @@ class Meals_Selected_pid(Resource):
         finally:
             disconnect(conn)
 
+
+
+class orders_by_business_specific(Resource): #need to fix
+
+    def get(self, b_id):
+
+        try:
+            conn = connect()
+            query = """
+                    SELECT *,deconstruct.* 
+                    FROM M4ME.purchases, 
+                         JSON_TABLE(items, '$[*]' COLUMNS (
+                                    qty VARCHAR(255)  PATH '$.qty',
+                                    name VARCHAR(255)  PATH '$.name',
+                                    price VARCHAR(255)  PATH '$.price',
+                                    item_uid VARCHAR(255)  PATH '$.item_uid',
+                                    itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
+                         ) AS deconstruct
+                    WHERE itm_business_uid = '""" + b_id + """';  
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] == 280:
+                items['message'] = 'Orders by business view loaded successful'
+                items['code'] = 200
+            else:
+                items['message'] = 'Check sql query'
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
 # Define API routes
 # Customer APIs
 
@@ -7831,6 +7865,8 @@ api.add_resource(payment_info, '/api/v2/payment_info/<string:p_id>')
 api.add_resource(payment_info_history, '/api/v2/payment_info_history/<string:p_id>')
 
 api.add_resource(Meals_Selected_pid, '/api/v2/Meals_Selected_pid')
+
+api.add_resource(orders_by_business_specific, '/api/v2/orders_by_business_specific/<string:b_id>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
