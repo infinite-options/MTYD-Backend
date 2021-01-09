@@ -7565,7 +7565,7 @@ class orders_by_business_specific(Resource): #need to fix
             conn = connect()
             query = """
                     SELECT *,deconstruct.* 
-                    FROM M4ME.purchases, 
+                    FROM M4ME.lplp, 
                          JSON_TABLE(items, '$[*]' COLUMNS (
                                     qty VARCHAR(255)  PATH '$.qty',
                                     name VARCHAR(255)  PATH '$.name',
