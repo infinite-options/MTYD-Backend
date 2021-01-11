@@ -45,15 +45,17 @@ cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
 # Set this to false when deploying to live application
 app.config['DEBUG'] = True
 # Adding for email testing
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+#app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_SERVER'] = 'smtp.mydomain.com'
 app.config['MAIL_PORT'] = 465
-# app.config['MAIL_USERNAME'] = 'ptydtesting@gmail.com'
-# app.config['MAIL_PASSWORD'] = 'PTYDTesting1'
-# app.config['MAIL_DEFAULT_SENDER'] = 'ptydtesting@gmail.com'
 
-app.config['MAIL_USERNAME'] = os.environ.get('SUPPORT_EMAIL')
-app.config['MAIL_PASSWORD'] = os.environ.get('SUPPORT_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('SUPPORT_EMAIL')
+app.config['MAIL_USERNAME'] = 'support@mealsfor.me'
+app.config['MAIL_PASSWORD'] = 'SupportM4Me'
+app.config['MAIL_DEFAULT_SENDER'] = 'support@mealsfor.me'
+
+# app.config['MAIL_USERNAME'] = os.environ.get('SUPPORT_EMAIL')
+# app.config['MAIL_PASSWORD'] = os.environ.get('SUPPORT_PASSWORD')
+# app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('SUPPORT_EMAIL')
 
 RDS_PW = os.environ.get('RDS_PW')
 
@@ -1523,8 +1525,9 @@ class Reset_Password(Resource):
             if query_result[1]!= 201:
                 return query_result
             # send an email to client
+            print("1")
             msg = Message(
-                "Email Verification", sender='ptydtesting@gmail.com', recipients=[email])
+                "Email Verification", sender='support@mealsfor.me', recipients=[email])
             msg.body = "Your temporary password is {}. Please use it to reset your password".format(pass_temp)
             mail.send(msg)
             response['message'] = "A temporary password has been sent"
