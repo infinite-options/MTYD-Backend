@@ -1,3 +1,4 @@
+#pip3 install shapely
 from flask import Flask, request, render_template, url_for, redirect
 from flask_restful import Resource, Api
 from flask_mail import Mail, Message  # used for email
@@ -27,6 +28,8 @@ import pymysql
 import requests
 import stripe
 import binascii
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
 import os
 s3 = boto3.client('s3')
 stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
@@ -5029,71 +5032,71 @@ class update_guid_notification(Resource):
 
 
 
-class Categorical_Options(Resource): #NEED TO FIX
-    def get(self, long, lat):
-        response = {}
-        items = {}
+# class Categorical_Options(Resource): #NEED TO FIX
+#     def get(self, long, lat):
+#         response = {}
+#         items = {}
 
-        try:
-            conn = connect()
+#         try:
+#             conn = connect()
 
-            # query for businesses serving in customer's zone
-            query = """
-                    SELECT DISTINCT z_business_uid
-                    FROM
-                    (SELECT *,  
-                    IF (
-                    IF ((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) <= 0,
-                    \'""" + lat + """\' >=  (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),
-                    \'""" + lat + """\' <=   (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long)) AND
+#             # query for businesses serving in customer's zone
+#             query = """
+#                     SELECT DISTINCT z_business_uid
+#                     FROM
+#                     (SELECT *,  
+#                     IF (
+#                     IF ((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) <= 0,
+#                     \'""" + lat + """\' >=  (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),
+#                     \'""" + lat + """\' <=   (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long)) AND
                            
-                    \'""" + lat + """\' <= (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) * \'""" + long + """\' + z.RT_lat - z.RT_long * (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) AND
+#                     \'""" + lat + """\' <= (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) * \'""" + long + """\' + z.RT_lat - z.RT_long * (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) AND
                            
-                    IF ((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) >= 0,  
-                    \'""" + lat + """\' >= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),
-                    \'""" + lat + """\' <= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long)) AND
+#                     IF ((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) >= 0,  
+#                     \'""" + lat + """\' >= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),
+#                     \'""" + lat + """\' <= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long)) AND
                            
-                    \'""" + lat + """\' >= (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long) * \'""" + long + """\' + z.LB_lat - z.LB_long * (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long), "TRUE", "FALSE") AS "In_Zone",
+#                     \'""" + lat + """\' >= (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long) * \'""" + long + """\' + z.LB_lat - z.LB_long * (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long), "TRUE", "FALSE") AS "In_Zone",
                      
-                    FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
-                    FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
-                    FROM M4ME.zones z) AS DD
-                    WHERE In_Zone = 'True'
-                    ;
-                    """
-            items = execute(query, 'get', conn)
+#                     FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
+#                     FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
+#                     FROM M4ME.zones z) AS DD
+#                     WHERE In_Zone = 'True'
+#                     ;
+#                     """
+#             items = execute(query, 'get', conn)
 
-            if items['code'] != 280:
-                items['message'] = 'check sql query'
-                return items
+#             if items['code'] != 280:
+#                 items['message'] = 'check sql query'
+#                 return items
 
-            ids = []
-            for vals in items['result']:
-                ids.append(vals['z_business_uid'])
-            print(ids)
+#             ids = []
+#             for vals in items['result']:
+#                 ids.append(vals['z_business_uid'])
+#             print(ids)
 
-            #query for getting categorical data
-            query = """
-                    SELECT * 
-                    FROM M4ME.businesses as bus,
-                    (SELECT itm_business_uid, GROUP_CONCAT(DISTINCT item_type SEPARATOR ',') AS item_type
-                    FROM M4ME.items
-                    GROUP BY itm_business_uid) as itm
-                    WHERE bus.business_uid = itm.itm_business_uid AND bus.business_uid IN """ + str(tuple(ids)) + """;
-                    """
-            items = execute(query, 'get', conn)
+#             #query for getting categorical data
+#             query = """
+#                     SELECT * 
+#                     FROM M4ME.businesses as bus,
+#                     (SELECT itm_business_uid, GROUP_CONCAT(DISTINCT item_type SEPARATOR ',') AS item_type
+#                     FROM M4ME.items
+#                     GROUP BY itm_business_uid) as itm
+#                     WHERE bus.business_uid = itm.itm_business_uid AND bus.business_uid IN """ + str(tuple(ids)) + """;
+#                     """
+#             items = execute(query, 'get', conn)
 
-            if items['code'] != 280:
-                items['message'] = 'check sql query'
-                return items
+#             if items['code'] != 280:
+#                 items['message'] = 'check sql query'
+#                 return items
 
-            items['message'] = 'Categorical options successful'
-            items['code'] = 200
-            return items
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
+#             items['message'] = 'Categorical options successful'
+#             items['code'] = 200
+#             return items
+#         except:
+#             raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
 
 
 
@@ -7699,6 +7702,119 @@ class Orders_by_Items_total_items(Resource):
             disconnect(conn)
 
 
+class categoricalOptions(Resource):
+    def get(self, long, lat):
+        response = {}
+        items = {}
+
+        try:
+            conn = connect()
+            print('IN')
+            '''
+            # query for businesses serving in customer's zone
+            query = """
+                    SELECT zone
+                    FROM
+                    (SELECT *,  
+                    IF (
+                    IF ((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) <= 0,
+                    \'""" + lat + """\' >=  (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),
+                    \'""" + lat + """\' <=   (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long)) AND
+                           
+                    \'""" + lat + """\' <= (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) * \'""" + long + """\' + z.RT_lat - z.RT_long * (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) AND
+                           
+                    IF ((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) >= 0,  
+                    \'""" + lat + """\' >= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),
+                    \'""" + lat + """\' <= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long)) AND
+                           
+                    \'""" + lat + """\' >= (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long) * \'""" + long + """\' + z.LB_lat - z.LB_long * (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long), "TRUE", "FALSE") AS "In_Zone",
+                     
+                    FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
+                    FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
+                    FROM sf.zones z) AS DD
+                    WHERE In_Zone = 'True'
+                    ;
+                    """
+                
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+                return items
+            print(items)
+            for vals in items['result']:
+                zones.append(vals['zone'])
+            '''
+            print('START')
+            zones = ['Random', 'Random']
+            query = """
+                    SELECT * from sf.zones;
+                  """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+                return items
+
+            for vals in items['result']:
+                LT_long = vals['LT_long']
+                LT_lat = vals['LT_lat']
+                LB_long = vals['LB_long']
+                LB_lat = vals['LB_lat']
+                RT_long = vals['RT_long']
+                RT_lat = vals['RT_lat']
+                RB_long = vals['RB_long']
+                RB_lat = vals['RB_lat']
+
+
+                point = Point(float(long),float(lat))
+                polygon = Polygon([(LB_long, LB_lat), (LT_long, LT_lat), (RT_long, RT_lat), (RB_long, RB_lat)])
+                res = polygon.contains(point)
+                print(res)
+
+                if res:
+                    zones.append(vals['zone'])
+
+
+            print('ZONES-----', zones)
+            query = """
+                    SELECT      
+                    rjzjt.zone_uid,
+                    rjzjt.zone,
+                    rjzjt.zone_name,
+                    rjzjt.z_id,
+                    rjzjt.z_biz_id,
+                    b.business_name,
+                    rjzjt.z_delivery_day,
+                    rjzjt.z_delivery_time,
+                    rjzjt.z_accepting_day,
+                    rjzjt.z_accepting_time,
+                    rjzjt.LB_long,rjzjt.LB_lat,rjzjt.LT_long,rjzjt.LT_lat,rjzjt.RT_long,rjzjt.RT_lat,rjzjt.RB_long,rjzjt.RB_lat,
+                    b.business_type,
+                    b.business_image,
+                    b.business_accepting_hours
+                    FROM sf.businesses b
+                    RIGHT JOIN
+                    (SELECT *
+                         FROM sf.zones AS z,
+                         json_table(z_businesses, '$[*]'
+                             COLUMNS (
+                                    z_id FOR ORDINALITY,
+                                    z_biz_id VARCHAR(255) PATH '$')
+                                                 ) as zjt) as rjzjt
+                    ON b.business_uid = rjzjt.z_biz_id
+                    WHERE zone IN """ + str(tuple(zones)) + """;
+                    """
+            items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
 # Define API routes
 # Customer APIs
 
@@ -7874,7 +7990,7 @@ api.add_resource(get_delivery_info, '/api/v2/get_delivery_info/<string:purchase_
 
 api.add_resource(update_guid_notification, '/api/v2/update_guid_notification/<string:role>')
 
-api.add_resource(Categorical_Options, '/api/v2/Categorical_Options/<string:long>,<string:lat>') #NEED TO FIX, put it later, do we need it?
+# api.add_resource(Categorical_Options, '/api/v2/Categorical_Options/<string:long>,<string:lat>') #NEED TO FIX, put it later, do we need it?
 
 api.add_resource(getItems, '/api/v2/getItems') #NEED  TO FIX, 
 
@@ -7983,6 +8099,8 @@ api.add_resource(Orders_by_Purchase_Id_with_Pid, '/api/v2/Orders_by_Purchase_Id_
 api.add_resource(Orders_by_Purchase_Id_with_Pid_and_date, '/api/v2/Orders_by_Purchase_Id_with_Pid_and_date/<string:p_id>,<string:date>')
 
 api.add_resource(Orders_by_Items_total_items, '/api/v2/Orders_by_Items_total_items')
+
+api.add_resource(categoricalOptions, '/api/v2/categoricalOptions/<string:long>,<string:lat>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
