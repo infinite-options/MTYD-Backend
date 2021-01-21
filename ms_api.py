@@ -249,11 +249,11 @@ def destructure (d, *keys):
 
 def helper_upload_meal_img(file, key):
     bucket = 'mtyd'
-    print("1")
+    print("photo 1")
     if file and allowed_file(file.filename):
         filename = 'https://s3-us-west-1.amazonaws.com/' \
                     + str(bucket) + '/' + str(key)
-        print("2")
+        print("photo 2")
         upload_file = s3.put_object(
                             Bucket=bucket,
                             Body=file,
@@ -281,6 +281,25 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
 paypal_client_test_key = os.environ.get('paypal_client_test_key')
 paypal_client_live_key = os.environ.get('paypal_client_live_key')
+
+
+def get_all_s3_keys(bucket):
+    """Get a list of all keys in an S3 bucket."""
+    keys = []
+
+    kwargs = {'Bucket': "mtyd"}
+    while True:
+        resp = s3.list_objects_v2(**kwargs)
+        for obj in resp['Contents']:
+            keys.append(obj['Key'])
+
+        try:
+            kwargs['ContinuationToken'] = resp['NextContinuationToken']
+        except KeyError:
+            break
+    print(keys)
+    return keys
+
 
 
 #print("Key: ", paypal_secret_test_key)
@@ -869,11 +888,21 @@ class email_verification(Resource):
             print(token)
             password = items['result'][0]['password_hashed']
             print(password)
-            msg = Message("Email Verification", sender='ptydtesting@gmail.com', recipients=[email])
+            # msg = Message("Test email", sender='support@mealsfor.me', recipients=["pmarathay@gmail.com"]) 
+            # msg.body = "Hi !\n\n"\
+            # "We are excited to send you your Summary report for delivery date. Please find the report in the attachment. \n"\
+            # "Email support@servingfresh.me if you run into any problems or have any questions.\n" \
+            # "Thx - The Serving Fresh Team\n\n" 
+            # print('msg-bd----', msg.body) 
+            # print('msg-') 
+            # mail.send(msg)
+            msg = Message("Email Verification", sender='support@mealsfor.me', recipients=[email])
 
             print('MESSAGE----', msg)
             print('message complete')
+            print("1")
             link = url_for('confirm', token=token, hashed=password, _external=True)
+            print("2")
             print('link---', link)
             msg.body = "Click on the link {} to verify your email address.".format(link)
             print('msg-bd----', msg.body)
@@ -903,7 +932,8 @@ def confirm():
             # redirect to login page
             # only for testing on localhost
             #return redirect('http://localhost:3000/login?email={}&hashed={}'.format(email, hashed))
-            return redirect('https://servingfresh.me/login?email={}&hashed={}'.format(email, hashed))
+            #return redirect('https://kur4j57ved.execute-api.us-west-1.amazonaws.com/dev/api/v2/login?email={}&hashed={}'.format(email, hashed)) #need to change url
+            return redirect('https://mealtoyourdoor.netlify.app/')
         else:
             print("Error happened while confirming an email address.")
             error = "Confirm error."
@@ -1528,7 +1558,7 @@ class Reset_Password(Resource):
             if query_result[1]!= 201:
                 return query_result
             # send an email to client
-            print("1")
+            print("1") 
             msg = Message(
                 "Email Verification", sender='support@mealsfor.me', recipients=[email])
             msg.body = "Your temporary password is {}. Please use it to reset your password".format(pass_temp)
@@ -2809,6 +2839,142 @@ class Meals (Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+
+
+class create_update_meals(Resource):
+    def post(self):
+        lists={}
+        items = {}
+        try:
+            conn = connect()
+            # data = request.get_json(force=True)
+
+            meal_category = request.form.get('meal_category')
+            meal_name = request.form.get('meal_name') if request.form.get('meal_name') is not None else 'NULL'
+            meal_desc = request.form.get('meal_desc') if request.form.get('meal_desc') is not None else 'NULL'
+            meal_hint = request.form.get('meal_hint') if request.form.get('meal_hint') is not None else 'NULL'
+            meal_photo_url = request.files.get('meal_photo_url') if request.files.get('meal_photo_url') is not None else 'NULL'
+            #meal_photo_url = request.form.get('meal_photo_url') if request.form.get('meal_photo_url') is not None else 'NULL'
+            meal_calories = request.form.get('meal_calories') if request.form.get('meal_calories') is not None else 'NULL'
+            meal_protein = request.form.get('meal_protein') if request.form.get('meal_protein') is not None else 'NULL'
+            meal_carbs = request.form.get('meal_carbs') if request.form.get('meal_carbs') is not None else 'NULL'
+            meal_fiber = request.form.get('meal_fiber') if request.form.get('meal_fiber') is not None else 'NULL'
+            meal_sugar = request.form.get('meal_sugar') if request.form.get('meal_sugar') is not None else 'NULL'
+            meal_fat = request.form.get('meal_fat') if request.form.get('meal_fat') is not None else 'NULL'
+            meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
+            #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
+            meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
+            if meal_uid[1] != 200:
+                return meal_uid
+            meal_uid = meal_uid[0]['result']
+            print("1")
+            TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
+            print(key)
+            meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            print("2")
+            print(meal_uid)
+            # INSERT query
+            query = """
+                    INSERT INTO meals
+                    SET meal_uid = '""" + meal_uid + """',
+                        meal_category = '""" + meal_category + """',
+                        meal_name = '""" + meal_name + """',
+                        meal_desc = '""" + meal_desc + """',
+                        meal_hint = '""" + meal_hint + """',
+                        meal_photo_url = '""" + meal_photo + """',
+                        meal_calories = '""" + meal_calories + """',
+                        meal_protein = '""" + meal_protein + """',
+                        meal_carbs = '""" + meal_carbs + """',
+                        meal_fiber = '""" + meal_fiber + """',
+                        meal_sugar = '""" + meal_sugar + """',
+                        meal_fat = '""" + meal_fat + """',
+                        meal_sat = '""" + meal_sat + """';
+                    """
+            print("2.5")
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            # response = execute(query, 'post', conn)
+            print("3")
+            #meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            if response[1] != 201:
+                return response
+            response[0]['meal_uid'] = meal_uid
+            print("4")
+            lists=get_all_s3_keys(mtyd)
+            return response, lists
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+    def put(self):
+        lists = {}
+        items = {}
+        try:
+            conn = connect()
+            # data = request.get_json(force=True)
+
+            meal_category = request.form.get('meal_category')
+            meal_name = request.form.get('meal_name') if request.form.get('meal_name') is not None else 'NULL'
+            meal_desc = request.form.get('meal_desc') if request.form.get('meal_desc') is not None else 'NULL'
+            meal_hint = request.form.get('meal_hint') if request.form.get('meal_hint') is not None else 'NULL'
+            meal_photo_url = request.files.get('meal_photo_url') if request.files.get('meal_photo_url') is not None else 'NULL'
+            #meal_photo_url = request.form.get('meal_photo_url') if request.form.get('meal_photo_url') is not None else 'NULL'
+            meal_calories = request.form.get('meal_calories') if request.form.get('meal_calories') is not None else 'NULL'
+            meal_protein = request.form.get('meal_protein') if request.form.get('meal_protein') is not None else 'NULL'
+            meal_carbs = request.form.get('meal_carbs') if request.form.get('meal_carbs') is not None else 'NULL'
+            meal_fiber = request.form.get('meal_fiber') if request.form.get('meal_fiber') is not None else 'NULL'
+            meal_sugar = request.form.get('meal_sugar') if request.form.get('meal_sugar') is not None else 'NULL'
+            meal_fat = request.form.get('meal_fat') if request.form.get('meal_fat') is not None else 'NULL'
+            meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
+            #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
+            meal_uid = request.form.get('meal_sat') 
+            print("1")
+            TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
+            print(key)
+            meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            print("2")
+            print(meal_uid)
+            # INSERT query
+            query = """
+                    Update meals
+                    SET 
+                        meal_category = '""" + meal_category + """',
+                        meal_name = '""" + meal_name + """',
+                        meal_desc = '""" + meal_desc + """',
+                        meal_hint = '""" + meal_hint + """',
+                        meal_photo_url = '""" + meal_photo + """',
+                        meal_calories = '""" + meal_calories + """',
+                        meal_protein = '""" + meal_protein + """',
+                        meal_carbs = '""" + meal_carbs + """',
+                        meal_fiber = '""" + meal_fiber + """',
+                        meal_sugar = '""" + meal_sugar + """',
+                        meal_fat = '""" + meal_fat + """',
+                        meal_sat = '""" + meal_sat + """'
+                    where meal_uid = '""" + meal_uid + """';
+                    """
+            print("2.5")
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            # response = execute(query, 'post', conn)
+            print("3")
+            #meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            if response[1] != 201:
+                return response
+            response[0]['meal_uid'] = meal_uid
+            lists=get_all_s3_keys(mtyd)
+            return response, lists
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
 
 
 
@@ -8101,6 +8267,8 @@ api.add_resource(Orders_by_Purchase_Id_with_Pid_and_date, '/api/v2/Orders_by_Pur
 api.add_resource(Orders_by_Items_total_items, '/api/v2/Orders_by_Items_total_items')
 
 api.add_resource(categoricalOptions, '/api/v2/categoricalOptions/<string:long>,<string:lat>')
+
+api.add_resource(create_update_meals, '/api/v2/create_update_meals')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
