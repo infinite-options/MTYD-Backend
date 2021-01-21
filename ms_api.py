@@ -933,7 +933,7 @@ def confirm():
             # only for testing on localhost
             #return redirect('http://localhost:3000/login?email={}&hashed={}'.format(email, hashed))
             #return redirect('https://kur4j57ved.execute-api.us-west-1.amazonaws.com/dev/api/v2/login?email={}&hashed={}'.format(email, hashed)) #need to change url
-            return redirect('https://mealtoyourdoor.netlify.app/')
+            return redirect('https://mealtoyourdoor.netlify.app/home')
         else:
             print("Error happened while confirming an email address.")
             error = "Confirm error."
