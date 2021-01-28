@@ -1544,7 +1544,6 @@ class Reset_Password(Resource):
             customer_lookup = simple_get_execute(query, "RESET PASSWORD QUERY", conn)
             if customer_lookup[1] != 200:
                 return customer_lookup
-
             customer_uid = customer_lookup[0]['result'][0]['customer_uid']
             pass_temp = self.get_random_string()
             salt = getNow()
@@ -1560,8 +1559,7 @@ class Reset_Password(Resource):
                 return query_result
             # send an email to client
             print("1") 
-            msg = Message(
-                "Email Verification", sender='support@mealsfor.me', recipients=[email])
+            msg = Message("Email Verification", sender='support@mealsfor.me', recipients=[email])
             msg.body = "Your temporary password is {}. Please use it to reset your password".format(pass_temp)
             mail.send(msg)
             response['message'] = "A temporary password has been sent"
@@ -1873,6 +1871,7 @@ class Checkout(Resource):
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
+            print("0")
             # We should sanitize the variable before writting into database.
             # must pass these check first
             if items == "'[]'":
@@ -1902,7 +1901,11 @@ class Checkout(Resource):
             #print(data['salt'])
             print("1")
             if customer_res['result'][0]['password_hashed'] != 'NULL' and customer_res['result'][0]['password_hashed'] is not None:
+                print("1.3")
+                print(customer_res['result'][0]['password_hashed'])
+                print(data['salt'])
                 if customer_res['result'][0]['password_hashed'] != data['salt']:
+                    print("1.35")
                     response['message'] = "Could not authenticate user. Wrong Password"
                     return response, 401
             # Validate credit card
@@ -1919,13 +1922,15 @@ class Checkout(Resource):
             # create a stripe charge and make sure that charge is successful before writing it into database
             # we should use Idempotent key to prevent sending multiple payment requests due to connection fail.
             # Also, It is not safe for using Strip Charge API. We should use Stripe Payment Intent API and its SDKs instead.
+            print("1.4")
             try:
+                print("1.5")
                 # create a token for stripe
                 card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
                 stripe_charge = {}
                 try:
                     card_token = stripe.Token.create(card=card_dict)
-
+                    print("2")
                     if int(amount_must_paid) > 0:
                         stripe_charge = stripe.Charge.create(
                             amount=int(round(amount_must_paid*100, 0)),
@@ -7981,6 +7986,103 @@ class categoricalOptions(Resource):
         finally:
             disconnect(conn)
 
+class cancel_purchase (Resource):
+    def put(self):
+        try:
+            print("00")
+            conn = connect()
+            response = {}
+            response2 = {}
+            data = request.get_json(force=True)
+            purchaseID = data["purchase_uid"]
+            print("0")
+            info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';
+                        """
+            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            if info_res[1] != 200:
+                return {"message": "Internal Server Error"}, 500
+            # Calculate refund
+            print(info_res)
+            print("1")
+            refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+            print("2")
+            refund_amount = refund_info['refund_amount']
+            print(refund_amount)
+            if refund_amount > 0:
+                print("2.3")
+                # establishing more info for refund_info before we feed it in stripe_refund
+                refund_info['refund_amount'] = abs(refund_amount)
+                print("2.33")
+                refund_info['purchase_uid'] = purchaseID
+                print("2.36")
+                refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
+                print("2.4")
+                if refund_info['refunded_id'] is not None:
+                    refunded = True
+                else:
+                    return {"message": "REFUND PROCESS ERROR."}, 500
+            print("2.5")
+            query = """
+                    Update M4ME.purchases
+                    set 
+                        purchase_status = "CANCELLED and REFUNDED"
+                    where purchase_uid = '""" + purchaseID + """';
+                    """
+            response = execute(query, 'post', conn)
+            print("3")
+            print(response)
+            if response['code'] != 281:
+                return {"message": "Internal Server Error"}, 500
+            print("3.3")
+            new_paymentId = get_new_paymentID(conn)
+            print("3.4")
+            if new_paymentId[1] == 500:
+                print(new_paymentId[0])
+                response['message'] = "Internal Server Error."
+                return response, 500
+            print("3.5")
+            new_refund = 0-abs(refund_amount)
+            new_refund = str(new_refund)
+            print("3.6")
+            #print(info_res["result"][2])
+            print(type(new_refund))
+            payment_query = """
+                    insert into payments(payment_uid, payment_id, pay_purchase_id, payment_time_stamp, amount_due, amount_paid)
+                    values(
+                        '""" + new_paymentId + """',
+                        '""" + new_paymentId + """',
+                        (
+                            select purchase_id
+                            from purchases
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by purchase_date desc
+                            limit 1
+                        ),
+                        '""" + getNow() + """',
+                        '""" + new_refund + """',
+                        '""" + new_refund + """'
+                    );
+                    """
+            print("3.7")
+            response2 = execute(payment_query, 'post', conn)
+            print("4")
+            print(response2)
+            if response2['code'] != 281:
+                return {"message": "Internal Server Error"}, 500
+            return response2
+
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
 
 # Define API routes
 # Customer APIs
@@ -8270,6 +8372,8 @@ api.add_resource(Orders_by_Items_total_items, '/api/v2/Orders_by_Items_total_ite
 api.add_resource(categoricalOptions, '/api/v2/categoricalOptions/<string:long>,<string:lat>')
 
 api.add_resource(create_update_meals, '/api/v2/create_update_meals')
+
+api.add_resource(cancel_purchase, '/api/v2/cancel_purchase')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
