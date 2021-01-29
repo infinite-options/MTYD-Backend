@@ -1,3 +1,12 @@
+#pip3 install flask
+#pip3 install flask_restful
+#pip3 install flask_cors
+#pip3 install Werkzeug
+#pip3 install pymysql
+#pip3 install python-dateutil
+#pip3 install boto3
+#pip3 install stripe
+#pip3 install bs4
 #pip3 install shapely
 from flask import Flask, request, render_template, url_for, redirect
 from flask_restful import Resource, Api
