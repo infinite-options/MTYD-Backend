@@ -8096,9 +8096,74 @@ class cancel_purchase (Resource):
 
 ### Code by Parva ################################################################################
 
+def couponsLogic(id, email, amount_due):
+    try:
+        print('in coupons logic')
+        conn2 = connect()
+        query = """
+                SELECT * FROM M4ME.coupons;
+                """
+        print(query)
+        items = execute(query, 'get', conn2)
+        print(items['code'], type(items['code']))
+        
+        coupons = {}
+        print('after coupons')
+        print(items['result'])
+        for vals in items['result']:
+            if vals['email_id'] == 'delivery_email' or vals['email_id'] == '' or vals['email_id'] == None:
+                print('1')
+                print(float(vals['threshold']), float(amount_due))
+                if float(vals['threshold']) <= float(amount_due):
+                    print('2')
+                    if vals['recurring'] == 'T' :
+                        print('3')
+                        if vals['limits'] != vals['num_used']:
+                            print('4')
+                            print(vals['expire_date'])
+                            print(datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S"))
+                            print(datetime.now())
+                            if datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S") >= datetime.now():
+                                print('5')
+                                coupons[vals['coupon_uid']] = [vals['discount_percent'],vals['discount_amount'],vals['discount_shipping']]
+
+        print('coupons', coupons)
+        
+        min_amt = amount_due
+        min_amt_cp = ''
+        for key, vals in coupons.items():
+            tmp = amount_due
+            if vals[0] > 0:
+                tmp -= (vals[0]/100)*tmp
+                
+            if vals[1] > 0:
+                tmp -= float(vals[1])
+
+            if vals[2] > 0:
+                tmp -= float(vals[2])
+            
+            tmp = round(tmp,2)
+            if min_amt > tmp:
+                min_amt_cp = key
+                min_amt = tmp
+    
+        print(min_amt, min_amt_cp)
+        if min_amt_cp != '':
+            coupon_query = """UPDATE coupons SET num_used = num_used + 1
+                              WHERE coupon_id =  """ + min_amt_cp + ";"
+            res = execute(coupon_query, 'post', conn2)
+        
+        return min_amt, min_amt_cp
+    
+    except:
+        return 'error_except'
+    finally:
+        disconnect(conn2)
+
+
+
 def createNewPurchase(id):
-    # amount discount should be used or not?
-    # figure out coupons 
+    # Implement coupons logic 
     # need zappa setting file to create cron job   
     try:
         print('IN createaccount')
@@ -8109,7 +8174,6 @@ def createNewPurchase(id):
                 FROM M4ME.purchases as pur, M4ME.payments as pay
                 WHERE pur.purchase_uid = '"""+ id +"""' AND pur.purchase_uid=pay.pay_purchase_uid;
                 """
-        print(query)
         items = execute(query, 'get', conn1)
         if items['code'] != 280:
             items['message'] = 'check sql query for new purchases'
@@ -8117,7 +8181,6 @@ def createNewPurchase(id):
         
         print('query done')
         data = items['result'][0]
-        print(data)
         print('data loaded')
         
         customer_uid = data['pur_customer_uid']
@@ -8125,7 +8188,6 @@ def createNewPurchase(id):
         delivery_first_name = data['delivery_first_name']
         delivery_last_name = data['delivery_last_name']
         delivery_email = data['delivery_email']
-        print('firsthalf')
         delivery_phone = data['delivery_phone_num']
         delivery_address = data['delivery_address']
         delivery_unit = data['unit'] if data.get('unit') is not None else 'NULL'
@@ -8135,30 +8197,43 @@ def createNewPurchase(id):
         delivery_instructions = "'" + data['delivery_instructions'] + "'" if data.get('delivery_instructions') else 'NULL'
         delivery_longitude = data['delivery_longitude']
         delivery_latitude = data['delivery_latitude']
-        print('half')
         items = "'" + str(data['items']) + "'"
         order_instructions = "'" + data['order_instructions'] + "'" if data.get('order_instructions') is not None else 'NULL'
         purchase_notes = "'" + data['purchase_notes'] + "'" if data.get('purchase_notes') is not None else 'NULL'
         amount_due = data['amount_due']
         amount_discount = data['amount_discount']
         amount_paid = data['amount_paid']
+        service_fee = data['service_fee'] if data.get('service_fee') is not None else 0
+        delivery_fee = data['delivery_fee'] if data.get('delivery_fee') is not None else 0
+        driver_tip = data['driver_tip'] if data.get('driver_tip') is not None else 0
+        taxes = data['taxes'] if data.get('taxes') is not None else 0
+        subtotal = data['subtotal'] if data.get('subtotal') is not None else 0
         cc_num = data['cc_num']
         cc_exp_date = data['cc_exp_date']
         cc_cvv = data['cc_cvv']
         cc_zip = data['cc_zip']
         month = data['cc_exp_date'][5:7]
         year = data['cc_exp_date'][:4]
-        print(month, year)
-        amount_must_paid = float(amount_due)  - float(amount_discount)
-        print(amount_must_paid)
+        
         print('data done')
         purchaseId = get_new_purchaseID(conn1)
         
         paymentId = get_new_paymentID(conn1)
         print('ids done')
+
+        ##### check for coupons
+        amount_due += service_fee + delivery_fee + driver_tip + taxes 
+        rt = couponsLogic(id, delivery_email, amount_due)
+        print(rt)
+        amount_discount = amount_due - rt[0]
+        coupon_id = rt[1]
+        amount_due = rt[0]
+        amount_must_paid = float(amount_due)
+        print(amount_must_paid)
+        print('coupon done')
         
-        print("1.5")
-        # create a token for stripe
+        
+        ###### create a token for stripe
         card_dict = {"number": data['cc_num'], "exp_month": int(month), "exp_year": int(year),"cvc": data['cc_cvv']}
         stripe_charge = {}
         try:
@@ -8181,20 +8256,10 @@ def createNewPurchase(id):
         # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
         amount_paid = amount_due
         print('stripe done')
-
-        # update coupon table
-        coupon_id = data.get('coupon_id')
-        if str(coupon_id) != "" and coupon_id is not None:
-            # update coupon table
-            coupon_id = "'" + coupon_id + "'"
-            coupon_query = """UPDATE coupons SET num_used = num_used + 1
-                        WHERE coupon_id =  """ + str(coupon_id) + ";"
-            res = execute(coupon_query, 'post', conn1)
-        else:
-            coupon_id = 'NULL'
         charge_id = 'NULL' if stripe_charge.get('id') is None else stripe_charge.get('id')
-        #calculate the start_delivery_date
-        print('coupon done')
+        
+        
+        ########calculate the start_delivery_date
         dayOfWeek = datetime.now().weekday()
 
         # Get the soonest Thursday, same day if today is Thursday
@@ -8208,27 +8273,33 @@ def createNewPurchase(id):
         start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
 
         print('delivery done')
-        # write into Payments table
+        
+        ####### write into Payment and purchase table
         queries = [
                     '''
                     INSERT INTO M4ME.payments
                     SET payment_uid = \'''' + paymentId + '''\',
+                        payment_id = \'''' + paymentId + '''\',
+                        pay_purchase_uid = \'''' + purchaseId + '''\',
+                        pay_purchase_id = \'''' + purchaseId + '''\',
                         payment_time_stamp = \'''' + str(getNow()) + '''\',
                         start_delivery_date = \'''' + str(start_delivery_date) + '''\',
-                        payment_id = \'''' + paymentId + '''\',
-                        pay_purchase_id = \'''' + purchaseId + '''\',
-                        pay_purchase_uid = \'''' + purchaseId + '''\',
-                        amount_due = \'''' + str(amount_due) + '''\',
-                        amount_discount = \'''' + str(amount_discount) + '''\',
-                        amount_paid = \'''' + str(amount_paid) + '''\',
                         pay_coupon_id = \'''' + coupon_id + '''\',
-                        charge_id = \'''' + charge_id + '''\',
-                        payment_type = 'STRIPE',
+                        subtotal = \'''' + str(subtotal) + '''\',
+                        amount_discount = \'''' + str(amount_discount) + '''\',
+                        service_fee = \'''' + str(service_fee) + '''\',
+                        delivery_fee = \'''' + str(delivery_fee) + '''\',
+                        driver_tip = \'''' + str(driver_tip) + '''\',
+                        taxes = \'''' + str(taxes) + '''\',
+                        amount_due = \'''' + str(amount_due) + '''\',
+                        amount_paid = \'''' + str(amount_paid) + '''\',
                         info_is_Addon = 'FALSE',
                         cc_num = \'''' + cc_num  + '''\', 
                         cc_exp_date = \'''' + cc_exp_date + '''\', 
                         cc_cvv = \'''' + cc_cvv + '''\', 
-                        cc_zip = \'''' + cc_zip + '''\';
+                        cc_zip = \'''' + cc_zip + '''\',
+                        charge_id = \'''' + charge_id + '''\',
+                        payment_type = 'STRIPE';
                     ''',
                     '''
                     INSERT INTO  M4ME.purchases
@@ -8251,12 +8322,17 @@ def createNewPurchase(id):
                         delivery_latitude = \'''' + delivery_latitude + '''\',
                         items = ''' + items + ''',
                         order_instructions = \'''' + order_instructions + '''\',
-                        purchase_notes = \'''' + purchase_notes + '''\';'''
+                        purchase_notes = \'''' + purchase_notes + '''\';
+                        ''',
+                        '''
+                        UPDATE M4ME.purchases SET purchase_status = 'AutoPay' WHERE (purchase_uid = \'''' + id + '''\');
+                        '''
                     ]
         print('queries')
         print(queries[0])
         print(queries[1])
-        response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn1)
+        print(queries[2])
+        response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES", "purchase_status"], conn1)
         print('queries done')
         print(response)
         if response[1] == 201:
@@ -8267,8 +8343,9 @@ def createNewPurchase(id):
             if "paymentId" in locals() and "purchaseId" in locals():
                 execute("""DELETE FROM payments WHERE payment_uid = '""" + paymentId + """';""", 'post', conn1)
                 execute("""DELETE FROM purchases WHERE purchase_uid = '""" + purchaseId + """';""", 'post', conn1)
-                print('incoorect response delete')
+                print('incorect response delete')
                 return id
+        
         return 'successfull'
     except:
         return id
@@ -8294,6 +8371,7 @@ class checkAutoPay(Resource):
         
         
         for vals in items['result']:
+            #------------------########
             if vals['purchase_uid'] != '400-000034':
                 continue
             sub_id = json.loads(vals['items'])
@@ -8350,10 +8428,14 @@ class checkAutoPay(Resource):
             elif delivered < freq:
                 print('do nothing')
             else:
+                #------------------########
+                res.append(createNewPurchase(vals['purchase_uid']))
                 fat_res.append(vals['purchase_uid'])
                 print('fatal error check database')
         
         print(res)
+        
+        
         # email error to prashant once cron job is done
         em = ''
         for vals in res:
