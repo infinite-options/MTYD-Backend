@@ -8096,6 +8096,24 @@ class cancel_purchase (Resource):
 
 ### Code by Parva ################################################################################
 
+def sendAutopayEmails(send_emails, start_delivery_date):
+
+    msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=send_emails)
+    
+    print('MESSAGE----', msg)
+    print('message complete')
+    
+    msg.body =  "Hi,\n\n"\
+                "Thank you for orderding your meals from MTYD\n"\
+                "We want to let you know that we will be charging you for your next subscription which will start on "+start_delivery_date[:10]+".\n"\
+                "If you want to cancel this subscription please do it witihin 1 day of this email. \n\n"\
+                "Thx - MTYD Team"
+
+
+    print('msg-bd----', msg.body)
+    mail.send(msg)
+    return 'successfull'
+
 def couponsLogic(id, email, amount_due):
     try:
         print('in coupons logic')
@@ -8160,9 +8178,7 @@ def couponsLogic(id, email, amount_due):
     finally:
         disconnect(conn2)
 
-
-
-def createNewPurchase(id):
+def createNewPurchase(id, start_delivery_date):
     # Implement coupons logic 
     # need zappa setting file to create cron job   
     try:
@@ -8259,18 +8275,7 @@ def createNewPurchase(id):
         charge_id = 'NULL' if stripe_charge.get('id') is None else stripe_charge.get('id')
         
         
-        ########calculate the start_delivery_date
-        dayOfWeek = datetime.now().weekday()
-
-        # Get the soonest Thursday, same day if today is Thursday
-        thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
-
-        # If today is Thursday after 4PM'
-        if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
-            thurs += timedelta(days=7)
-
-        #the next saturday
-        start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+        
 
         print('delivery done')
         
@@ -8352,17 +8357,31 @@ def createNewPurchase(id):
     finally:
         disconnect(conn1)
 
-
 class checkAutoPay(Resource):
     def get(self):
+
+        def next_weekday(d, weekday):
+            days_ahead = weekday - d.weekday()
+            if days_ahead <= 0: # Target day already happened this week
+                days_ahead += 7
+            return d + timedelta(days_ahead)
 
         conn = connect()
         res = []
         fat_res = []
+
+        delivery_days = ['mon', 'wed', 'fri']
+        autoPay_days = ['tue', 'thu', 'sat']
+        x = datetime.now()
+        day_of_week = x.strftime("%a").lower()
+
+
+
         query = """
-                SELECT *
-                FROM M4ME.purchases as pur, M4ME.payments as pay
-                WHERE pur.purchase_status = 'ACTIVE' AND pur.purchase_uid=pay.pay_purchase_uid;
+                SELECT pur.*, pay.*, ms.delivery_day
+                FROM M4ME.purchases as pur, M4ME.payments as pay, M4ME.meals_selected as ms
+                WHERE pur.purchase_status = 'ACTIVE' AND pur.purchase_uid=pay.pay_purchase_uid AND ms.sel_purchase_id = pur.purchase_uid
+                GROUP BY pur.purchase_uid;
                 """
         items = execute(query, 'get', conn)
         if items['code'] != 280:
@@ -8372,6 +8391,7 @@ class checkAutoPay(Resource):
         
         for vals in items['result']:
             #------------------########
+            cust_email = vals['delivery_email']
             if vals['purchase_uid'] != '400-000034':
                 continue
             sub_id = json.loads(vals['items'])
@@ -8421,15 +8441,36 @@ class checkAutoPay(Resource):
 
             print(delivered, freq, end_day - start_delivery_date)
 
-            if delivered == freq:
-                res.append(createNewPurchase(vals['purchase_uid']))
-
+            send_emails = []
             
+            if delivered == freq:
+                # if it's delivery day then just send emails
+                # if it's autopay day then start charging
+                d = datetime.now().date()
+                add_arr = [1,2,3]
+                
+                if vals['delivery_day'].lower()[:3] in delivery_days:
+                    #shoot email
+                    idx = delivery_days.index(vals['delivery_day'].lower()[:3])
+                    start_delivery_date = str(next_weekday(d, idx+idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
+                    print(start_delivery_date)
+                    send_emails.append(cust_email)
+
+                elif vals['delivery_day'].lower()[:3] in autoPay_days:
+                    #do autopay
+                    idx = autoPay_days.index(vals['delivery_day'].lower()[:3])
+                    start_delivery_date = str(next_weekday(d, idx+add_arr[idx])) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
+                    print(start_delivery_date)
+                    res.append(createNewPurchase(vals['purchase_uid'], start_delivery_date))
+                else:
+                    continue
+
             elif delivered < freq:
                 print('do nothing')
+                continue
+            
             else:
                 #------------------########
-                res.append(createNewPurchase(vals['purchase_uid']))
                 fat_res.append(vals['purchase_uid'])
                 print('fatal error check database')
         
@@ -8447,6 +8488,15 @@ class checkAutoPay(Resource):
         
         print(fat_res)
         print(str(fat_res))
+
+        if len(fat_res):
+            fat_res = 'No Errors'
+
+
+        ###### send autopay emails to customer
+
+        resp = sendAutopayEmails(send_emails, start_delivery_date)
+
         
         # send email
 
@@ -8456,9 +8506,9 @@ class checkAutoPay(Resource):
         print('message complete')
        
         msg.body =  "Hi Prashant,\n\n"\
-                    "This email contains errors if ANY after running cron job for autopay in MTYD\n\n"\
-                    "Ids where autopay had error: "+ em +"\n\n"\
-                    "Ids where autopay had FATAL error: "+ str(fat_res)+ "\n\n"\
+                    "This email contains errors if ANY after running cron job for emails and autopay in MTYD\n\n"\
+                    "Ids where error occured: "+ em +"\n\n"\
+                    "Ids where FATAL error occured: "+ str(fat_res)+ "\n\n"\
                     "Check with backend guys if you run into any problems or have any questions.\n"\
                     "Thx - MTYD Team"
 
