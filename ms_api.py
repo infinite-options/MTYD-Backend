@@ -1968,6 +1968,12 @@ class Checkout(Resource):
 
                 #the next saturday
                 start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+
+                #find tax, delivery fee etc
+                find_zone = '''
+                            select * from zones
+                            where 
+                            '''
                 # write into Payments table
                 queries = [
                             '''
@@ -8053,8 +8059,12 @@ class cancel_purchase (Resource):
             print("3.6")
             #print(info_res["result"][2])
             print(type(new_refund))
+            #print(refund_info["refunded_id"][0])
+            refund_id = str(refund_info["refunded_id"][0])
+            #print(refund_id)
+            print("3.65")
             payment_query = """
-                    insert into payments(payment_uid, payment_id, pay_purchase_id, payment_time_stamp, amount_due, amount_paid)
+                    insert into payments(payment_uid, payment_id, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type)
                     values(
                         '""" + new_paymentId + """',
                         '""" + new_paymentId + """',
@@ -8067,7 +8077,9 @@ class cancel_purchase (Resource):
                         ),
                         '""" + getNow() + """',
                         '""" + new_refund + """',
-                        '""" + new_refund + """'
+                        '""" + new_refund + """',
+                        '""" + refund_id + """',
+                        "stripe"
                     );
                     """
             print("3.7")
@@ -8082,6 +8094,37 @@ class cancel_purchase (Resource):
             raise BadRequest("Request failed, please try again later.")
         finally:
             disconnect(conn)
+
+
+class get_Zones_specific (Resource):
+    def get(self, lat, long):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM M4ME.zones
+                    where lat > LB_lat
+                    and lat < LT_lat
+                    and lat > RB_lat
+                    and lat < RT_lat
+                    and long > LB_long
+                    and long < RB_long
+                    and long > LT_long
+                    and long < RT_long;
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting zones")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
 
 
 # Define API routes
@@ -8374,6 +8417,8 @@ api.add_resource(categoricalOptions, '/api/v2/categoricalOptions/<string:long>,<
 api.add_resource(create_update_meals, '/api/v2/create_update_meals')
 
 api.add_resource(cancel_purchase, '/api/v2/cancel_purchase')
+
+api.add_resource(get_Zones_specific, '/api/v2/get_Zones_specific/<string:lat>,<string:llong>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
