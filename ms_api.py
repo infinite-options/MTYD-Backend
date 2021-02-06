@@ -2136,8 +2136,15 @@ class Change_Purchase (Resource):
             print("There is something wrong with the query to get info for the requested purchase.")
             response = {'message': "Internal Server Error."}
             return response, 500
+        print("start here")
+        print(info_res)
         item_price = json.loads(info_res['items'])[0].get('price')
+        print("price is")
+        print(item_price)
         customer_paid = float(item_price)
+        print("paid amount is")
+        print(customer_paid)
+        print("end here")
         # get the price of the new item.
         items_query = """
                         SELECT * FROM subscription_items
@@ -2273,8 +2280,7 @@ class Change_Purchase (Resource):
             new_item_id = data['new_item_id']
             #customer_uid = data["customer_id"]
             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
-            #print("1")
-
+            print("1")
             #Check user's identity
             cus_query = """
                         SELECT password_hashed,
@@ -2296,6 +2302,7 @@ class Change_Purchase (Resource):
                 if refresh_token != cus_res[0]['result'][0]['mobile_refresh_token']:
                     response['message'] = 'Token Invalid'
                     return response, 401
+            print("1.5")
             # query info for requesting purchase
             # Get info of requesting purchase_id
             info_query = """
@@ -2308,10 +2315,11 @@ class Change_Purchase (Resource):
                             AND pur.purchase_status='ACTIVE';  
                         """
             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            print(info_res)
             if info_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
             # Calculate refund
-            print("1")
+            print("1.9")
             refund_info = self.refund_calculator(info_res[0]['result'][0], conn)
             print("2")
             refund_amount = refund_info['refund_amount']
@@ -2371,7 +2379,7 @@ class Change_Purchase (Resource):
 
             #gathering data before writting info to database
             # need to calculate the start_delivery_date
-            start_delivery_date = "2020-12-30 00-00-00"
+            start_delivery_date = "2021-02-06 00-00-00" #need change and working on this
             charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
             info_res = info_res[0]['result'][0]
 
@@ -6593,7 +6601,7 @@ class Change_Purchase_ID (Resource):
                             AND pur.purchase_status='ACTIVE';  
                         """
             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-            print(info_res[1])
+            print(info_res)
             if info_res[1] != 200:
                 print(info_res[1])
                 return {"message": "Internal Server Error"}, 500
@@ -8127,6 +8135,23 @@ class get_Zones_specific (Resource):
             print('process completed')
 
 
+class find_next_sat (Resource):
+    def get(self):
+        try:
+            #conn = connect()
+            print("1")
+            d = date.today() # Monday
+            print("2")
+            t = timedelta((12 - d.weekday()) % 7)
+            d + t
+            datetime.datetime(2013, 6, 1, 0, 0)
+            date = str((d + t).strftime('%Y-%m-%d'))
+            return date
+        except:
+            print("error")
+        finally:
+            #disconnect(conn)
+            print("done")
 # Define API routes
 # Customer APIs
 
@@ -8419,6 +8444,8 @@ api.add_resource(create_update_meals, '/api/v2/create_update_meals')
 api.add_resource(cancel_purchase, '/api/v2/cancel_purchase')
 
 api.add_resource(get_Zones_specific, '/api/v2/get_Zones_specific/<string:lat>,<string:llong>')
+
+api.add_resource(find_next_sat, '/api/v2/find_next_sat')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
