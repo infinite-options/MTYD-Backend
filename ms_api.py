@@ -2379,7 +2379,19 @@ class Change_Purchase (Resource):
 
             #gathering data before writting info to database
             # need to calculate the start_delivery_date
-            start_delivery_date = "2021-02-06 00-00-00" #need change and working on this
+            dayOfWeek = datetime.now().weekday()
+
+                # Get the soonest Thursday, same day if today is Thursday
+            thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
+
+                # If today is Thursday after 4PM'
+            if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
+                thurs += timedelta(days=7)
+
+                #the next saturday
+            start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+
+
             charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
             info_res = info_res[0]['result'][0]
 
@@ -6400,7 +6412,7 @@ class UpdatePassword(Resource):
                 #new_profile = newPaymentUID_query['result'][0]['new_id']
                 print("1")
                 uid= data['uid']
-                old_password=data['passworld']
+                #old_password=data['passworld']
                 salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
                 #print("1.5")
                 new_password = sha512((data['password'] + salt).encode()).hexdigest()
@@ -6411,8 +6423,7 @@ class UpdatePassword(Resource):
                                     update M4ME.customers
                                     set
                                     password_hashed = \'""" + new_password + """\'
-                                    WHERE customer_uid =\'""" + uid + """\'
-                                    and password_hashed = \'""" + old_password + """\';  
+                                    WHERE customer_uid =\'""" + uid + """\';  
                                 """]
                 print("2")
                 print(customer_insert_query)
@@ -8027,6 +8038,7 @@ class cancel_purchase (Resource):
             print("1")
             refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
             print("2")
+            print(refund_info)
             refund_amount = refund_info['refund_amount']
             print(refund_amount)
             if refund_amount > 0:
@@ -8062,13 +8074,16 @@ class cancel_purchase (Resource):
                 response['message'] = "Internal Server Error."
                 return response, 500
             print("3.5")
+            print(refund_amount)
             new_refund = 0-abs(refund_amount)
+            
             new_refund = str(new_refund)
             print("3.6")
             #print(info_res["result"][2])
             print(type(new_refund))
+            print(new_refund)
             #print(refund_info["refunded_id"][0])
-            refund_id = str(refund_info["refunded_id"][0])
+            #refund_id = str(refund_info["refunded_id"][0])
             #print(refund_id)
             print("3.65")
             payment_query = """
