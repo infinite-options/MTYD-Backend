@@ -32,9 +32,11 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import os
 s3 = boto3.client('s3')
-stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
-stripe_secret_key = 'sk_test_fe99fW2owhFEGTACgW3qaykd006gHUwj1j'
-stripe.api_key = stripe_secret_key
+#stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
+
+#stripe_secret_key = 'sk_test_fe99fW2owhFEGTACgW3qaykd006gHUwj1j'
+
+#stripe.api_key = stripe_secret_key
 # RDS for AWS SQL 5.7
 # RDS_HOST = 'pm-mysqldb.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
 # RDS for AWS SQL 8.0
@@ -270,7 +272,7 @@ paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
 paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
 
 
-#stripe_public_test_key for ocal testing
+#stripe_public_test_key for local testing
 stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
 
 stripe_public_test_key = os.environ.get('stripe_public_test_key')
@@ -278,6 +280,8 @@ stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
 
 stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
+
+stripe.api_key = stripe_secret_test_key
 
 paypal_client_test_key = os.environ.get('paypal_client_test_key')
 paypal_client_live_key = os.environ.get('paypal_client_live_key')
