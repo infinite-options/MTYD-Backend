@@ -280,7 +280,7 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
-#stripe.api_key = "sk_test_51*******TRNK"
+#stripe.api_key = "sk_test_51H*********D1lTRNK"
 
 
 
@@ -2215,19 +2215,33 @@ class Change_Purchase (Resource):
             return {"message": "Internal Server Error"}, 500
         else:
             charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
+            print(charge_ids)
             amount_should_refund = round(refund_amount*100,0)
             # print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
             while len(charge_ids) > 0 and amount_should_refund > 0:
                 # print("amount should refund: ", amount_should_refund)
+                print(len(charge_ids))
                 process_id = charge_ids.pop(0)
+                print(charge_ids)
                 # print("processing id: ", process_id)
                 # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
                 #retrieve info from stripe for specific charge_id:
+                print("stripe 1")
+                print(process_id)
                 refunded_info = stripe.Charge.retrieve(process_id,)
+                print("stripe 2")
+                print(refunded_info.get("amount"))
+                print(refunded_info.get('amount_refunded'))
+                print("start inputs")
+                print(refunded_info['amount'])
+                print(refunded_info['amount_refunded'])
+                print("end inputs ")
                 # print("refunded_info: ", refunded_info)
                 # print("refunded_info.get('amount'): ", refunded_info.get('amount_refunded'))
                 if refunded_info.get('amount') is not None and refunded_info.get('amount_refunded') is not None:
                     amount_could_refund = round(float(refunded_info['amount'] - refunded_info['amount_refunded']),0)
+                    print(amount_could_refund)
+                    print(amount_should_refund)
                     # print("amount_could_refund: ", amount_could_refund)
                     # print("amount_should_refund: ", amount_should_refund)
                     if amount_should_refund <= amount_could_refund:
@@ -2244,6 +2258,9 @@ class Change_Purchase (Resource):
                             return response, 400
                         # print("refund_res: ", refund_res)
                         amount_should_refund = 0
+                    elif amount_could_refund==0:
+                        print ("problem here")
+                        continue
                     else:
                         # refund it and then calculate how much is left for amount_should_refund
                         try:
