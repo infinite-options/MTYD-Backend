@@ -32,11 +32,7 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import os
 s3 = boto3.client('s3')
-#stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
 
-#stripe_secret_key = 'sk_test_fe99fW2owhFEGTACgW3qaykd006gHUwj1j'
-
-#stripe.api_key = stripe_secret_key
 # RDS for AWS SQL 5.7
 # RDS_HOST = 'pm-mysqldb.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
 # RDS for AWS SQL 8.0
@@ -282,6 +278,12 @@ stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
 stripe.api_key = stripe_secret_test_key
+
+#use below for local testing
+#stripe.api_key = "sk_test_51*******TRNK"
+
+
+
 
 paypal_client_test_key = os.environ.get('paypal_client_test_key')
 paypal_client_live_key = os.environ.get('paypal_client_live_key')
@@ -2105,6 +2107,8 @@ class Meals_Selection (Resource):
             disconnect(conn)
 
 
+
+
 class Change_Purchase (Resource):
     def refund_calculator(self, info_res,  conn):
 
@@ -2116,10 +2120,10 @@ class Change_Purchase (Resource):
 
         end_delivery_date = start_delivery_date + timedelta(days=(week_remaining) * 7)
         skip_query = """
-                    SELECT COUNT(delivery_day) AS skip_count FROM 
+                    SELECT COUNT(delivery_day) AS skip_count FROM
                         (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
                             WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
-                            GROUP BY sel_menu_date) AS GB 
+                            GROUP BY sel_menu_date) AS GB
                             INNER JOIN meals_selected S
                             ON S.sel_purchase_id = GB.sel_purchase_id
                                 AND S.sel_menu_date = GB.sel_menu_date
@@ -2201,8 +2205,8 @@ class Change_Purchase (Resource):
         # to get the next stripe_charge_id.
         #list all charge ids which are associated with current purchase_id
         query = '''SELECT charge_id from M4ME.payments
-	                WHERE pay_purchase_id = (SELECT pay_purchase_id FROM M4ME.payments 
-	                                        WHERE pay_purchase_uid = "''' + refund_info['purchase_uid'] + '''")
+               WHERE pay_purchase_id = (SELECT pay_purchase_id FROM M4ME.payments
+                                       WHERE pay_purchase_uid = "''' + refund_info['purchase_uid'] + '''")
                     ORDER BY payment_time_stamp DESC;'''
         res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
         # print("res in stripe_refund: ", res)
@@ -2313,7 +2317,7 @@ class Change_Purchase (Resource):
                         SELECT pur.*, pay.*, sub.*
                         FROM purchases pur, payments pay, subscription_items sub
                         WHERE pur.purchase_uid = pay.pay_purchase_uid
-                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
                                                     FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
                             AND pur.purchase_uid = '""" + purchaseID + """'
                             AND pur.purchase_status='ACTIVE';  
@@ -2332,7 +2336,7 @@ class Change_Purchase (Resource):
             # this query below for querying the price may be redundant, the front end can send it in data['items']
             # Should we do it here to make sure that the front end did not make any error?
             item_query = """
-                        SELECT * FROM subscription_items 
+                        SELECT * FROM subscription_items
                         WHERE item_uid = '""" + new_item_id + """';
                         """
             item_res = simple_get_execute(item_query, "QUERY PRICE FOR NEW PURCHASE.", conn)
@@ -2344,7 +2348,7 @@ class Change_Purchase (Resource):
             if amount_will_charge > 0:
                 #charge with stripe
                 #wrap credit_card info
-                query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date 
+                query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date
                                 FROM M4ME.payments
                                 WHERE pay_purchase_uid = "''' + purchaseID + '";'
                 res = simple_get_execute(query, "GET CREDIT CARD INFO FOR CHANGING MEAL PLAN", conn)
@@ -2395,7 +2399,7 @@ class Change_Purchase (Resource):
                 #the next saturday
             start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
 
-
+           
             charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
             info_res = info_res[0]['result'][0]
 
@@ -2444,9 +2448,9 @@ class Change_Purchase (Resource):
                                         charge_id = ''' + charge_id + ''',
                                         payment_type = NULL,
                                         info_is_Addon = "FALSE",
-                                        cc_num = "''' + str(cc_num) + '''", 
-                                        cc_exp_date = "''' + str(cc_exp_date) + '''", 
-                                        cc_cvv = "''' + str(cc_cvv) + '''", 
+                                        cc_num = "''' + str(cc_num) + '''",
+                                        cc_exp_date = "''' + str(cc_exp_date) + '''",
+                                        cc_cvv = "''' + str(cc_cvv) + '''",
                                         cc_zip = "''' + str(cc_zip) + '''";
                 ''',
                 '''
@@ -2484,7 +2488,7 @@ class Change_Purchase (Resource):
                                         created_at = "''' + getNow() + '''",
                                         email_id = "''' + customer_email + '''",
                                         phone_num = "''' + str(customer_phone_num) + '''",
-                                        image_url = "NOT REQUIRED", 
+                                        image_url = "NOT REQUIRED",
                                         customer_note = "NOT REQUIRED",
                                         admin_note = "CHANGED MEAL PLAN",
                                         refund_amount = "''' + str(abs(amount_will_charge)) + '";'
@@ -2516,6 +2520,10 @@ class Change_Purchase (Resource):
             raise BadRequest("Request failed, please try again later.")
         finally:
             disconnect(conn)
+
+
+
+
 
 class Refund_Calculator (Resource):
     def get(self):
@@ -8024,6 +8032,7 @@ class cancel_purchase (Resource):
             response2 = {}
             data = request.get_json(force=True)
             purchaseID = data["purchase_uid"]
+            print(data)
             print("0")
             info_query = """
                         SELECT pur.*, pay.*, sub.*
@@ -8052,6 +8061,7 @@ class cancel_purchase (Resource):
                 print("2.33")
                 refund_info['purchase_uid'] = purchaseID
                 print("2.36")
+                print(refund_info)
                 refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
                 print("2.4")
                 if refund_info['refunded_id'] is not None:
@@ -8087,14 +8097,21 @@ class cancel_purchase (Resource):
             print(type(new_refund))
             print(new_refund)
             #print(refund_info["refunded_id"][0])
-            #refund_id = str(refund_info["refunded_id"][0])
+            refund_id = str(refund_info["refunded_id"][0])
             #print(refund_id)
             print("3.65")
+            print("start input")
+            print(new_paymentId)
+            print(purchaseID)
+            print(new_refund)
+            print(refund_id)
+            print("end input")
             payment_query = """
-                    insert into payments(payment_uid, payment_id, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type)
+                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
                     values(
                         '""" + new_paymentId + """',
                         '""" + new_paymentId + """',
+                        '""" + purchaseID + """',
                         (
                             select purchase_id
                             from purchases
@@ -8102,11 +8119,39 @@ class cancel_purchase (Resource):
                             order by purchase_date desc
                             limit 1
                         ),
-                        '""" + getNow() + """',
+                        now(),
                         '""" + new_refund + """',
                         '""" + new_refund + """',
                         '""" + refund_id + """',
-                        "stripe"
+                        "STRIPE",
+                        (
+                            select cc_num
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_exp_date
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_cvv
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_zip
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        )
                     );
                     """
             print("3.7")
