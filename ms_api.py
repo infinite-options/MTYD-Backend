@@ -936,7 +936,7 @@ def confirm():
             # redirect to login page
             # only for testing on localhost
             #return redirect('http://localhost:3000/login?email={}&hashed={}'.format(email, hashed))
-            return redirect('https://mealtoyourdoor.netlify.app/login?email={}&hashed={}'.format(email, hashed)) #need to change url
+            return redirect('https://mealsfor.me/login?email={}&hashed={}'.format(email, hashed)) #need to change url
             #https://mealtoyourdoor.netlify.app/choose-plan
             #return redirect('https://mealtoyourdoor.netlify.app/home')
         else:
@@ -1290,7 +1290,7 @@ class AppleLogin (Resource):
                             item['message'] = 'Check insert sql query'
                             return item
                         print('successful redirect to signup')
-                        return redirect("https://mealtoyourdoor.netlify.app/social-sign-up?id=" + NewUserID)
+                        return redirect("https://mealsfor.me/social-sign-up?id=" + NewUserID)
 
 
                     # Existing customer
@@ -1303,17 +1303,17 @@ class AppleLogin (Resource):
                         print('1-----')
                         items['message'] = "Wrong social media used for signup. Use \'" + items['result'][0]['user_social_media'] + "\'."
                         items['code'] = 400
-                        return redirect("https://mealtoyourdoor.netlify.app/")
+                        return redirect("https://mealsfor.me/")
 
                     elif items['result'][0]['social_id'] != sub:
                         print('20-----')
                         items['message'] = "social_id mismatch"
                         items['code'] = 400
-                        return redirect("https://mealtoyourdoor.netlify.app/")
+                        return redirect("https://mealsfor.me/")
 
                     else:
                         print('successful redirect to farms')
-                        return redirect("https://mealtoyourdoor.netlify.app/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+                        return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
 
 
 
