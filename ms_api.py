@@ -8452,7 +8452,9 @@ api.add_resource(pid_history, '/api/v2/pid_history/<string:pid>')
 
 api.add_resource(UpdatePassword, '/api/v2/UpdatePassword')
 
-api.add_resource(AppleLogin, '/api/v2/AppleLogin', '/')
+#api.add_resource(AppleLogin, '/api/v2/AppleLogin', '/')
+
+api.add_resource(AppleLogin, '/api/v2/apple_login', '/')
 
 api.add_resource(Get_Upcoming_Menu_Date, '/api/v2/upcoming_menu_dates' )
 
