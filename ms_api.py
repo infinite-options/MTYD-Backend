@@ -3614,14 +3614,14 @@ class Edit_Menu(Resource):
             print("data received")
             print(menu_date)
             print(menu)
-            items['delete_menu'] = execute("""delete from menu
-                                                        where menu_date = \'""" + str(menu_date) + """\';
-                                                            """, 'post', conn)
-            print("menu deleted")
+            # items['delete_menu'] = execute("""delete from menu
+            #                                             where menu_date = \'""" + str(menu_date) + """\';
+            #                                                 """, 'post', conn)
+            # print("menu deleted")
 
             i = 0
             for eachitem in data['menu']:
-                menu_category = menu[i]['menu_category']
+                menu_category = menu[i]['menu_category'] if menu[i]['menu_category'] else "null"
                 menu_type = menu[i]['menu_type']
                 meal_cat = menu[i]['meal_cat']
                 meal_name = menu[i]['meal_name']
@@ -3641,7 +3641,9 @@ class Edit_Menu(Resource):
                         \'""" + meal_cat + """\',
                         (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
                         \'""" + default_meal + """\');"""
+                print(query)
                 items = execute(query,'post',conn)
+                print(items)
                 i += 1
             print("done")
                 
@@ -3677,12 +3679,13 @@ class Edit_Meal(Resource):
         finally:
             disconnect(conn)
 
-    def patch(self):
+    def post(self):
         response = {}
         items = {}
         try:
             conn = connect()
             data = request.get_json(force=True)
+            meal = data["meal"]
 
             mealId = data['mealId']
             meal_category = data['meal_category']
@@ -3698,25 +3701,31 @@ class Edit_Meal(Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
+            i = 0
+            for eachitem in data['meal']:
+                mealId = eachitem['mealId'] if eachitem['mealId'] else "null"
+                meal_category = eachitem['meal_category']
+                meal_name = eachitem['meal_name']
+                meal_desc = eachitem['meal_desc']
+                meal_hint = eachitem['meal_hint']
+                meal_photo_URL = eachitem['meal_photo_URL']
+                meal_calories = eachitem['meal_calories']
+                meal_protein = eachitem['meal_protein']
+                meal_carbs = eachitem['meal_carbs']
+                meal_fiber = eachitem['meal_fiber']
+                meal_sugar = eachitem['meal_sugar']
+                meal_fat = eachitem['meal_fat']
+                meal_sat = eachitem['meal_sat']
             print(data)
             print("Items read...")
-            items['update_meal'] = execute("""update meals 
-                                                set
-                                                meal_category = \'""" + str(meal_category) + """\',
-                                                meal_name = \'""" + str(meal_name) + """\',
-                                                meal_desc = \'""" + str(meal_desc) + """\',
-                                                meal_hint = \'""" + str(meal_hint) + """\',
-                                                meal_photo_URL = \'""" + str(meal_photo_URL) + """\',
-                                                meal_calories = \'""" + str(meal_calories) + """\',
-                                                meal_protein = \'""" + str(meal_protein) + """\',
-                                                meal_carbs = \'""" + str(meal_carbs) + """\',
-                                                meal_fiber = \'""" + str(meal_fiber) + """\',
-                                                meal_sugar = \'""" + str(meal_sugar) + """\',
-                                                meal_fat = \'""" + str(meal_fat) + """\',
-                                                meal_sat  = \'""" + str(meal_sat) + """\'
-                                                where
-                                                meal_id = \'""" + str(mealId) + """\';""", 'post', conn)                                            
-            print("meal_updated...")
+            query = """insert into M4ME.menu 
+                        values 
+                        (\'""" + menu_date + """\',
+                        \'""" + menu_category + """\',
+                        \'""" + menu_type + """\',
+                        \'""" + meal_cat + """\',
+                        (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
+                        \'""" + default_meal + """\');"""
             
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -5160,9 +5169,102 @@ class get_delivery_info(Resource):
 
 
 
+# class update_guid_notification(Resource):
+
+#     def post(self, role):
+#         response = {}
+#         items = {}
+
+#         try:
+#             conn = connect()
+#             data = request.get_json(force=True)
+
+#             print(data)
+#             if role == 'customer':
+#                 uid = data['uid']
+#                 guid = data['guid']
+#                 notification = data['notification']
+#                 query = """
+#                         SELECT *
+#                         FROM M4ME.customers c
+#                         WHERE customer_uid = \'""" + uid + """\'
+#                         """
+#                 items = execute(query, 'get', conn)
+#                 del data['uid']
+#                 test = str(data).replace("'", "\"")
+#                 print('test---------', test)
+#                 data = "'" + test + "'"
+
+#                 print(data)
+#                 if items['result']:
+
+#                     query = " " \
+#                             "UPDATE M4ME.customers " \
+#                             "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
+#                             "WHERE customer_uid = '" + str(uid) + "';" \
+#                             ""
+
+#                     items = execute(query, 'post', conn)
+#                     print(items)
+#                     if items['code'] == 281:
+#                         items['code'] = 200
+#                         items['message'] = 'Device_id notification and GUID updated'
+#                     else:
+#                         items['message'] = 'check sql query'
+
+#                 else:
+#                     items['message'] = "UID doesn't exists"
+
+#                 return items
+
+#             elif role == 'business':
+#                 uid = data['uid']
+#                 guid = data['guid']
+#                 query = """
+#                         SELECT *
+#                         FROM M4ME.businesses b
+#                         WHERE business_uid = \'""" + uid + """\'
+#                         """
+#                 items = execute(query, 'get', conn)
+
+#                 del data['uid']
+#                 test = str(data).replace("'", "\"")
+#                 print('test---------', test)
+#                 data = "'" + test + "'"
+
+#                 if items['result']:
+#                     data
+#                     query = " " \
+#                             "UPDATE M4ME.businesses " \
+#                             "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
+#                             "WHERE business_uid = '" + str(uid) + "';" \
+#                             ""
+
+#                     items = execute(query, 'post', conn)
+
+#                     if items['code'] == 281:
+#                         items['code'] = 200
+#                         items['message'] = 'Device_id notification and GUID updated'
+#                     else:
+#                         items['message'] = 'check sql query'
+
+#                 else:
+#                     items['message'] = "UID doesn't exists"
+
+#                 return items
+
+#             else:
+#                 return 'choose correct option'
+
+#         except:
+#             raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
+
+
 class update_guid_notification(Resource):
 
-    def post(self, role):
+    def post(self, role, action):
         response = {}
         items = {}
 
@@ -5171,13 +5273,13 @@ class update_guid_notification(Resource):
             data = request.get_json(force=True)
 
             print(data)
-            if role == 'customer':
+            if role == 'customer' and action == 'add':
                 uid = data['uid']
                 guid = data['guid']
                 notification = data['notification']
                 query = """
                         SELECT *
-                        FROM M4ME.customers c
+                        FROM customers c
                         WHERE customer_uid = \'""" + uid + """\'
                         """
                 items = execute(query, 'get', conn)
@@ -5190,7 +5292,7 @@ class update_guid_notification(Resource):
                 if items['result']:
 
                     query = " " \
-                            "UPDATE M4ME.customers " \
+                            "UPDATE customers " \
                             "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
                             "WHERE customer_uid = '" + str(uid) + "';" \
                             ""
@@ -5208,12 +5310,12 @@ class update_guid_notification(Resource):
 
                 return items
 
-            elif role == 'business':
+            elif role == 'business' and action == 'add':
                 uid = data['uid']
                 guid = data['guid']
                 query = """
                         SELECT *
-                        FROM M4ME.businesses b
+                        FROM businesses b
                         WHERE business_uid = \'""" + uid + """\'
                         """
                 items = execute(query, 'get', conn)
@@ -5226,7 +5328,7 @@ class update_guid_notification(Resource):
                 if items['result']:
                     data
                     query = " " \
-                            "UPDATE M4ME.businesses " \
+                            "UPDATE businesses " \
                             "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
                             "WHERE business_uid = '" + str(uid) + "';" \
                             ""
@@ -5244,6 +5346,89 @@ class update_guid_notification(Resource):
 
                 return items
 
+            #GUIDS
+
+            elif role == 'customer' and action == 'update':
+                query = """
+                    SELECT cust_guid_device_id_notification
+                    FROM customers c
+                    WHERE customer_uid = \'""" + data['uid'] + """\';
+                    """
+                items = execute(query, 'get', conn)
+                json_guid = json.loads(items['result'][0]['cust_guid_device_id_notification'])
+                print('0', json_guid)
+                for i, vals in enumerate(json_guid):
+                    print(i, vals)
+                    if vals == None or vals == 'null':
+                        continue
+                    if vals['guid'] == data['guid']:
+                        print(vals)
+                        json_guid[i]['notification'] = data['notification']
+                        break
+                if json_guid[0] == None:
+                    print('none')
+                    json_guid[0] = 'null'
+
+                print('1', json_guid)
+                guid = str(json_guid)
+                guid = guid.replace("'", '"')
+                print('2', guid)
+                print(guid)
+                guid = "[null," + guid[8:]
+                print('replace',guid)
+                query = """
+                        UPDATE customers  
+                        SET
+                        cust_guid_device_id_notification = \'""" + guid + """\'
+                        WHERE ( customer_uid  = '""" + data['uid'] + """' );
+                        """
+                print(query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = 'guid not updated check sql query and data'
+
+                else:
+                    print(items)
+                    items['message'] = 'guid updated'
+                return items
+
+            elif role == 'business' and action == 'update':
+                query = """
+                    SELECT bus_guid_device_id_notification
+                    FROM businesses b
+                    WHERE business_uid = \'""" + data['uid'] + """\';
+                    """
+                items = execute(query, 'get', conn)
+                json_guid = json.loads(items['result'][0]['bus_guid_device_id_notification'])
+                for i, vals in enumerate(json_guid):
+                    print(i, vals)
+                    if vals == None or vals == 'null':
+                        continue
+                    if vals['guid'] == data['guid']:
+                        print(vals)
+                        json_guid[i]['notification'] = data['notification']
+                        break
+                if json_guid[0] == None:
+                    json_guid[0] = 'null'
+
+                guid = str(json_guid)
+                guid = guid.replace("'", '"')
+                print(guid)
+                guid = "[null," + guid[8:]
+                query = """
+                        UPDATE  businesses
+                        SET
+                        bus_guid_device_id_notification = \'""" + guid + """\'
+                        WHERE ( business_uid  = '""" + data['uid'] + """' );
+                        """
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = 'guid not updated check sql query and data'
+
+                else:
+                    items['message'] = 'guid updated'
+                return items
+
             else:
                 return 'choose correct option'
 
@@ -5251,9 +5436,6 @@ class update_guid_notification(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
 
 
 
@@ -5802,18 +5984,113 @@ class customer_info(Resource):
 
 
 
+# class Send_Notification(Resource):
+
+#     def post(self, role):
+
+#         def deconstruct(uids, role):
+#             print('IN decon')
+#             conn = connect()
+#             uids_array = uids.split(',')
+#             output = []
+#             for uid in uids_array:
+#                 if role == 'customer':
+#                     query = """SELECT cust_guid_device_id_notification FROM customers WHERE customer_uid = \'""" + uid + """\';"""
+#                     items = execute(query, 'get', conn)
+
+#                     if items['code'] != 280:
+#                         items['message'] = "check sql query"
+#                         items['code'] = 404
+#                         return items
+
+#                     json_val = items['result'][0]['cust_guid_device_id_notification']
+
+#                 else:
+
+#                     query = """SELECT bus_guid_device_id_notification FROM businesses WHERE business_uid = \'""" + uid + """\';"""
+#                     items = execute(query, 'get', conn)
+
+#                     if items['code'] != 280:
+#                         items['message'] = "check sql query"
+#                         items['code'] = 404
+#                         return items
+
+#                     json_val = items['result'][0]['bus_guid_device_id_notification']
+
+#                 if json_val != 'null':
+#                     print("in deconstruct")
+#                     print(type(json_val))
+#                     print(json_val)
+#                     input_val = json.loads(json_val)
+#                     print(type(input_val))
+#                     print(input_val)
+#                     for vals in input_val:
+#                         print('vals--', vals)
+#                         print(type(vals))
+#                         if vals == None:
+#                             continue
+#                         print('guid--', vals['guid'])
+#                         print('notification---', vals['notification'])
+#                         if vals['notification'] == 'TRUE':
+#                             output.append('guid_' + vals['guid'])
+#             output = ",".join(output)
+#             print('output-----', output)
+#             return output
+#         print('IN---')
+
+#         hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
+
+
+#         print('role----', role)
+#         uids = request.form.get('uids')
+#         message = request.form.get('message')
+#         print('uids', uids)
+#         print('role', role)
+#         tags = deconstruct(uids, role)
+#         print('tags-----', tags)
+
+#         if tags == []:
+#             return 'No GUIDs found for the UIDs provided'
+#         #tags = uids
+#         if tags is None:
+#             raise BadRequest('Request failed. Please provide the tag field.')
+#         if message is None:
+#             raise BadRequest('Request failed. Please provide the message field.')
+#         tags = tags.split(',')
+#         tags = list(set(tags))
+#         print('tags11-----', tags)
+#         print('RESULT-----',tags)
+#         for tag in tags:
+#             print('tag-----', tag)
+#             print(type(tag))
+#             alert_payload = {
+#                 "aps" : {
+#                     "alert" : message,
+#                 },
+#             }
+#             hub.send_apple_notification(alert_payload, tags = tag)
+
+#             fcm_payload = {
+#                 "data":{"message": message}
+#             }
+#             hub.send_gcm_notification(fcm_payload, tags = tag)
+
+#         return 200
+
+
+
 class Send_Notification(Resource):
 
     def post(self, role):
 
         def deconstruct(uids, role):
-
+            print('IN decon')
             conn = connect()
             uids_array = uids.split(',')
             output = []
             for uid in uids_array:
                 if role == 'customer':
-                    query = """SELECT cust_guid_device_id_notification FROM M4ME.customers WHERE customer_uid = \'""" + uid + """\';"""
+                    query = """SELECT cust_guid_device_id_notification FROM sf.customers WHERE customer_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
 
                     if items['code'] != 280:
@@ -5825,7 +6102,7 @@ class Send_Notification(Resource):
 
                 else:
 
-                    query = """SELECT bus_guid_device_id_notification FROM M4ME.businesses WHERE business_uid = \'""" + uid + """\';"""
+                    query = """SELECT bus_guid_device_id_notification FROM sf.businesses WHERE business_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
 
                     if items['code'] != 280:
@@ -5836,6 +6113,7 @@ class Send_Notification(Resource):
                     json_val = items['result'][0]['bus_guid_device_id_notification']
 
                 if json_val != 'null':
+                    print("in deconstruct")
                     print(type(json_val))
                     print(json_val)
                     input_val = json.loads(json_val)
@@ -5853,15 +6131,19 @@ class Send_Notification(Resource):
             output = ",".join(output)
             print('output-----', output)
             return output
+        print('IN---')
 
         hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
-        print(hub)
+
+
         print('role----', role)
         uids = request.form.get('uids')
         message = request.form.get('message')
         print('uids', uids)
         print('role', role)
         tags = deconstruct(uids, role)
+        print('tags-----', tags)
+
         if tags == []:
             return 'No GUIDs found for the UIDs provided'
         #tags = uids
@@ -5870,6 +6152,9 @@ class Send_Notification(Resource):
         if message is None:
             raise BadRequest('Request failed. Please provide the message field.')
         tags = tags.split(',')
+        tags = list(set(tags))
+        print('tags11-----', tags)
+        print('RESULT-----',tags)
         for tag in tags:
             print('tag-----', tag)
             print(type(tag))
@@ -5886,6 +6171,7 @@ class Send_Notification(Resource):
             hub.send_gcm_notification(fcm_payload, tags = tag)
 
         return 200
+
 
 
 
@@ -7836,7 +8122,7 @@ class Orders_by_Purchase_Id_with_Pid(Resource):
                     FROM fcs_items_by_row
                     where d_purchase_id = \'""" + p_id + """\' and lplpibr_purchase_status = "ACTIVE"
                     group by d_purchase_id, d_menu_date
-                    order by ;
+                    order by d_menu_date desc;
                     """
 
             items = execute(query, 'get', conn)
@@ -8231,6 +8517,25 @@ class find_next_sat (Resource):
         finally:
             #disconnect(conn)
             print("done")
+
+
+class get_final_price (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            purchase_uid = data["p_uid"]
+            data = request.get_json(force=True)
+            query = {
+
+            }
+            return date
+        except:
+            print("error")
+        finally:
+            #disconnect(conn)
+            print("done")
+
+
 # Define API routes
 # Customer APIs
 
@@ -8404,7 +8709,7 @@ api.add_resource(get_total_revenue, '/api/v2/get_total_revenue')
 
 api.add_resource(get_delivery_info, '/api/v2/get_delivery_info/<string:purchase_id>') 
 
-api.add_resource(update_guid_notification, '/api/v2/update_guid_notification/<string:role>')
+api.add_resource(update_guid_notification, '/api/v2/update_guid_notification/<string:role>,<string:action>')
 
 # api.add_resource(Categorical_Options, '/api/v2/Categorical_Options/<string:long>,<string:lat>') #NEED TO FIX, put it later, do we need it?
 
