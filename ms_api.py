@@ -3621,11 +3621,11 @@ class Edit_Menu(Resource):
 
             i = 0
             for eachitem in data['menu']:
-                menu_category = menu[i]['menu_category'] if menu[i]['menu_category'] else "null"
-                menu_type = menu[i]['menu_type']
-                meal_cat = menu[i]['meal_cat']
-                meal_name = menu[i]['meal_name']
-                default_meal = menu[i]['default_meal']
+                menu_category = eachitem['menu_category'] if eachitem['menu_category'] else "null"
+                menu_type = eachitem['menu_type'] if eachitem['menu_type'] else "null"
+                meal_cat = eachitem['meal_cat'] if eachitem['meal_cat'] else "null"
+                meal_name = eachitem['meal_name'] if eachitem['meal_name'] else "null"
+                default_meal = eachitem['default_meal'] if eachitem['default_meal'] else "null" 
 
                 print(menu_category)
                 print(menu_type)
@@ -3635,12 +3635,12 @@ class Edit_Menu(Resource):
 
                 query = """insert into M4ME.menu 
                         values 
-                        (\'""" + menu_date + """\',
-                        \'""" + menu_category + """\',
-                        \'""" + menu_type + """\',
-                        \'""" + meal_cat + """\',
-                        (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
-                        \'""" + default_meal + """\');"""
+                        (menu_date = \'""" + menu_date + """\',
+                        menu_category = \'""" + menu_category + """\',
+                        menu_type = \'""" + menu_type + """\',
+                        meal_cat = \'""" + meal_cat + """\',
+                        menu_meal_id = (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
+                        default_meal = \'""" + default_meal + """\');"""
                 print(query)
                 items = execute(query,'post',conn)
                 print(items)
@@ -3718,14 +3718,16 @@ class Edit_Meal(Resource):
                 meal_sat = eachitem['meal_sat']
             print(data)
             print("Items read...")
-            query = """insert into M4ME.menu 
+            query = """
+                        insert into M4ME.menu 
                         values 
                         (\'""" + menu_date + """\',
                         \'""" + menu_category + """\',
                         \'""" + menu_type + """\',
                         \'""" + meal_cat + """\',
                         (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
-                        \'""" + default_meal + """\');"""
+                        \'""" + default_meal + """\');
+                    """
             
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -8241,7 +8243,7 @@ class categoricalOptions(Resource):
                      
                     FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
                     FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
-                    FROM sf.zones z) AS DD
+                    FROM zones z) AS DD
                     WHERE In_Zone = 'True'
                     ;
                     """
@@ -8257,7 +8259,7 @@ class categoricalOptions(Resource):
             print('START')
             zones = ['Random', 'Random']
             query = """
-                    SELECT * from sf.zones;
+                    SELECT * from zones;
                   """
             items = execute(query, 'get', conn)
             if items['code'] != 280:
@@ -8300,11 +8302,14 @@ class categoricalOptions(Resource):
                     rjzjt.LB_long,rjzjt.LB_lat,rjzjt.LT_long,rjzjt.LT_lat,rjzjt.RT_long,rjzjt.RT_lat,rjzjt.RB_long,rjzjt.RB_lat,
                     b.business_type,
                     b.business_image,
-                    b.business_accepting_hours
-                    FROM sf.businesses b
+                    b.business_accepting_hours,
+                    rjzjt.tax_rate,
+                    rjzjt.service_fee,
+                    rjzjt.delivery_fee
+                    FROM businesses b
                     RIGHT JOIN
                     (SELECT *
-                         FROM sf.zones AS z,
+                         FROM zones AS z,
                          json_table(z_businesses, '$[*]'
                              COLUMNS (
                                     z_id FOR ORDINALITY,
