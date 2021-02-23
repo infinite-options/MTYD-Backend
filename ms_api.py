@@ -2178,11 +2178,13 @@ class Change_Purchase (Resource):
         elif info_res['num_issues'] == 2:
             print("matching 2 week Pre-pay")
             print("r0")
+            print(week_remaining)
+            print(price[1])
             if week_remaining == 0:
                 refund = 0
                 print("r1")
             elif week_remaining == 1:
-                refund = customer_paid - float(price['1'])
+                refund = customer_paid - float(price[1])
                 print("r2")
             elif week_remaining == 2:
                 refund = customer_paid
@@ -3626,21 +3628,22 @@ class Edit_Menu(Resource):
                 meal_cat = eachitem['meal_cat'] if eachitem['meal_cat'] else "null"
                 meal_name = eachitem['meal_name'] if eachitem['meal_name'] else "null"
                 default_meal = eachitem['default_meal'] if eachitem['default_meal'] else "null" 
-
+                menu_uid = get_new_id("CALL new_menu_uid", "get_new_menu_ID", conn)
                 print(menu_category)
                 print(menu_type)
                 print(meal_cat)
                 print(meal_name)
                 print(default_meal)
 
-                query = """insert into M4ME.menu 
+                query = """insert into M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, menu_meal_id, default_meal) 
                         values 
-                        (menu_date = \'""" + menu_date + """\',
-                        menu_category = \'""" + menu_category + """\',
-                        menu_type = \'""" + menu_type + """\',
-                        meal_cat = \'""" + meal_cat + """\',
-                        menu_meal_id = (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
-                        default_meal = \'""" + default_meal + """\');"""
+                        (\'""" + menu_uid + """\'
+                        \'""" + menu_date + """\',
+                        \'""" + menu_category + """\',
+                        \'""" + menu_type + """\',
+                        \'""" + meal_cat + """\',
+                        (select meal_uid from meals where meal_name = \'""" + meal_name + """\'),
+                        \'""" + default_meal + """\');"""
                 print(query)
                 items = execute(query,'post',conn)
                 print(items)
