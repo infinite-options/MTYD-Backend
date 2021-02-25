@@ -1918,7 +1918,7 @@ class Checkout(Resource):
             #     if latest_purchase['result'] is None:
             #         response['message'] = "Credit card number is invalid."
             #         return response, 400
-            #     if str(latest_purchase['result']['cc_num'][:-4]) != str(data['cc_num'][:-4]):
+            #     if str(latest_purchase['result']['cc_num'][:-4refund_calculator]) != str(data['cc_num'][:-4]):
             #         response['message'] = "Credit card number is invalid."
             #         return response, 400
             #     cc_num = latest_purchase['result']['cc_num']
@@ -4431,7 +4431,8 @@ class customer_infos(Resource):
                                 cust_guid_device_id_notification, 
                                 SMS_last_notification,
                                 max(purchase_date),
-                                count(purchase_id) 
+                                count(purchase_id),
+                                role 
                             from customers
                             left join lplp lp
                             on customer_uid = pur_customer_uid
