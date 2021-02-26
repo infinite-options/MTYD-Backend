@@ -275,10 +275,10 @@ stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
 stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
-stripe.api_key = stripe_secret_test_key
+#stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
-#stripe.api_key = "sk_test_51H*********D1lTRNK"
+stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
 
 
 
@@ -1701,6 +1701,7 @@ class Get_Latest_Purchases_Payments(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
 class Next_Billing_Date(Resource):
     def get(self):
         try:
@@ -2228,6 +2229,7 @@ class Change_Purchase (Resource):
                 #retrieve info from stripe for specific charge_id:
                 print("stripe 1")
                 print(process_id)
+                print(stripe.Charge.retrieve("ch_1IHw7sHlj5Z2kVM7zqJe5H5a",))
                 refunded_info = stripe.Charge.retrieve(process_id,)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
@@ -8018,7 +8020,7 @@ class payment_info (Resource):
             print('process completed')
 
 
-class payment_info_history (Resource):
+class payment_info_history (Resource): #edit to take in purchase_uid
     def get(self, p_id):
         try:
             conn = connect()
@@ -8545,6 +8547,65 @@ class get_final_price (Resource):
             print("done")
 
 
+
+class Get_Latest_Purchases_Payments_with_Refund(Resource):
+    # HTTP method GET
+    def get(self):
+        try:
+            conn = connect()
+            customer_uid = request.args['customer_uid']
+            purcahse_uid = request.args['']
+            query = """
+                    # CUSTOMER QUERY 2: CUSTOMER LATEST PURCHASE AND LATEST PAYMENT HISTORY
+                    # NEED CUSTOMER ADDRESS IN CASE CUSTOMER HAS NOT ORDERED BEFORE
+                    SELECT * FROM M4ME.lplp lp
+                    LEFT JOIN M4ME.customers c
+                        ON lp.pur_customer_uid = c.customer_uid
+                    WHERE pur_customer_uid = '""" + customer_uid + """'
+                    and items like "%200-000001%";
+                    """
+            response = simple_get_execute(query, __class__.__name__, conn)
+            if response[1] != 200:
+                return response[1]
+            except_list = ['password_hashed', 'password_salt', 'password_algorithm']
+            for i in range(len(response[0]['result'])):
+                for key in except_list:
+                     if response[0]['result'][i].get(key) is not None:
+                        del response[0]['result'][i][key]
+            return response
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class payment_info_history_fixed (Resource): #edit to take in purchase_uid
+    def get(self, p_uid):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM purchases
+                    inner join payments
+                        on purchase_id = pay_purchase_id
+                    WHERE purchase_id = (select pay_purchase_id from payments where pay_purchase_uid = \'""" + p_uid + """\');
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
 # Define API routes
 # Customer APIs
 
@@ -8841,6 +8902,8 @@ api.add_resource(cancel_purchase, '/api/v2/cancel_purchase')
 api.add_resource(get_Zones_specific, '/api/v2/get_Zones_specific/<string:lat>,<string:llong>')
 
 api.add_resource(find_next_sat, '/api/v2/find_next_sat')
+
+api.add_resource(payment_info_history_fixed, '/api/v2/payment_info_history_fixed/<string:p_uid>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
