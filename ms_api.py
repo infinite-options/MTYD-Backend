@@ -275,10 +275,10 @@ stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
 stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
-#stripe.api_key = stripe_secret_test_key
+stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
-stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+#stripe.api_key = "sk_test_51HyqrgLMj***********00yD1lTRNK"
 
 
 
@@ -2229,7 +2229,7 @@ class Change_Purchase (Resource):
                 #retrieve info from stripe for specific charge_id:
                 print("stripe 1")
                 print(process_id)
-                print(stripe.Charge.retrieve("ch_1IHw7sHlj5Z2kVM7zqJe5H5a",))
+                print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
                 refunded_info = stripe.Charge.retrieve(process_id,)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
@@ -8472,6 +8472,15 @@ class cancel_purchase (Resource):
             print(response2)
             if response2['code'] != 281:
                 return {"message": "Internal Server Error"}, 500
+            query2 : """
+                    insert into purchases (cancel_date)
+                    values(
+                        now()
+                    );
+                    """
+            response3 = execute(query2, 'post', conn)
+            if response3['code'] != 281:
+                return {"message": "Internal Server Error"}, 500
             return response2
 
         except:
@@ -8554,7 +8563,7 @@ class Get_Latest_Purchases_Payments_with_Refund(Resource):
         try:
             conn = connect()
             customer_uid = request.args['customer_uid']
-            purcahse_uid = request.args['']
+            #purchase_uid = request.args['purchase_uid']
             query = """
                     # CUSTOMER QUERY 2: CUSTOMER LATEST PURCHASE AND LATEST PAYMENT HISTORY
                     # NEED CUSTOMER ADDRESS IN CASE CUSTOMER HAS NOT ORDERED BEFORE
@@ -8562,7 +8571,8 @@ class Get_Latest_Purchases_Payments_with_Refund(Resource):
                     LEFT JOIN M4ME.customers c
                         ON lp.pur_customer_uid = c.customer_uid
                     WHERE pur_customer_uid = '""" + customer_uid + """'
-                    and items like "%200-000001%";
+                    and items like "%200-000001%"
+                    and purchase_status = "ACTIVE";
                     """
             response = simple_get_execute(query, __class__.__name__, conn)
             if response[1] != 200:
@@ -8572,6 +8582,15 @@ class Get_Latest_Purchases_Payments_with_Refund(Resource):
                 for key in except_list:
                      if response[0]['result'][i].get(key) is not None:
                         del response[0]['result'][i][key]
+            refund_info = {}
+            print("here")
+            for i2 in range(len(response[0]['result'])):
+                print("here 1")
+                print(response[0]['result'][i2]["purchase_id"])
+                refund_temp = Change_Purchase().refund_calculator(response[0]['result'][i2], conn)
+                print("here 2")
+                refund_info[i2] = refund_temp
+            print(refund_info)
             return response
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -8904,6 +8923,8 @@ api.add_resource(get_Zones_specific, '/api/v2/get_Zones_specific/<string:lat>,<s
 api.add_resource(find_next_sat, '/api/v2/find_next_sat')
 
 api.add_resource(payment_info_history_fixed, '/api/v2/payment_info_history_fixed/<string:p_uid>')
+
+api.add_resource(Get_Latest_Purchases_Payments_with_Refund, '/api/v2/Get_Latest_Purchases_Payments_with_Refund')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
