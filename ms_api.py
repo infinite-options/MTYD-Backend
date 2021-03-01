@@ -278,7 +278,7 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
-#stripe.api_key = "sk_test_51HyqrgLMj***********00yD1lTRNK"
+#stripe.api_key = "sk_test_51Hy***********bo00yD1lTRNK"
 
 
 
@@ -8342,6 +8342,7 @@ class cancel_purchase (Resource):
             conn = connect()
             response = {}
             response2 = {}
+            response3 = {}
             data = request.get_json(force=True)
             purchaseID = data["purchase_uid"]
             print(data)
@@ -8472,15 +8473,21 @@ class cancel_purchase (Resource):
             print(response2)
             if response2['code'] != 281:
                 return {"message": "Internal Server Error"}, 500
-            query2 : """
-                    insert into purchases (cancel_date)
-                    values(
-                        now()
-                    );
+            print("4.5")
+            cancel_query = """
+                    update purchases
+                    set cancel_date = now()
+                    where purchase_uid = '""" + purchaseID + """';
                     """
-            response3 = execute(query2, 'post', conn)
-            if response3['code'] != 281:
+            print("4.7")
+            print(cancel_query)
+            response2 = execute(cancel_query, 'post', conn)
+            print("5")
+            print(response2)
+            if response2['code'] != 281:
+                print("6")
                 return {"message": "Internal Server Error"}, 500
+            print("7")
             return response2
 
         except:
