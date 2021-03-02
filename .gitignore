@@ -26,3 +26,4 @@ sample.py
 # __ files
 __pycache__/
 ms-env
+test.py
