@@ -1716,12 +1716,23 @@ class Next_Billing_Date(Resource):
                         FROM (
                             SELECT lplpibr.*,
                                 si.*,
-                                ts.true_skips
+                                ts.*
                             FROM M4ME.lplp_items_by_row AS lplpibr
                             LEFT JOIN M4ME.subscription_items si
                                 ON lplpibr.lplpibr_jt_item_uid = si.item_uid
-                            LEFT JOIN M4ME.true_skips AS ts
-                                ON lplpibr.lplpibr_purchase_id = ts.d_purchase_id) AS nbd
+                            LEFT JOIN 
+                                (SELECT COUNT(delivery_day) AS skip_count FROM
+                                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
+                                        WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
+                                        GROUP BY sel_menu_date) AS GB
+                                        INNER JOIN meals_selected S
+                                        ON S.sel_purchase_id = GB.sel_purchase_id
+                                            AND S.sel_menu_date = GB.sel_menu_date
+                                            AND S.selection_time = GB.max_selection_time
+                                WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
+                                    AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
+                                    AND delivery_day = 'SKIP'
+                                ORDER BY S.sel_menu_date) as ts
                         WHERE lplpibr_customer_uid = '""" + customer_uid + """';
                         """
             return simple_get_execute(query, __class__.__name__, conn)
@@ -2196,7 +2207,8 @@ class Change_Purchase (Resource):
                 refund = 0
             elif week_remaining == 1:
                 refund = customer_paid
-        return {"week_remaining": week_remaining, "refund_amount": refund}
+        #return {"week_remaining": week_remaining, "refund_amount": refund} #original written by quang
+        return {"purchase_uid" : info_res['purchase_id'], "week_remaining": week_remaining, "refund_amount": refund}
 
     def stripe_refund (self, refund_info, conn):
         refund_amount = refund_info['refund_amount']
@@ -2573,6 +2585,35 @@ class Refund_Calculator (Resource):
             raise BadRequest("Request failed, please try again later.")
         finally:
             disconnect(conn)
+    def refund_calf(self, p_uid):
+        try:
+            conn = connect()
+            #purchase_uid = request.args.get('purchase_uid')
+
+            info_query = """
+                       SELECT pur.*, pay.*, sub.*
+                       FROM purchases pur, payments pay, subscription_items sub
+                       WHERE pur.purchase_uid = pay.pay_purchase_uid
+                           AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                   FROM purchases WHERE purchase_uid = '""" + p_uid + """')
+                           AND pur.purchase_uid = '""" + p_uid + """'
+                           AND pur.purchase_status='ACTIVE';  
+                       """
+            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            if info_res[1] != 200:
+                return {"message": "Internal Server Error"}, 500
+            # Calculate refund
+            try:
+                refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+            except:
+                print("calculated error")
+                return {"message": "Internal Server Error"}, 500
+            return {'message': "Successful", 'result': [{"refund_amount": refund_info['refund_amount']}]}, 200
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
 
 
 class Update_Delivery_Info (Resource):
@@ -8589,16 +8630,41 @@ class Get_Latest_Purchases_Payments_with_Refund(Resource):
                 for key in except_list:
                      if response[0]['result'][i].get(key) is not None:
                         del response[0]['result'][i][key]
-            refund_info = {}
+            refundinfo = {}
             print("here")
+            intx=0
             for i2 in range(len(response[0]['result'])):
                 print("here 1")
-                print(response[0]['result'][i2]["purchase_id"])
-                refund_temp = Change_Purchase().refund_calculator(response[0]['result'][i2], conn)
-                print("here 2")
-                refund_info[i2] = refund_temp
-            print(refund_info)
-            return response
+                print(response[0]['result'][intx]["purchase_uid"])
+                info_query = """
+                       SELECT pur.*, pay.*, sub.*
+                       FROM purchases pur, payments pay, subscription_items sub
+                       WHERE pur.purchase_uid = pay.pay_purchase_uid
+                           AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                   FROM purchases WHERE purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """')
+                           AND pur.purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """'
+                           AND pur.purchase_status='ACTIVE';  
+                       """
+                info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+                refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+
+                refundinfo[intx]=refund_info
+                intx=intx+1
+            response2 = {}
+            inty = 0
+            print("changes here")
+            for i2 in range(len(response[0]['result'])):
+                print(response[0]['result'][i2])
+                response2[inty]=response[0]['result'][i2]
+                print("1")
+                #inty=inty+1
+                print(refundinfo[i2])
+                response2[inty+1]=refundinfo[i2]
+                print("2")
+                inty=inty+2
+            print("here 3")
+            print(response2)
+            return response2
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -8938,3 +9004,5 @@ api.add_resource(Get_Latest_Purchases_Payments_with_Refund, '/api/v2/Get_Latest_
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=2000)
     #app.run(host='0.0.0.0', port=2000)
+
+
