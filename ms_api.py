@@ -1716,7 +1716,7 @@ class Next_Billing_Date(Resource):
                         FROM (
                             SELECT lplpibr.*,
                                 si.*,
-                                ts.*
+                                ts.skip_count
                             FROM M4ME.lplp_items_by_row AS lplpibr
                             LEFT JOIN M4ME.subscription_items si
                                 ON lplpibr.lplpibr_jt_item_uid = si.item_uid
@@ -2033,7 +2033,8 @@ class Checkout(Resource):
                                 delivery_latitude = \'''' + delivery_latitude + '''\',
                                 items = ''' + items + ''',
                                 order_instructions = ''' + order_instructions + ''',
-                                purchase_notes = ''' + purchase_notes + ''';'''
+                                purchase_notes = ''' + purchase_notes + ''';
+                            '''
                             ]
                 response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
                 if response[1] == 201:
@@ -2043,6 +2044,7 @@ class Checkout(Resource):
                     if "paymentId" in locals() and "purchaseId" in locals():
                         execute("""DELETE FROM payments WHERE payment_uid = '""" + paymentId + """';""", 'post', conn)
                         execute("""DELETE FROM purchases WHERE purchase_uid = '""" + purchaseId + """';""", 'post', conn)
+                
                 return response
                 # return "OK", 201
             except:
@@ -7122,7 +7124,8 @@ class Get_Upcoming_Menu_Date(Resource):
                     SELECT DISTINCT menu_date
                     FROM M4ME.menu
                     WHERE menu_date > CURDATE() AND
-                    menu_date <= ADDDATE(CURDATE(), 43);
+                    menu_date <= ADDDATE(CURDATE(), 43)
+                    order by menu_date;
                     """
 
             items = execute(query, 'get', conn)
@@ -8654,14 +8657,14 @@ class Get_Latest_Purchases_Payments_with_Refund(Resource):
             inty = 0
             print("changes here")
             for i2 in range(len(response[0]['result'])):
-                print(response[0]['result'][i2])
-                response2[inty]=response[0]['result'][i2]
+                #print(response[0]['result'][i2])
+                response2[inty]=str(response[0]['result'][i2]) + "" + str(refundinfo[i2])
                 print("1")
                 #inty=inty+1
-                print(refundinfo[i2])
-                response2[inty+1]=refundinfo[i2]
+                #print(refundinfo[i2])
+                #response2[inty+1]=refundinfo[i2]
                 print("2")
-                inty=inty+2
+                inty=inty+1
             print("here 3")
             print(response2)
             return response2
@@ -8697,6 +8700,53 @@ class payment_info_history_fixed (Resource): #edit to take in purchase_uid
             disconnect(conn)
             print('process completed')
 
+
+class add_surprise (Resource):
+    def post(self, p_uid):
+        try:
+            conn = connect()
+            query = """
+                    select num_issues 
+                    from subscription_items
+                    where item_price=
+                    (SELECT json_extract(items, '$[0].price') price
+                    FROM purchases WHERE purchase_uid = \'""" + p_uid + """\');
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            #print(int(items["result"][0]["num_issues"]))
+            query1 ="""
+                        select purchase_id
+                        from purchases
+                        where purchase_uid = \'""" + p_uid + """\';
+                    """
+            p_id = execute(query1, 'get', conn)
+
+            inty=int(items["result"][0]["num_issues"])
+            print(inty)
+            intx=0
+            for intx in range(0,inty):
+                res = execute("CALL new_meals_selected_uid();", 'get', conn)
+                query2 ="""
+                            insert into subscription_items (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
+                            values(
+                                \'""" + res['result'][0]['new_id'] + """\',
+                                \'""" + p_id + """\'
+                                now(),
+                                
+                            )
+                        """
+                print(res['result'][0]['new_id'])
+            return items
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
 
 # Define API routes
 # Customer APIs
@@ -8998,6 +9048,8 @@ api.add_resource(find_next_sat, '/api/v2/find_next_sat')
 api.add_resource(payment_info_history_fixed, '/api/v2/payment_info_history_fixed/<string:p_uid>')
 
 api.add_resource(Get_Latest_Purchases_Payments_with_Refund, '/api/v2/Get_Latest_Purchases_Payments_with_Refund')
+
+api.add_resource(add_surprise, '/api/v2/add_surprise/<string:p_uid>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
