@@ -1653,7 +1653,8 @@ class Get_Upcoming_Menu(Resource):
                     SELECT * FROM M4ME.menu
                     LEFT JOIN M4ME.meals m
                         ON menu.menu_meal_id = m.meal_uid
-                    WHERE menu_date > CURDATE();
+                    WHERE menu_date > CURDATE()
+                    order by menu_date;
                     """
 
             items = execute(query, 'get', conn)
@@ -8731,13 +8732,25 @@ class add_surprise (Resource):
             for intx in range(0,inty):
                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
                 query2 ="""
-                            insert into subscription_items (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
+                            insert into subscription_items (selection_uid, sel_purchase_id, selection_time, meal_selection, delivery_day)
                             values(
                                 \'""" + res['result'][0]['new_id'] + """\',
                                 \'""" + p_id + """\'
                                 now(),
-                                
-                            )
+                                '[{"qty": "", 
+                                    "name": "SURPRISE", 
+                                    "price": "", "item_uid": ""}, 
+                                ]',
+                                SUNDAY
+                            );
+                        """
+                sur_item = execute(query2, 'post', conn)
+                query3 ="""
+                            update subscriptions_items
+                            set
+                                sel_menu_date = (select menu_date from menu
+                                                    where menu_date > getdate()
+                                                    order by menu_date
                         """
                 print(res['result'][0]['new_id'])
             return items
