@@ -2304,6 +2304,9 @@ class Change_Purchase (Resource):
             cc_zip = data['cc_zip']
             purchaseID = data['purchase_id']
             new_item_id = data['new_item_id']
+            #num_deliveries = data['qty']
+            # temp hardcoded
+            num_deliveries = 3
             #customer_uid = data["customer_id"]
             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
             print("1")
@@ -2345,9 +2348,11 @@ class Change_Purchase (Resource):
             print(info_res)
             if info_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
+
+
             # Calculate refund
             print("1.9")
-            refund_info = self.refund_calculator(info_res[0]['result'][0], conn)
+            refund_info = test_cal().new_refund_calculator(info_res[0]['result'][0], conn)
             print("2")
             refund_amount = refund_info['refund_amount']
             print("refund_amount",refund_amount)
@@ -2355,13 +2360,46 @@ class Change_Purchase (Resource):
             # price for the new purchase
             # this query below for querying the price may be redundant, the front end can send it in data['items']
             # Should we do it here to make sure that the front end did not make any error?
+            ''' 
+            #old item price query
             item_query = """
                         SELECT * FROM subscription_items
                         WHERE item_uid = '""" + new_item_id + """';
                         """
+            
             item_res = simple_get_execute(item_query, "QUERY PRICE FOR NEW PURCHASE.", conn)
             if item_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
+            amount_will_charge = float(item_res[0]['result'][0]['item_price']) - refund_amount
+            '''
+            item_query = """
+                        SELECT * FROM subscription_items
+                        WHERE item_uid = '""" + new_item_id + """';
+                        """
+            
+            item_res = simple_get_execute(item_query, "QUERY PRICE FOR NEW PURCHASE.", conn)
+            if item_res[1] != 200:
+                return {"message": "Internal Server Error"}, 500
+
+            num_meals = int(item_res[0]['result'][0]['item_name'][0])
+
+
+            discount_query = """
+                        SELECT * FROM M4ME.discounts;
+                        """
+            discount = execute(discount_query, 'get', conn)
+
+            if discount['code'] != 280:
+                return discount
+            
+            # get discount combinations in a dictionary
+            discount_dict = {}
+            for val in discount['result']:
+                discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
+            
+            customer_paid = 12*num_meals*num_deliveries*(1-discount_dict[(num_days,num_meals)])
+
+                
             amount_will_charge = float(item_res[0]['result'][0]['item_price']) - refund_amount
             # Process stripe
             print("amount_will_charge",amount_will_charge)
@@ -2445,7 +2483,6 @@ class Change_Purchase (Resource):
             print("writting into database")
             purchase_uid = get_new_purchaseID(conn)
             if purchase_uid[1] == 500:
-                print(purchaseId[0])
                 return {"message": "Internal Server Error."}, 500
             payment_uid = get_new_paymentID(conn)
             if payment_uid[1] == 500:
@@ -8069,7 +8106,8 @@ class cancel_purchase (Resource):
             # Calculate refund
             print(info_res)
             print("1")
-            refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+            #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+            refund_info = test_cal().new_refund_calculator(info_res[0]['result'][0], conn)
             print("2")
             print(refund_info)
             refund_amount = refund_info['refund_amount']
@@ -8845,8 +8883,8 @@ class test_cal(Resource):
         num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
         print("meals :",num_meals)
         # get number of days
-        #num_days = int(json.loads(info_res['items'])[0].get('days'))
-        num_days = 2
+        num_days = int(json.loads(info_res['items'])[0].get('qty'))
+        
         print("days :", num_days)
         # get remaining days
         remaining_delivery_days = num_days - delivered_num 
@@ -8883,7 +8921,7 @@ class test_cal(Resource):
 
         refund_amount = customer_paid - customer_used_amount
 
-        return {"week_remaining": remaining_delivery_days, "refund_amount": refund_amount}
+        return {"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
 
 
 
