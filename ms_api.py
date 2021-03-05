@@ -2673,13 +2673,16 @@ class Plans(Resource):
     def get(self):
         try:
             conn = connect()
-            business_uid = request.args['business_uid']
+            #business_uid = request.args['business_uid']
             query = """
-                    # ADMIN QUERY 5: PLANS 
-                    SELECT * FROM M4ME.subscription_items si 
-                    -- WHERE itm_business_uid = "200-000007"; 
-                    WHERE itm_business_uid = \'""" + business_uid + """\';
+                    select * from discounts;
                     """
+            # query = """
+            #         # ADMIN QUERY 5: PLANS 
+            #         SELECT * FROM M4ME.subscription_items si 
+            #         -- WHERE itm_business_uid = "200-000007"; 
+            #         WHERE itm_business_uid = \'""" + business_uid + """\';
+            #         """
             return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -8719,6 +8722,7 @@ class add_surprise (Resource):
                 return items
             #items['result'] = items['result'][0]
             #print(int(items["result"][0]["num_issues"]))
+            print("1")
             query1 ="""
                         select purchase_id
                         from purchases
@@ -8729,30 +8733,40 @@ class add_surprise (Resource):
             inty=int(items["result"][0]["num_issues"])
             print(inty)
             intx=0
+
+            print("2")
+            query3 ="""
+                        select distinct menu_date
+                        from menu
+                        where menu_date > now()
+                        order by menu_date asc limit 2;
+                    """
+            menu_date = execute(query3, 'get', conn)
+            temp_storage={}
+            temp_storage[0]=menu_date["result"][0]["menu_date"]
+            temp_storage[inty]=menu_date["result"][1]["menu_date"]
+            print(temp_storage)
             for intx in range(0,inty):
+                print("3")
                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
+                print("4")
                 query2 ="""
-                            insert into subscription_items (selection_uid, sel_purchase_id, selection_time, meal_selection, delivery_day)
+                            insert into meals_selected (selection_uid, sel_purchase_id, sel_menu_date, selection_time, meal_selection, delivery_day)
                             values(
                                 \'""" + res['result'][0]['new_id'] + """\',
-                                \'""" + p_id + """\'
+                                \'""" + p_id + """\',
                                 now(),
+                                \'""" + temp_storage[intx] + """\',
                                 '[{"qty": "", 
                                     "name": "SURPRISE", 
-                                    "price": "", "item_uid": ""}, 
+                                    "price": "", "item_uid": ""}
                                 ]',
-                                SUNDAY
+                                "SUNDAY"
                             );
                         """
+                print("5")
                 sur_item = execute(query2, 'post', conn)
-                query3 ="""
-                            update subscriptions_items
-                            set
-                                sel_menu_date = (select menu_date from menu
-                                                    where menu_date > getdate()
-                                                    order by menu_date
-                        """
-                print(res['result'][0]['new_id'])
+                print("6")
             return items
         except:
                 print("Error happened while getting payment info")
