@@ -2117,6 +2117,7 @@ class check_stripe_id(Resource):
             return "error"
 
 class Change_Purchase (Resource):
+    
     def refund_calculator(self, info_res,  conn):
         print("in refund calculator")
         # Getting the original start and end date for requesting purchase
@@ -2143,6 +2144,10 @@ class Change_Purchase (Resource):
         if skip_res[1] != 200:
             return skip_res
         skip = int(skip_res[0].get('skip_count')) if skip_res[0].get('skip_count') else 0
+        
+        # delivered = freq - skip
+        # delivered = 4 - 0
+        
         if datetime.now().date() > start_delivery_date.date():
             delivered = (datetime.now().date() - start_delivery_date.date()).days//7 + 1 - skip
             week_remaining -= delivered
@@ -2625,8 +2630,8 @@ class Plans(Resource):
             conn = connect()
             business_uid = request.args['business_uid']
             query = """
-                    # ADMIN QUERY 5: PLANS 
-                    SELECT * FROM M4ME.subscription_items si 
+                    # ADMIN QUERY 5: PLANS
+                    SELECT * FROM M4ME.subscription_items si
                     -- WHERE itm_business_uid = "200-000007"; 
                     WHERE itm_business_uid = \'""" + business_uid + """\';
                     """
@@ -8615,8 +8620,6 @@ class checkAutoPay(Resource):
         
 
 
-
-
 class adminInfo(Resource):
 
     def refund_calculator(self, info_res,  conn):
@@ -8777,6 +8780,111 @@ class adminInfo(Resource):
             ans.append(vals)
         
         return ans
+
+class test_cal(Resource):
+    def get(self, purchaseID):
+        
+        conn = connect()
+        info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';  
+                        """
+        print("info_query", info_query)
+        info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+        print(info_res)
+        if info_res[1] != 200:
+            return {"message": "Internal Server Error"}, 500
+        # Calculate refund
+        print("1.9")
+        refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
+
+        return refund_info
+
+
+
+    def new_refund_calculator(self, info_res,  conn):
+
+
+        print("in refund calculator")
+        
+        # checking skips new
+
+        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+        week_remaining = int(info_res['payment_frequency'])
+        
+        all_deliveries = """
+                    SELECT COUNT(delivery_day) AS delivery_count FROM
+                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
+                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
+                                GROUP BY sel_menu_date) AS GB
+                                INNER JOIN meals_selected S
+                                ON S.sel_purchase_id = GB.sel_purchase_id
+                                    AND S.sel_menu_date = GB.sel_menu_date
+                                    AND S.selection_time = GB.max_selection_time
+                    WHERE 
+                        S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H:%M:%S") + """'
+                        AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """'
+                        AND delivery_day != 'SKIP'
+                    ORDER BY S.sel_menu_date;
+                    """
+        print(all_deliveries)
+        delivered_num = execute(all_deliveries, "get", conn)
+        print(delivered_num)
+        if delivered_num['code'] != 280:
+            return delivered_num
+        delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
+        print("delivered_num :", delivered_num)
+
+
+        # get number of meals from item name
+        num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
+        print("meals :",num_meals)
+        # get number of days
+        #num_days = int(json.loads(info_res['items'])[0].get('days'))
+        num_days = 2
+        print("days :", num_days)
+        # get remaining days
+        remaining_delivery_days = num_days - delivered_num 
+        print("days reamin :",remaining_delivery_days)
+
+
+        # if weeks remaining are 0 return 
+        if remaining_delivery_days == 0:
+            {"week_remaining": 0, "refund_amount": 0}
+
+
+        # if remaining days are negative then it means there is some error 
+        if remaining_delivery_days < 0:
+            print("There is something wrong with the query to get info for the requested purchase.")
+            response = {'message': "Internal Server Error."}
+            return response, 500
+        
+        discount_query = """
+                        SELECT * FROM M4ME.discounts;
+                        """
+        discount = execute(discount_query, 'get', conn)
+
+        if discount['code'] != 280:
+            return discount
+        
+        # get discount combinations in a dictionary
+        discount_dict = {}
+        for val in discount['result']:
+            discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
+        
+        customer_paid = 12*num_meals*num_days*(1-discount_dict[(num_days,num_meals)])
+
+        customer_used_amount = 12*num_meals*delivered_num *(1-discount_dict[(delivered_num ,num_meals)])
+
+        refund_amount = customer_paid - customer_used_amount
+
+        return {"week_remaining": remaining_delivery_days, "refund_amount": refund_amount}
+
 
 
 
@@ -9081,6 +9189,8 @@ api.add_resource(cancel_purchase, '/api/v2/cancel_purchase')
 api.add_resource(checkAutoPay, '/api/v2/checkAutoPay')
 
 api.add_resource(adminInfo, '/api/v2/adminInfo')
+
+api.add_resource(test_cal, '/api/v2/test_cal/<string:purchaseID>')
 
 
 api.add_resource(check_stripe_id, '/api/v2/check_stripe_id/<string:id>')
