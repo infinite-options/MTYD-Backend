@@ -1687,7 +1687,7 @@ class Get_Latest_Purchases_Payments(Resource):
                     LEFT JOIN M4ME.customers c
                         ON lp.pur_customer_uid = c.customer_uid
                     WHERE pur_customer_uid = '""" + customer_uid + """'
-                    and items like "%200-000001%";
+                    and items like "%200-000002%";
                     """
             response = simple_get_execute(query, __class__.__name__, conn)
             if response[1] != 200:
@@ -5015,7 +5015,7 @@ class get_orders(Resource):
                     from customers
                     inner join M4ME.lplp_items_by_row
                     on customer_uid = lplpibr_customer_uid
-                    where lplpibr_jt_business_uid = "200-000001";
+                    where lplpibr_jt_business_uid = "200-000002";
                     """
             items = execute(query, 'get', conn)
             print(items["code"])
@@ -6020,7 +6020,7 @@ class customer_info(Resource):
                                                 itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
                                      ) AS deconstruct, M4ME.payments AS pay, M4ME.customers AS cust
                     WHERE purchase_uid = pay.pay_purchase_uid AND pur_customer_uid = cust.customer_uid
-                            and items like "%200-000001%"
+                            and items like "%200-000002%"
                     GROUP BY deconstruct.itm_business_uid, pur_customer_uid
                     ; 
                     """
@@ -8630,7 +8630,7 @@ class Get_Latest_Purchases_Payments_with_Refund(Resource):
                     LEFT JOIN M4ME.customers c
                         ON lp.pur_customer_uid = c.customer_uid
                     WHERE pur_customer_uid = '""" + customer_uid + """'
-                    and items like "%200-000001%"
+                    and items like "%200-000002%"
                     and purchase_status = "ACTIVE";
                     """
             response = simple_get_execute(query, __class__.__name__, conn)
