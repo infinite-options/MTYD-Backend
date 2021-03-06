@@ -8782,14 +8782,13 @@ class add_surprise (Resource):
 
 
 class discount_percentage (Resource): #edit to take in purchase_uid
-    def get(self, n_meal, n_delivery):
+    def get(self, n_delivery):
         try:
             conn = connect()
             query = """
                     SELECT *
                     FROM discounts
-                    WHERE num_deliveries = \'""" + n_delivery + """\'
-                        and num_meals = \'""" + n_meal + """\';
+                    WHERE num_deliveries = \'""" + n_delivery + """\';
                     """
             items = execute(query, 'get', conn)
             print(items)
@@ -9370,7 +9369,7 @@ api.add_resource(Get_Latest_Purchases_Payments_with_Refund, '/api/v2/Get_Latest_
 
 api.add_resource(add_surprise, '/api/v2/add_surprise/<string:p_uid>')
 
-api.add_resource(discount_percentage, '/api/v2/discount_percentage/<string:n_meal>,<string:n_delivery>')
+api.add_resource(discount_percentage, '/api/v2/discount_percentage/<string:n_delivery>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
