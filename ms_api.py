@@ -2674,8 +2674,11 @@ class Plans(Resource):
         try:
             conn = connect()
             #business_uid = request.args['business_uid']
+            print("1")
             query = """
-                    select * from discounts;
+                    select * from subscription_items 
+                    join discounts
+                    where itm_business_uid = "200-000002";
                     """
             # query = """
             #         # ADMIN QUERY 5: PLANS 
@@ -2683,6 +2686,7 @@ class Plans(Resource):
             #         -- WHERE itm_business_uid = "200-000007"; 
             #         WHERE itm_business_uid = \'""" + business_uid + """\';
             #         """
+            print("2")
             return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -8383,165 +8387,165 @@ class categoricalOptions(Resource):
         finally:
             disconnect(conn)
 
-class cancel_purchase (Resource):
-    def put(self):
-        try:
-            print("00")
-            conn = connect()
-            response = {}
-            response2 = {}
-            response3 = {}
-            data = request.get_json(force=True)
-            purchaseID = data["purchase_uid"]
-            print(data)
-            print("0")
-            info_query = """
-                        SELECT pur.*, pay.*, sub.*
-                        FROM purchases pur, payments pay, subscription_items sub
-                        WHERE pur.purchase_uid = pay.pay_purchase_uid
-                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
-                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
-                            AND pur.purchase_uid = '""" + purchaseID + """'
-                            AND pur.purchase_status='ACTIVE';
-                        """
-            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-            if info_res[1] != 200:
-                return {"message": "Internal Server Error"}, 500
-            # Calculate refund
-            print(info_res)
-            print("1")
-            refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
-            print("2")
-            print(refund_info)
-            refund_amount = refund_info['refund_amount']
-            print(refund_amount)
-            if refund_amount > 0:
-                print("2.3")
-                # establishing more info for refund_info before we feed it in stripe_refund
-                refund_info['refund_amount'] = abs(refund_amount)
-                print("2.33")
-                refund_info['purchase_uid'] = purchaseID
-                print("2.36")
-                print(refund_info)
-                refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
-                print("2.4")
-                if refund_info['refunded_id'] is not None:
-                    refunded = True
-                else:
-                    return {"message": "REFUND PROCESS ERROR."}, 500
-            print("2.5")
-            query = """
-                    Update M4ME.purchases
-                    set 
-                        purchase_status = "CANCELLED and REFUNDED"
-                    where purchase_uid = '""" + purchaseID + """';
-                    """
-            response = execute(query, 'post', conn)
-            print("3")
-            print(response)
-            if response['code'] != 281:
-                return {"message": "Internal Server Error"}, 500
-            print("3.3")
-            new_paymentId = get_new_paymentID(conn)
-            print("3.4")
-            if new_paymentId[1] == 500:
-                print(new_paymentId[0])
-                response['message'] = "Internal Server Error."
-                return response, 500
-            print("3.5")
-            print(refund_amount)
-            new_refund = 0-abs(refund_amount)
+# class cancel_purchase (Resource):
+#     def put(self):
+#         try:
+#             print("00")
+#             conn = connect()
+#             response = {}
+#             response2 = {}
+#             response3 = {}
+#             data = request.get_json(force=True)
+#             purchaseID = data["purchase_uid"]
+#             print(data)
+#             print("0")
+#             info_query = """
+#                         SELECT pur.*, pay.*, sub.*
+#                         FROM purchases pur, payments pay, subscription_items sub
+#                         WHERE pur.purchase_uid = pay.pay_purchase_uid
+#                             AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+#                                                     FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+#                             AND pur.purchase_uid = '""" + purchaseID + """'
+#                             AND pur.purchase_status='ACTIVE';
+#                         """
+#             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+#             if info_res[1] != 200:
+#                 return {"message": "Internal Server Error"}, 500
+#             # Calculate refund
+#             print(info_res)
+#             print("1")
+#             refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+#             print("2")
+#             print(refund_info)
+#             refund_amount = refund_info['refund_amount']
+#             print(refund_amount)
+#             if refund_amount > 0:
+#                 print("2.3")
+#                 # establishing more info for refund_info before we feed it in stripe_refund
+#                 refund_info['refund_amount'] = abs(refund_amount)
+#                 print("2.33")
+#                 refund_info['purchase_uid'] = purchaseID
+#                 print("2.36")
+#                 print(refund_info)
+#                 refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
+#                 print("2.4")
+#                 if refund_info['refunded_id'] is not None:
+#                     refunded = True
+#                 else:
+#                     return {"message": "REFUND PROCESS ERROR."}, 500
+#             print("2.5")
+#             query = """
+#                     Update M4ME.purchases
+#                     set 
+#                         purchase_status = "CANCELLED and REFUNDED"
+#                     where purchase_uid = '""" + purchaseID + """';
+#                     """
+#             response = execute(query, 'post', conn)
+#             print("3")
+#             print(response)
+#             if response['code'] != 281:
+#                 return {"message": "Internal Server Error"}, 500
+#             print("3.3")
+#             new_paymentId = get_new_paymentID(conn)
+#             print("3.4")
+#             if new_paymentId[1] == 500:
+#                 print(new_paymentId[0])
+#                 response['message'] = "Internal Server Error."
+#                 return response, 500
+#             print("3.5")
+#             print(refund_amount)
+#             new_refund = 0-abs(refund_amount)
             
-            new_refund = str(new_refund)
-            print("3.6")
-            #print(info_res["result"][2])
-            print(type(new_refund))
-            print(new_refund)
-            #print(refund_info["refunded_id"][0])
-            refund_id = str(refund_info["refunded_id"][0])
-            #print(refund_id)
-            print("3.65")
-            print("start input")
-            print(new_paymentId)
-            print(purchaseID)
-            print(new_refund)
-            print(refund_id)
-            print("end input")
-            payment_query = """
-                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
-                    values(
-                        '""" + new_paymentId + """',
-                        '""" + new_paymentId + """',
-                        '""" + purchaseID + """',
-                        (
-                            select purchase_id
-                            from purchases
-                            where purchase_uid = '""" + purchaseID + """'
-                            order by purchase_date desc
-                            limit 1
-                        ),
-                        now(),
-                        '""" + new_refund + """',
-                        '""" + new_refund + """',
-                        '""" + refund_id + """',
-                        "STRIPE",
-                        (
-                            select cc_num
-                            from lplp
-                            where purchase_uid = '""" + purchaseID + """'
-                            order by payment_time_stamp desc
-                            limit 1
-                        ),
-                        (
-                            select cc_exp_date
-                            from lplp
-                            where purchase_uid = '""" + purchaseID + """'
-                            order by payment_time_stamp desc
-                            limit 1
-                        ),
-                        (
-                            select cc_cvv
-                            from lplp
-                            where purchase_uid = '""" + purchaseID + """'
-                            order by payment_time_stamp desc
-                            limit 1
-                        ),
-                        (
-                            select cc_zip
-                            from lplp
-                            where purchase_uid = '""" + purchaseID + """'
-                            order by payment_time_stamp desc
-                            limit 1
-                        )
-                    );
-                    """
-            print("3.7")
-            response2 = execute(payment_query, 'post', conn)
-            print("4")
-            print(response2)
-            if response2['code'] != 281:
-                return {"message": "Internal Server Error"}, 500
-            print("4.5")
-            cancel_query = """
-                    update purchases
-                    set cancel_date = now()
-                    where purchase_uid = '""" + purchaseID + """';
-                    """
-            print("4.7")
-            print(cancel_query)
-            response2 = execute(cancel_query, 'post', conn)
-            print("5")
-            print(response2)
-            if response2['code'] != 281:
-                print("6")
-                return {"message": "Internal Server Error"}, 500
-            print("7")
-            return response2
+#             new_refund = str(new_refund)
+#             print("3.6")
+#             #print(info_res["result"][2])
+#             print(type(new_refund))
+#             print(new_refund)
+#             #print(refund_info["refunded_id"][0])
+#             refund_id = str(refund_info["refunded_id"][0])
+#             #print(refund_id)
+#             print("3.65")
+#             print("start input")
+#             print(new_paymentId)
+#             print(purchaseID)
+#             print(new_refund)
+#             print(refund_id)
+#             print("end input")
+#             payment_query = """
+#                     insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
+#                     values(
+#                         '""" + new_paymentId + """',
+#                         '""" + new_paymentId + """',
+#                         '""" + purchaseID + """',
+#                         (
+#                             select purchase_id
+#                             from purchases
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by purchase_date desc
+#                             limit 1
+#                         ),
+#                         now(),
+#                         '""" + new_refund + """',
+#                         '""" + new_refund + """',
+#                         '""" + refund_id + """',
+#                         "STRIPE",
+#                         (
+#                             select cc_num
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         ),
+#                         (
+#                             select cc_exp_date
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         ),
+#                         (
+#                             select cc_cvv
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         ),
+#                         (
+#                             select cc_zip
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         )
+#                     );
+#                     """
+#             print("3.7")
+#             response2 = execute(payment_query, 'post', conn)
+#             print("4")
+#             print(response2)
+#             if response2['code'] != 281:
+#                 return {"message": "Internal Server Error"}, 500
+#             print("4.5")
+#             cancel_query = """
+#                     update purchases
+#                     set cancel_date = now()
+#                     where purchase_uid = '""" + purchaseID + """';
+#                     """
+#             print("4.7")
+#             print(cancel_query)
+#             response2 = execute(cancel_query, 'post', conn)
+#             print("5")
+#             print(response2)
+#             if response2['code'] != 281:
+#                 print("6")
+#                 return {"message": "Internal Server Error"}, 500
+#             print("7")
+#             return response2
 
-        except:
-            raise BadRequest("Request failed, please try again later.")
-        finally:
-            disconnect(conn)
+#         except:
+#             raise BadRequest("Request failed, please try again later.")
+#         finally:
+#             disconnect(conn)
 
 
 class get_Zones_specific (Resource):
@@ -8751,7 +8755,7 @@ class add_surprise (Resource):
                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
                 print("4")
                 query2 ="""
-                            insert into meals_selected (selection_uid, sel_purchase_id, sel_menu_date, selection_time, meal_selection, delivery_day)
+                            insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
                             values(
                                 \'""" + res['result'][0]['new_id'] + """\',
                                 \'""" + p_id + """\',
@@ -8774,6 +8778,294 @@ class add_surprise (Resource):
         finally:
             disconnect(conn)
             print('process completed')
+
+
+
+class discount_percentage (Resource): #edit to take in purchase_uid
+    def get(self, n_meal, n_delivery):
+        try:
+            conn = connect()
+            query = """
+                    SELECT *
+                    FROM discounts
+                    WHERE num_deliveries = \'""" + n_delivery + """\'
+                        and num_meals = \'""" + n_meal + """\';
+                    """
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting discount info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+
+
+# Parva Code  -----------------------------------------------------------------------------------------------------------
+
+class test_cal(Resource):
+    def get(self, purchaseID):
+        
+        conn = connect()
+        info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';  
+                        """
+        print("info_query", info_query)
+        info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+        print(info_res)
+        if info_res[1] != 200:
+            return {"message": "Internal Server Error"}, 500
+        # Calculate refund
+        print("1.9")
+        refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
+
+        return refund_info
+
+
+
+    def new_refund_calculator(self, info_res,  conn):
+
+
+        print("in refund calculator")
+        
+        # checking skips new
+
+        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+        week_remaining = int(info_res['payment_frequency'])
+        
+        all_deliveries = """
+                    SELECT COUNT(delivery_day) AS delivery_count FROM
+                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
+                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
+                                GROUP BY sel_menu_date) AS GB
+                                INNER JOIN meals_selected S
+                                ON S.sel_purchase_id = GB.sel_purchase_id
+                                    AND S.sel_menu_date = GB.sel_menu_date
+                                    AND S.selection_time = GB.max_selection_time
+                    WHERE 
+                        S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H:%M:%S") + """'
+                        AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """'
+                        AND delivery_day != 'SKIP'
+                    ORDER BY S.sel_menu_date;
+                    """
+        print(all_deliveries)
+        delivered_num = execute(all_deliveries, "get", conn)
+        print(delivered_num)
+        if delivered_num['code'] != 280:
+            return delivered_num
+        delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
+        print("delivered_num :", delivered_num)
+
+
+        # get number of meals from item name
+        num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
+        print("meals :",num_meals)
+        # get number of days
+        num_days = int(json.loads(info_res['items'])[0].get('qty'))
+        
+        print("days :", num_days)
+        # get remaining days
+        remaining_delivery_days = num_days - delivered_num 
+        print("days reamin :",remaining_delivery_days)
+
+
+        # if weeks remaining are 0 return 
+        if remaining_delivery_days == 0:
+            {"week_remaining": 0, "refund_amount": 0}
+
+
+        # if remaining days are negative then it means there is some error 
+        if remaining_delivery_days < 0:
+            print("There is something wrong with the query to get info for the requested purchase.")
+            response = {'message': "Internal Server Error."}
+            return response, 500
+        
+        discount_query = """
+                        SELECT * FROM M4ME.discounts;
+                        """
+        discount = execute(discount_query, 'get', conn)
+
+        if discount['code'] != 280:
+            return discount
+        
+        # get discount combinations in a dictionary
+        discount_dict = {}
+        for val in discount['result']:
+            discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
+        
+        customer_paid = 12*num_meals*num_days*(1-discount_dict[(num_days,num_meals)])
+
+        customer_used_amount = 12*num_meals*delivered_num *(1-discount_dict[(delivered_num ,num_meals)])
+
+        refund_amount = customer_paid - customer_used_amount
+
+        return {"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
+
+
+class cancel_purchase (Resource):
+    def put(self):
+        try:
+            print("00")
+            conn = connect()
+            response = {}
+            response2 = {}
+            data = request.get_json(force=True)
+            purchaseID = data["purchase_uid"]
+            print(data)
+            print("0")
+            info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';
+                        """
+            print(info_query)
+            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            if info_res[1] != 200:
+                return {"message": "Internal Server Error"}, 500
+            # Calculate refund
+            print(info_res)
+            print("1")
+            #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+            refund_info = test_cal().new_refund_calculator(info_res[0]['result'][0], conn)
+            print("2")
+            print(refund_info)
+            refund_amount = refund_info['refund_amount']
+            print(refund_amount)
+            if refund_amount > 0:
+                print("2.3")
+                # establishing more info for refund_info before we feed it in stripe_refund
+                refund_info['refund_amount'] = abs(refund_amount)
+                print("2.33")
+                refund_info['purchase_uid'] = purchaseID
+                print("2.36")
+                print(refund_info)
+                refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
+                print("2.4")
+                if refund_info['refunded_id'] is not None:
+                    refunded = True
+                else:
+                    return {"message": "REFUND PROCESS ERROR."}, 500
+            print("2.5")
+            query = """
+                    Update M4ME.purchases
+                    set 
+                        purchase_status = "CANCELLED and REFUNDED"
+                    where purchase_uid = '""" + purchaseID + """';
+                    """
+            response = execute(query, 'post', conn)
+            print("3")
+            print(response)
+            if response['code'] != 281:
+                return {"message": "Internal Server Error"}, 500
+            print("3.3")
+            new_paymentId = get_new_paymentID(conn)
+            print("3.4")
+            if new_paymentId[1] == 500:
+                print(new_paymentId[0])
+                response['message'] = "Internal Server Error."
+                return response, 500
+            print("3.5")
+            print(refund_amount)
+            new_refund = 0-abs(refund_amount)
+            
+            new_refund = str(new_refund)
+            print("3.6")
+            #print(info_res["result"][2])
+            print(type(new_refund))
+            print(new_refund)
+            #print(refund_info["refunded_id"][0])
+            refund_id = str(refund_info["refunded_id"][0])
+            #print(refund_id)
+            print("3.65")
+            print("start input")
+            print(new_paymentId)
+            print(purchaseID)
+            print(new_refund)
+            print(refund_id)
+            print("end input")
+            payment_query = """
+                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
+                    values(
+                        '""" + new_paymentId + """',
+                        '""" + new_paymentId + """',
+                        '""" + purchaseID + """',
+                        (
+                            select purchase_id
+                            from purchases
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by purchase_date desc
+                            limit 1
+                        ),
+                        now(),
+                        '""" + new_refund + """',
+                        '""" + new_refund + """',
+                        '""" + refund_id + """',
+                        "STRIPE",
+                        (
+                            select cc_num
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_exp_date
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_cvv
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_zip
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        )
+                    );
+                    """
+            print("3.7", payment_query)
+            response2 = execute(payment_query, 'post', conn)
+            print("4")
+            print(response2)
+            if response2['code'] != 281:
+                return {"message": "Internal Server Error"}, 500
+            return response2
+
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
+
+# Parva Code  ----------------------------------------------------------------------------------------------------------
+
+
+
 
 # Define API routes
 # Customer APIs
@@ -9077,6 +9369,8 @@ api.add_resource(payment_info_history_fixed, '/api/v2/payment_info_history_fixed
 api.add_resource(Get_Latest_Purchases_Payments_with_Refund, '/api/v2/Get_Latest_Purchases_Payments_with_Refund')
 
 api.add_resource(add_surprise, '/api/v2/add_surprise/<string:p_uid>')
+
+api.add_resource(discount_percentage, '/api/v2/discount_percentage/<string:n_meal>,<string:n_delivery>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
