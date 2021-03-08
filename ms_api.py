@@ -8743,28 +8743,31 @@ class add_surprise (Resource):
                         select distinct menu_date
                         from menu
                         where menu_date > now()
-                        order by menu_date asc limit 2;
+                        order by menu_date asc;
                     """
+            print("3")
             menu_date = execute(query3, 'get', conn)
-            temp_storage={}
-            temp_storage[0]=menu_date["result"][0]["menu_date"]
-            temp_storage[inty]=menu_date["result"][1]["menu_date"]
-            print(temp_storage)
+            intx=0
+            print(menu_date['result'][intx]['menu_date'])
             for intx in range(0,inty):
-                print("3")
                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
                 print("4")
+                print(intx)
+                #temparr= str(menu_date['result'][intx]['menu_date'])
+                print(temparr)
                 query2 ="""
                             insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
                             values(
                                 \'""" + res['result'][0]['new_id'] + """\',
                                 \'""" + p_id + """\',
                                 now(),
-                                \'""" + temp_storage[intx] + """\',
-                                '[{"qty": "", 
+                                \'""" + menu_date['result'][intx]['menu_date'] + """\',
+                                '[{
+                                    "qty": "", 
                                     "name": "SURPRISE", 
-                                    "price": "", "item_uid": ""}
-                                ]',
+                                    "price": "", 
+                                    "item_uid": ""
+                                }]',
                                 "SUNDAY"
                             );
                         """
@@ -8861,6 +8864,7 @@ class test_cal(Resource):
                     ORDER BY S.sel_menu_date;
                     """
         print(all_deliveries)
+        print("here 1")
         delivered_num = execute(all_deliveries, "get", conn)
         print(delivered_num)
         if delivered_num['code'] != 280:
@@ -8891,7 +8895,7 @@ class test_cal(Resource):
             print("There is something wrong with the query to get info for the requested purchase.")
             response = {'message': "Internal Server Error."}
             return response, 500
-        
+        print("here 2")
         discount_query = """
                         SELECT * FROM M4ME.discounts;
                         """
@@ -8899,12 +8903,13 @@ class test_cal(Resource):
 
         if discount['code'] != 280:
             return discount
-        
+        print("here 3")
+        print(discount['result'])
         # get discount combinations in a dictionary
         discount_dict = {}
         for val in discount['result']:
             discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
-        
+        print("here 4")
         customer_paid = 12*num_meals*num_days*(1-discount_dict[(num_days,num_meals)])
 
         customer_used_amount = 12*num_meals*delivered_num *(1-discount_dict[(delivered_num ,num_meals)])
@@ -9059,6 +9064,44 @@ class cancel_purchase (Resource):
             raise BadRequest("Request failed, please try again later.")
         finally:
             disconnect(conn)
+
+
+class Stripe_Intent(Resource):
+    def post(self):
+        response = {}
+
+        #stripe.api_key = stripe_secret_test_key
+        note = request.form.get('note')
+        print(note, type(note))
+        if note == "SFTEST":
+            stripe.api_key = stripe_secret_test_key
+            print('TEST')
+        else:
+            stripe.api_key = stripe_secret_live_key
+            print('LIVE')
+
+        if request.form.get('amount') == None:
+            raise BadRequest('Request failed. Please provide the amount field.')
+        try:
+            amount = int(float(request.form.get('amount')) * 100)
+        except:
+            raise BadRequest('Request failed. Unable to convert amount to int')
+        print('AMOUNT------', amount)
+
+        intent = stripe.PaymentIntent.create(
+        amount=amount,
+        currency='usd',
+        )
+        print('INTENT------', intent)
+        client_secret = intent.client_secret
+        intent_id = intent.id
+        response['client_secret'] = client_secret
+        response['id'] = intent_id
+        response['code'] = 200
+        print(response['client_secret'])
+        print(response['id'])
+        return response
+
 
 
 # Parva Code  ----------------------------------------------------------------------------------------------------------
@@ -9370,6 +9413,10 @@ api.add_resource(Get_Latest_Purchases_Payments_with_Refund, '/api/v2/Get_Latest_
 api.add_resource(add_surprise, '/api/v2/add_surprise/<string:p_uid>')
 
 api.add_resource(discount_percentage, '/api/v2/discount_percentage/<string:n_delivery>')
+
+api.add_resource(test_cal, '/api/v2/test_cal/<string:purchaseID>')
+
+api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
