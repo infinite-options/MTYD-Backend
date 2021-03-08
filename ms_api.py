@@ -8754,12 +8754,13 @@ class add_surprise (Resource):
                 print("4")
                 print(intx)
                 #temparr= str(menu_date['result'][intx]['menu_date'])
-                print(temparr)
+                #print(temparr)
+                print(p_id)
                 query2 ="""
                             insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
                             values(
                                 \'""" + res['result'][0]['new_id'] + """\',
-                                \'""" + p_id + """\',
+                                \'""" + p_id["result"][0]["purchase_id"] + """\',
                                 now(),
                                 \'""" + menu_date['result'][intx]['menu_date'] + """\',
                                 '[{
@@ -8773,8 +8774,17 @@ class add_surprise (Resource):
                         """
                 print("5")
                 sur_item = execute(query2, 'post', conn)
+                print(sur_item)
                 print("6")
-            return items
+                # query3= """
+                #             update meals_selected
+                #             set
+                #             sel_menu_date = '""" + menu_date['result'][intx]['menu_date'] + """'
+                #             where selection_uid = \'""" + res['result'][0]['new_id'] + """\';
+                #         """
+                # udate = execute(query3, 'post', conn)
+                print("7")
+            return sur_item
         except:
                 print("Error happened while getting payment info")
                 raise BadRequest('Request failed, please try again later.')
@@ -8840,7 +8850,7 @@ class test_cal(Resource):
 
     def new_refund_calculator(self, info_res,  conn):
 
-
+        
         print("in refund calculator")
         
         # checking skips new
@@ -8863,10 +8873,8 @@ class test_cal(Resource):
                         AND delivery_day != 'SKIP'
                     ORDER BY S.sel_menu_date;
                     """
-        print(all_deliveries)
         print("here 1")
         delivered_num = execute(all_deliveries, "get", conn)
-        print(delivered_num)
         if delivered_num['code'] != 280:
             return delivered_num
         delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
@@ -8904,17 +8912,44 @@ class test_cal(Resource):
         if discount['code'] != 280:
             return discount
         print("here 3")
-        print(discount['result'])
         # get discount combinations in a dictionary
         discount_dict = {}
+
+        # for val in discount['result']:
+        #     discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
+        # print("here 4")
+        # customer_paid = 12*num_meals*num_days*(1-discount_dict[(num_days,num_meals)])
+
+        # customer_used_amount = 12*num_meals*delivered_num *(1-discount_dict[(delivered_num ,num_meals)])
+
+        # refund_amount = customer_paid - customer_used_amount
+        print(info_res["purchase_uid"])
+        purchase_query = """
+                        SELECT amount_paid FROM M4ME.payments
+                        where pay_purchase_uid = '""" + info_res["purchase_uid"] + """';
+                        """
+        pchase = execute(purchase_query, 'get', conn)
+        print(pchase["result"][0]["amount_paid"])
+        print("here 3.5")
+        print(discount['result'])
         for val in discount['result']:
-            discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
+            discount_dict[(val['num_deliveries'])] = float(val['delivery_discount'])
         print("here 4")
-        customer_paid = 12*num_meals*num_days*(1-discount_dict[(num_days,num_meals)])
-
-        customer_used_amount = 12*num_meals*delivered_num *(1-discount_dict[(delivered_num ,num_meals)])
-
+        print(num_days)
+        print(discount_dict[num_days]/100)
+        customer_paid = pchase["result"][0]["amount_paid"]*(1-(discount_dict[num_days]/100))
+        print(customer_paid)
+        print(delivered_num)
+        if delivered_num==0:
+            customer_used_amount = 0
+        elif delivered_num != 0:
+            customer_used_amount = 12*delivered_num *(1-(discount_dict[delivered_num]/100))
+        print(customer_used_amount)
         refund_amount = customer_paid - customer_used_amount
+        print(refund_amount)
+
+
+
 
         return {"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
 
