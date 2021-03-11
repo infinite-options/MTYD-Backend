@@ -278,7 +278,7 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
-#stripe.api_key = "sk_test_51Hyq*************Gkl299bo00yD1lTRNK"
+#stripe.api_key = "sk_test_51HyqrgLMj***********5TqpGkl299bo00yD1lTRNK"
 
 
 
@@ -353,7 +353,7 @@ def get_all_s3_keys(bucket):
 
 #             if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False:
 #                 social_signup = False
-#             else:
+#             else:str
 #                 social_signup = True
 
 #             print(social_signup)
@@ -9383,11 +9383,10 @@ class test_cal(Resource):
             discount_dict[(val['num_deliveries'])] = float(val['delivery_discount'])
         print("here 4")
         #print(pchase["result"][0]["num_items"])
-        print(num_days)
+        print("number of days " + str(num_days))
         strdays = str(num_days)
-        print(num_meals)
+        print("number of meals " + str(num_meals))
         strmeal = str(num_meals)
-        print(price)
         #print(info_res)
         delivery_query = """
                     select item_price, delivery_discount from subscription_items si
@@ -9399,9 +9398,9 @@ class test_cal(Resource):
         d_query = execute(delivery_query, 'get', conn)
         print("here 4.5")
         print(d_query)
-        print(discount_dict[num_days]/100)
         customer_paid = price
-        print(customer_paid)
+        print("customer paid " + str(customer_paid))
+        print("here 4.7")
         #print(d_query["result"][0]["item_price"])
         new_price = (d_query["result"][0]["item_price"])
         print(new_price)
@@ -9427,23 +9426,24 @@ class test_cal(Resource):
             print("here 6")
             new_discount = d2_query["result"][0]["delivery_discount"]
             customer_used_amount = delivered_num*new_price*(1-new_discount/100)
+        print("here 7")
         print(customer_used_amount)
-        refund_amount = customer_paid - customer_used_amount
-        print(refund_amount)
+        refund_amount = (float(customer_paid) - float(customer_used_amount))
+        #print(refund_amount)
+        #print("week_remaining " + str(remaining_delivery_days))
+        #remaining_delivery_days = int(remaining_delivery_days)
+        #print("end refund calculator")
+        return{"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
 
 
-
-
-        return {"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
-
-
-class cancel_purchase (Resource):
+class cancel_purchase(Resource):
     def put(self):
         try:
             print("00")
             conn = connect()
             response = {}
             response2 = {}
+            refund_info = {}
             data = request.get_json(force=True)
             purchaseID = data["purchase_uid"]
             print(data)
@@ -9457,16 +9457,19 @@ class cancel_purchase (Resource):
                             AND pur.purchase_uid = '""" + purchaseID + """'
                             AND pur.purchase_status='ACTIVE';
                         """
-            print(info_query)
+            
             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            print(info_res[0]['result'][0])
             if info_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
             # Calculate refund
-            print(info_res)
             print("1")
+            print("try here 0")
             #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
             refund_info = test_cal().new_refund_calculator(info_res[0]['result'][0], conn)
-            print("2")
+            #print(refund_info)
+            #print("2")
+            print("try here 1")
             print(refund_info)
             refund_amount = refund_info['refund_amount']
             print(refund_amount)
