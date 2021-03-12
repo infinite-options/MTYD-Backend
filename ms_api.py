@@ -278,7 +278,7 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
-#stripe.api_key = "sk_test_51HyqrgLMj***********5TqpGkl299bo00yD1lTRNK"
+#stripe.api_key = "sk_test_51Hyqrgo00yD1lTRNK"
 
 
 
@@ -8927,14 +8927,14 @@ class test_cal(Resource):
             # this query below for querying the price may be redundant, the front end can send it in data['items']
             # Should we do it here to make sure that the front end did not make any error?
 
-
+            print("start probelm here")
             #####################
-            # num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
-            # print("meals :",num_meals)
+            num_meals = data["items"][0]["name"][0]
+            print("meals :",num_meals)
             # # get number of days
-            # num_days = int(json.loads(info_res['items'])[0].get('qty'))
+            num_days = data["items"][0]["qty"]
             
-            # print("days :", num_days)
+            print("days :", num_days)
 
             # price = (json.loads(info_res['items'])[0].get('price'))
 
@@ -8946,8 +8946,8 @@ class test_cal(Resource):
                             select item_price, delivery_discount from subscription_items si
                             join discounts
                             where itm_business_uid = "200-000002"
-                            and si.num_items = '6' 
-                            and num_deliveries = '9';
+                            and si.num_items = '""" + num_meals + """' 
+                            and num_deliveries = '""" + num_days + """';
                         """
             d_query = simple_get_execute(delivery_query, 'get', conn)
             print("2")
@@ -8956,9 +8956,12 @@ class test_cal(Resource):
             print(price)
             discount = int(d_query[0]["result"][0]["delivery_discount"])
             print("3")
-            customer_used_amount = 9*price*(1-discount/100)
+            customer_used_amount = int(num_days)*price*(1-discount/100)
             print(refund_info["refund_amount"])
+            print("customer_used_amount " + str(customer_used_amount))
+            print("refund_info " + str(refund_info["refund_amount"]))
             amount_will_charge = customer_used_amount - refund_info["refund_amount"]
+            print("amount will charge " + str(amount_will_charge))
             # Process stripe
             print("start here 1")
             print(amount_will_charge)
@@ -8997,6 +9000,7 @@ class test_cal(Resource):
                 refund_info['refund_amount'] = abs(amount_will_charge)
                 refund_info['purchase_uid'] = purchaseID
                 refund_info['refunded_id'] = self.stripe_refund(refund_info, conn)
+                print("end stripe refund")
 
                 ###
                 if refund_info['refunded_id'] is not None:
@@ -9020,7 +9024,7 @@ class test_cal(Resource):
                 #the next saturday
             start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
             print("start here 5")
-           
+            #print(stop)
             charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
             info_res = info_res[0]['result'][0]
 
@@ -9189,7 +9193,9 @@ class test_cal(Resource):
 
 
     def stripe_refund (self, refund_info, conn):
+        print("start stripe refund")
         refund_amount = refund_info['refund_amount']
+        print("stripe 1")
         refund_id = []
         # retrieve charge info from stripe to determine how much refund amount left on current charge_id
         # if refund amount left on current charge_id < refund amount needed then trace back the latest previous payment
@@ -9200,26 +9206,43 @@ class test_cal(Resource):
                                        WHERE pay_purchase_uid = "''' + refund_info['purchase_uid'] + '''")
                     ORDER BY payment_time_stamp DESC;'''
         res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
+        print(res)
         # print("res in stripe_refund: ", res)
         if not res[0]['result']:
             print("Cannot process refund. No charge id found")
             return {"message": "Internal Server Error"}, 500
         else:
-            charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
+            print ("stripe 2")
+            #print(res[0]['result'][0]["charge_id"])
+            # print(len(res[0]['result']))
+            intx = 0
+            charge_ids = {}
+            inty = 0
+            for intx in range(0,len(res[0]["result"])):
+                if res[0]["result"][intx]["charge_id"] is not None:
+                    charge_ids[inty] = res[0]["result"][intx]["charge_id"]
+                    inty=inty+1
+            #print(charge_ids)
             print(charge_ids)
+            #charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
+            #print("charge id " + charge_ids[intx])
             amount_should_refund = round(refund_amount*100,0)
             # print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
+            inty=inty-1
             while len(charge_ids) > 0 and amount_should_refund > 0:
                 # print("amount should refund: ", amount_should_refund)
+                print("stripe3")
                 print(len(charge_ids))
-                process_id = charge_ids.pop(0)
+                #process_id = charge_ids.pop(0)
+                process_id = charge_ids[inty]
+                inty = inty - 1
                 print(charge_ids)
                 # print("processing id: ", process_id)
                 # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
                 #retrieve info from stripe for specific charge_id:
                 print("stripe 1")
                 print(process_id)
-                print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
+                #print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
                 refunded_info = stripe.Charge.retrieve(process_id,)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
@@ -9398,8 +9421,10 @@ class test_cal(Resource):
         d_query = execute(delivery_query, 'get', conn)
         print("here 4.5")
         print(d_query)
-        customer_paid = price
-        print("customer paid " + str(customer_paid))
+        old_discount = d_query["result"][0]["delivery_discount"]
+        customer_paid = float(price)*int(num_days)*(1-old_discount/100)
+        print("4.6")
+        print("customer paid " + str(float(price)*int(num_days)*(1-old_discount/100)))
         print("here 4.7")
         #print(d_query["result"][0]["item_price"])
         new_price = (d_query["result"][0]["item_price"])
@@ -9430,9 +9455,9 @@ class test_cal(Resource):
         print(customer_used_amount)
         refund_amount = (float(customer_paid) - float(customer_used_amount))
         #print(refund_amount)
-        #print("week_remaining " + str(remaining_delivery_days))
+        print("refund amount " + str(round(refund_amount, 2)))
         #remaining_delivery_days = int(remaining_delivery_days)
-        #print("end refund calculator")
+        print("end refund calculator")
         return{"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
 
 
