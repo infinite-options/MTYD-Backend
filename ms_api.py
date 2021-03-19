@@ -10012,6 +10012,42 @@ class brandAmbassador(Resource):
 
 
 
+class orders_by_customers(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select d_menu_date,
+                            jt_name,
+                            customer_first_name as First_Name,
+                            customer_last_name as Last_Name,
+                            sum(jt_qty) as Qty
+                    FROM fcs_items_by_row
+                    inner join customers
+                        on customer_uid = lplpibr_customer_uid
+                    group by jt_name, d_menu_date, lplpibr_customer_uid
+                    order by d_menu_date, customer_uid, jt_name;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
 
 
 
@@ -10327,6 +10363,8 @@ api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
 api.add_resource(createAccount2, '/api/v2/createAccount2')
 
 api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
+
+api.add_resource(orders_by_customers, '/api/v2/orders_by_customers')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
