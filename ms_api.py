@@ -9877,6 +9877,138 @@ class createAccount2(Resource):
 
 
 
+class brandAmbassador(Resource):
+
+    def post(self, action):
+        try:
+
+            data = request.get_json(force=True)
+            conn = connect()
+            if not data.get('amb_email'):
+                return 'Please enter ambassador email'
+            query_amb = """
+                    SELECT * FROM coupons
+                    WHERE email_id = \'""" + data['amb_email'] + """\';
+                    """
+            items_amb = execute(query_amb, 'get', conn)
+
+            if items_amb['code'] != 280:
+                items_amb['message'] = 'No data available for this ambassador email'
+                return items_amb
+
+            if action == 'create_ambassador':
+                
+                for vals in items_amb['result']:
+                    if vals['coupon_id'] == 'SFAmbassador':
+                        return 'Customer already a Ambassador'
+                
+                # all check done, now make the custoamer a ambassador and issue them a coupon
+
+                query = ["CALL new_coupons_uid;"]
+                couponIDresponse = execute(query[0], 'get', conn)
+                couponID = couponIDresponse['result'][0]['new_id']
+                print('all checks done')
+                dateObject = datetime.now()
+
+                exp_date = dateObject.replace(year=dateObject.year + 5)
+                exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                query = """
+                INSERT INTO coupons 
+                (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                VALUES ( \'""" + couponID + """\', 'SFAmbassador', 'TRUE', '0', '10', '5', \'""" + exp_date + """\', '2', 'SFAmbassador', '0', 'F', \'""" + data['amb_email'] + """\', 'null', '5');
+                """
+                print(query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = "check sql query"
+                    items['code'] = 400
+                    return items
+
+
+                items['message'] = 'SF Ambassdaor created'
+                items['code'] = 200
+                return items
+
+            elif action == 'generate_coupon':
+
+                # check if customer is already a ambassador because ambassador cannot refer himself or get referred
+                query_cust = """
+                    SELECT * FROM coupons
+                    WHERE email_id = \'""" + data['cust_email'] + """\';
+                    """
+                items_cust = execute(query_cust, 'get', conn)
+                for vals in items_cust['result']:
+                    if vals['coupon_id'] == 'SFAmbassador':
+                        return 'Customer himself is an Ambassador'
+
+
+                flag = 0
+                # check if ambassador exists
+                for vals in items_amb['result']:
+                    if vals['coupon_id'] == 'SFAmbassador':
+                        flag = 1
+                
+                if flag == 0:
+                    return 'No such Ambassador email exists'
+                
+
+                cust_email = data['cust_email']
+
+                # customer can be referred only once so check that
+
+                flag = 0
+                for vals in items_cust['result']:
+                    if vals['coupon_id'] == 'Referral':
+                        flag = 1
+                
+                if flag == 1:
+                    return 'Customer has already been refered in past'
+
+
+                # generate coupon for refereed customer
+
+                query = ["CALL new_coupons_uid;"]
+                couponIDresponse = execute(query[0], 'get', conn)
+                couponID = couponIDresponse['result'][0]['new_id']
+                
+                dateObject = datetime.now()
+                exp_date = dateObject.replace(year=dateObject.year + 1)
+                exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                query = """
+                INSERT INTO coupons 
+                (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                VALUES ( \'""" + couponID + """\', 'Referral', 'TRUE', '0', '10', '5', \'""" + exp_date + """\', '2', 'Referral', '0', 'F', \'""" + cust_email + """\', 'null', '5');
+                """
+                print(query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = "check sql query"
+                    return items
+
+                # Now update ambasaddor coupon
+                print('updating amb')
+                query = """
+                        UPDATE coupons SET limits = limits + 2 
+                        WHERE coupon_id = 'SFAmbassador' AND email_id = \'""" + data['amb_email'] + """\'
+                        """
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = "check sql query"
+                    return items
+                items['message'] = 'customer and ambassador coupons generated'
+                return items
+            
+            else:
+                return 'enter correct option'
+            
+            
+
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 
 
@@ -10176,7 +10308,7 @@ api.add_resource(create_update_meals, '/api/v2/create_update_meals')
 
 api.add_resource(cancel_purchase, '/api/v2/cancel_purchase')
 
-api.add_resource(get_Zones_specific, '/api/v2/get_Zones_specific/<string:lat>,<string:llong>')
+api.add_resource(get_Zones_specific, '/api/v2/get_Zones_specific/<string:lat>,<string:llong>') #use categoricalOptions instead
 
 api.add_resource(find_next_sat, '/api/v2/find_next_sat')
 
@@ -10193,6 +10325,8 @@ api.add_resource(change_purchase, '/api/v2/change_purchase/<string:purchaseID>')
 api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
 
 api.add_resource(createAccount2, '/api/v2/createAccount2')
+
+api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
