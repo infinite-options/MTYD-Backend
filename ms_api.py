@@ -3500,7 +3500,7 @@ class CouponDetails(Resource):
             conn = connect()
             query = """
                     SELECT * FROM M4ME.coupons
-                    WHERE coupon_id = \'""" + coupon_id + """\'
+                    WHERE coupon_uid = \'""" + coupon_id + """\'
                     """
             items = execute(query, 'get', conn)
 
@@ -9996,7 +9996,16 @@ class brandAmbassador(Resource):
                     items['message'] = "check sql query"
                     return items
                 items['message'] = 'customer and ambassador coupons generated'
-                return items
+                query2= """
+                        select * from coupons
+                        where coupon_uid = '""" + couponID + """';
+                        """
+                items2 = execute(query2, 'get', conn)
+                if items2['code'] != 280:
+                    items2['message'] = "check sql query"
+                    return items
+                items2['message'] = 'customer and ambassador coupons generated'
+                return items2
             
             else:
                 return 'enter correct option'
