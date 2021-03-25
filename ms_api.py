@@ -88,7 +88,7 @@ def connect():
 
     print("Trying to connect to RDS (API v2)...")
     try:
-        conn = pymysql.connect(RDS_HOST,
+        conn = pymysql.connect(host=RDS_HOST,
                                user=RDS_USER,
                                port=RDS_PORT,
                                passwd=RDS_PW,
@@ -10058,6 +10058,34 @@ class orders_by_customers(Resource):
 
 
 
+class delivery_weekdays(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select menu_date, weekday(menu_date)
+                    from menu
+                    where menu_date > now();
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "delivery weekdays selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 
 # Define API routes
@@ -10374,6 +10402,8 @@ api.add_resource(createAccount2, '/api/v2/createAccount2')
 api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
 
 api.add_resource(orders_by_customers, '/api/v2/orders_by_customers')
+
+api.add_resource(delivery_weekdays, '/api/v2/delivery_weekdays')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
