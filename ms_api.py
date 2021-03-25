@@ -10064,7 +10064,7 @@ class delivery_weekdays(Resource):
             conn = connect()
             # menu_date = request.args['menu_date']
             query = """
-                    select menu_date, weekday(menu_date)
+                    select distinct menu_date, weekday(menu_date)
                     from menu
                     where menu_date > now();
                     """
