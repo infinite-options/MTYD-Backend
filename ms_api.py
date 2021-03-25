@@ -10088,6 +10088,79 @@ class delivery_weekdays(Resource):
 
 
 
+
+class favourite_food(Resource):
+    
+    def post(self, action):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            if action == 'get':
+
+                query = """
+                        SELECT favorites 
+                        FROM customers 
+                        WHERE customer_uid = \'""" + data['customer_uid'] + """\';
+                        """
+                items = execute(query, 'get', conn)
+
+                if items['code'] != 280:
+                    items['message'] = 'Check sql query'
+                return items
+            
+            elif action == 'post':
+                print(data)
+                print("start q1 here")
+                query1 = """
+                        select favorites
+                        from customers
+                        where customer_uid = \'""" + data['customer_uid'] + """\';
+                        """
+                #print(query1)
+                items1 = execute(query1, 'get', conn)
+                print(items1)
+                print(items1["result"][0]["favorites"])
+                favorite = str(data['favorite']).replace("'", '"')
+                print(favorite)
+                favorite=items1["result"][0]["favorites"]+ "," + favorite
+                print(favorite)
+                query = """
+                        UPDATE customers 
+                        SET favorites = \'""" + favorite + """\'
+                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
+                        """
+                print(query)
+                items = execute(query, 'post', conn)
+
+                if items['code'] != 281:
+                    items['message'] = 'Check sql query'
+                return items
+            elif action == 'update':
+                print(data)
+                favorite = str(data['favorite']).replace("'", '"')
+                print(favorite)
+                query = """
+                        UPDATE customers 
+                        SET favorites = \'""" + favorite + """\'
+                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
+                        """
+                print(query)
+                items = execute(query, 'post', conn)
+
+                if items['code'] != 281:
+                    items['message'] = 'Check sql query'
+                return items
+            else:
+                return 'choose correct option'
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
 # Define API routes
 # Customer APIs
 
@@ -10404,6 +10477,8 @@ api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
 api.add_resource(orders_by_customers, '/api/v2/orders_by_customers')
 
 api.add_resource(delivery_weekdays, '/api/v2/delivery_weekdays')
+
+api.add_resource(favourite_food, '/api/v2/favourite_food/<string:action>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
