@@ -7673,13 +7673,15 @@ class Paypal_Payment_key_checker(Resource):
             paypal_status = 'Test'
             # if app is live
             #paypal_status = 'Live'
+            print(paypal_status)
             return paypal_status
 
         elif data['key'] == key_live:
             # if app is in testing
-            paypal_status = 'Test'
+            paypal_status = 'Live'
             # if app is live
             #paypal_status = 'Live'
+            print(paypal_status)
             return paypal_status
 
         else:
@@ -10158,6 +10160,8 @@ class favourite_food(Resource):
 
 
 
+
+
 # Define API routes
 # Customer APIs
 
@@ -10476,6 +10480,8 @@ api.add_resource(orders_by_customers, '/api/v2/orders_by_customers')
 api.add_resource(delivery_weekdays, '/api/v2/delivery_weekdays')
 
 api.add_resource(favourite_food, '/api/v2/favourite_food/<string:action>')
+
+#api.add_resource(Paypal_Payment_key_checker, '/api/v2/Paypal_Payment_key_checker')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
