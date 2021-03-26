@@ -267,7 +267,8 @@ def helper_upload_meal_img(file, key):
 paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
 paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
 
-
+paypal_client_test_key = os.environ.get('paypal_client_test_key')
+paypal_client_live_key = os.environ.get('paypal_client_live_key')
 
 stripe_public_test_key = os.environ.get('stripe_public_test_key')
 stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
@@ -275,16 +276,12 @@ stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
 stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
-stripe.api_key = stripe_secret_test_key
+#stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
 #stripe.api_key = "sk_test_51Hyqrgo00yD1lTRNK"
 
 
-
-
-paypal_client_test_key = os.environ.get('paypal_client_test_key')
-paypal_client_live_key = os.environ.get('paypal_client_live_key')
 
 
 def get_all_s3_keys(bucket):
@@ -9625,7 +9622,7 @@ class Stripe_Intent(Resource):
         #stripe.api_key = stripe_secret_test_key
         note = request.form.get('note')
         print(note, type(note))
-        if note == "SFTEST":
+        if note == "M4METEST":
             stripe.api_key = stripe_secret_test_key
             print('TEST')
         else:
