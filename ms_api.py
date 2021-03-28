@@ -1942,6 +1942,7 @@ class Checkout(Resource):
                 print("1.5")
                 # create a token for stripe
                 card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
+                print(card_dict)
                 stripe_charge = {}
                 try:
                     card_token = stripe.Token.create(card=card_dict)
@@ -7634,13 +7635,16 @@ class Orders_by_Purchase_Id_with_Date(Resource):
 
 
 
-
+# key_checkers are only for Mobile applications
 class Stripe_Payment_key_checker(Resource):
     def post(self):
         response = {}
         data = request.get_json(force=True)
-        key_test = "pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw"
-        key_live = "pk_live_g0VCt4AW6k7tyjRw61O3ac5a00Tefdbp8E"
+        # key_test = "pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw"
+        # key_live = "pk_live_g0VCt4AW6k7tyjRw61O3ac5a00Tefdbp8E"
+
+        key_test = stripe_public_test_key
+        key_live = stripe_public_live_key
 
         if data['key'] == key_test:
             # if app is in testing
@@ -7651,9 +7655,9 @@ class Stripe_Payment_key_checker(Resource):
 
         elif data['key'] == key_live:
             # if app is in testing
-            stripe_status = "Test"
+            #stripe_status = "Test"
             # if app is live
-            #stripe_status = "Live"
+            stripe_status = "Live"
             return stripe_status
 
         else:
@@ -7661,6 +7665,7 @@ class Stripe_Payment_key_checker(Resource):
         return response
 
 
+# key_checkers are only for Mobile applications
 class Paypal_Payment_key_checker(Resource):
     def post(self):
         response = {}
@@ -7678,9 +7683,9 @@ class Paypal_Payment_key_checker(Resource):
 
         elif data['key'] == key_live:
             # if app is in testing
-            paypal_status = 'Live'
+            #paypal_status = 'Test'
             # if app is live
-            #paypal_status = 'Live'
+            paypal_status = 'Live'
             print(paypal_status)
             return paypal_status
 
@@ -9617,6 +9622,7 @@ class cancel_purchase(Resource):
             disconnect(conn)
 
 
+# Only for Web applications.  Mobile applications handles stripe directly from Mobile App
 class Stripe_Intent(Resource):
     def post(self):
         response = {}
