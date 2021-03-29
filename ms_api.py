@@ -1,4 +1,4 @@
-#pip3 install shapely
+    #pip3 install shapely
 from flask import Flask, request, render_template, url_for, redirect
 from flask_restful import Resource, Api
 from flask_mail import Mail, Message  # used for email
@@ -1944,21 +1944,24 @@ class Checkout(Resource):
                 card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
                 print(card_dict)
                 stripe_charge = {}
-                try:
-                    card_token = stripe.Token.create(card=card_dict)
-                    print("2")
-                    if int(amount_must_paid) > 0:
-                        stripe_charge = stripe.Charge.create(
-                            amount=int(round(amount_must_paid*100, 0)),
-                            currency="usd",
-                            source=card_token,
-                            description="Charge customer for new Subscription")
-                    # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
-                    amount_paid = amount_due
-                except stripe.error.CardError as e:
-                    # Since it's a decline, stripe.error.CardError will be caught
-                    response['message'] = e.error.message
-                    return response, 400
+                
+                # print(stripe.Token.create(card=card_dict))
+                # print("1.6")
+                # try:
+                #     card_token = stripe.Token.create(card=card_dict)
+                #     print("2")
+                #     if int(amount_must_paid) > 0:
+                #         stripe_charge = stripe.Charge.create(
+                #             amount=int(round(amount_must_paid*100, 0)),
+                #             currency="usd",
+                #             source=card_token,
+                #             description="Charge customer for new Subscription")
+                #     # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
+                #     amount_paid = amount_due
+                # except stripe.error.CardError as e:
+                #     # Since it's a decline, stripe.error.CardError will be caught
+                #     response['message'] = e.error.message
+                #     return response, 400
 
                 # update coupon table
                 coupon_id = data.get('coupon_id')
