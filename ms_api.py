@@ -88,7 +88,7 @@ def connect():
 
     print("Trying to connect to RDS (API v2)...")
     try:
-        conn = pymysql.connect(RDS_HOST,
+        conn = pymysql.connect(host=RDS_HOST,
                                user=RDS_USER,
                                port=RDS_PORT,
                                passwd=RDS_PW,
@@ -8832,7 +8832,62 @@ class discount_percentage (Resource): #edit to take in purchase_uid
             disconnect(conn)
             print('process completed')
 
+class Copy_Menu(Resource):
 
+    def post(self):
+        # date1 and date2 are passed from json body
+        # (params should be called date1 and date2)
+        # example: {"date1" = "2020-10-03 00:00:00", "date2" = "2020-10-12 00:00:00"}
+        # goal: copy the menu items from date1 to date2 (we can use INSERT INTO command)
+        # query: with dates passed from json body we can get the rows from the database
+        # containing date1, iterate through these rows to give them a new menu_uid and update 
+        # the menu_date to date2. We also have to insert the new row one at a time because to
+        # generate a new menu_uid each time, we have to insert the row with the most recently
+        # generated new menu_uid to get a new one for the next row to be inserted
+        try:
+            conn = connect()
+            dates = request.get_json(force=True)
+            copyFromDate = dates['date1']
+            copyToDate = dates['date2']
+            query = """ SELECT * FROM M4ME.menu WHERE menu_date = \'""" + copyFromDate + """\'; """
+            items = execute(query, 'get', conn)
+            records = items['result']
+            
+            for i in range(len(records)):
+                newIdQuery = """ call M4ME.new_menu_uid(); """
+                newId = execute(newIdQuery, 'get', conn)
+                newMenuUid = newId['result'][0]['new_id']
+                #print(newMenuUid)
+                date = copyToDate
+                #print(date)
+                category = records[i]['menu_category']
+                #print(category)
+                menuType = records[i]['menu_type']
+                #print(menuType)
+                cat = records[i]['meal_cat']
+                #print(cat)
+                menuMealId = records[i]['menu_meal_id']
+                #print(menuMealId)
+                defaultMeal = records[i]['default_meal']
+                #print(defaultMeal)
+                deliveryDays = records[i]['delivery_days']
+                #print(deliveryDays)
+                price = records[i]['meal_price']
+                #print(price)
+                postQuery = """ INSERT INTO 
+                                M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, 
+                                           menu_meal_id, default_meal, delivery_days, meal_price) 
+                                VALUES (\'""" + str(newMenuUid) + """\', \'""" + str(date) + """\', \'""" + str(category) + """\', 
+                                        \'""" + str(menuType) + """\', \'""" + str(cat) + """\', \'""" + str(menuMealId) + """\', 
+                                        \'""" + str(defaultMeal) + """\', \'""" + str(deliveryDays) + """\', \'""" + str(price) + """\'); """
+                #print(postQuery)
+                copiedRow = execute(postQuery, 'post', conn)
+        except:
+            print('Error has occurred trying to copy menu items')
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('Process completed')
 
 
 # Parva Code  -----------------------------------------------------------------------------------------------------------
@@ -10374,6 +10429,9 @@ api.add_resource(createAccount2, '/api/v2/createAccount2')
 api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
 
 api.add_resource(orders_by_customers, '/api/v2/orders_by_customers')
+
+api.add_resource(Copy_Menu, '/api/v2/Copy_Menu')
+
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
