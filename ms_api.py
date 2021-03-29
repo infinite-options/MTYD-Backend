@@ -1981,7 +1981,7 @@ class Checkout(Resource):
                     coupon_id = 'NULL'
 
                 #charge_id = 'NULL' if stripe_charge.get('id') is None else "'" + stripe_charge.get('id') + "'"
-                charge_id = 'TEST'
+                # charge_id = 'TEST'
 
                 #calculate the start_delivery_date
 
