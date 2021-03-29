@@ -1885,6 +1885,12 @@ class Checkout(Resource):
             cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
+            charge_id = data['charge_id']
+            payment_type = data['payment_type']
+
+            print(data['charge_id'])
+            print(data['payment_type'])
+
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
             print("0")
             # We should sanitize the variable before writting into database.
@@ -1973,7 +1979,10 @@ class Checkout(Resource):
                     res = execute(coupon_query, 'post', conn)
                 else:
                     coupon_id = 'NULL'
-                charge_id = 'NULL' if stripe_charge.get('id') is None else "'" + stripe_charge.get('id') + "'"
+
+                #charge_id = 'NULL' if stripe_charge.get('id') is None else "'" + stripe_charge.get('id') + "'"
+                charge_id = 'TEST'
+
                 #calculate the start_delivery_date
 
                 dayOfWeek = datetime.now().weekday()
@@ -1994,6 +2003,8 @@ class Checkout(Resource):
                             where 
                             '''
                 # write into Payments table
+
+                
                 queries = [
                             '''
                             INSERT INTO M4ME.payments
@@ -2007,8 +2018,8 @@ class Checkout(Resource):
                                 amount_discount = \'''' + amount_discount + '''\',
                                 amount_paid = \'''' + amount_paid + '''\',
                                 pay_coupon_id = ''' + coupon_id + ''',
-                                charge_id = ''' + charge_id + ''',
-                                payment_type = 'STRIPE',
+                                charge_id = \'''' + charge_id + '''\',
+                                payment_type = \'''' + payment_type + '''\',
                                 info_is_Addon = 'FALSE',
                                 cc_num = \'''' + cc_num  + '''\', 
                                 cc_exp_date = \'''' + cc_exp_date + '''\', 
