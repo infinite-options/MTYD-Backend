@@ -1947,9 +1947,9 @@ class Checkout(Resource):
             try:
                 print("1.5")
                 # create a token for stripe
-                card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
-                print(card_dict)
-                stripe_charge = {}
+                #card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
+                #print(card_dict)
+                #stripe_charge = {}
                 
                 # print(stripe.Token.create(card=card_dict))
                 # print("1.6")
