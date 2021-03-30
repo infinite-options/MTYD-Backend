@@ -9171,51 +9171,6 @@ class change_purchase(Resource):
             disconnect(conn)
 
 
-
-
-        
-        # info_query = """
-        #                 SELECT pur.*, pay.*, sub.*
-        #                 FROM purchases pur, payments pay, subscription_items sub
-        #                 WHERE pur.purchase_uid = pay.pay_purchase_uid
-        #                     AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
-        #                                             FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
-        #                     AND pur.purchase_uid = '""" + purchaseID + """'
-        #                     AND pur.purchase_status='ACTIVE';  
-        #                 """
-        # print("info_query", info_query)
-        # info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-        # print(info_res)
-        # if info_res[1] != 200:
-        #     return {"message": "Internal Server Error"}, 500
-        # # Calculate refund
-        # print("1.9")
-        # refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
-        # print("1")
-        # delivery_query= """
-        #                     select item_price, delivery_discount from subscription_items si
-        #                     join discounts
-        #                     where itm_business_uid = "200-000002"
-        #                     and si.num_items = '6' 
-        #                     and num_deliveries = '9';
-        #                 """
-        # d_query = simple_get_execute(delivery_query, 'get', conn)
-        # print("2")
-        # print(d_query[0]["result"][0]["item_price"])
-        # price = int(d_query[0]["result"][0]["item_price"])
-        # print(price)
-        # discount = int(d_query[0]["result"][0]["delivery_discount"])
-        # print("3")
-        # customer_used_amount = 9*price*(1-discount/100)
-        # print(refund_info["refund_amount"])
-        # customer_used_amount = customer_used_amount - refund_info["refund_amount"]
-        # return customer_used_amount
-
-
-
-
-
-
     def stripe_refund (self, refund_info, conn):
         print("start stripe refund")
         refund_amount = refund_info['refund_amount']
@@ -9530,7 +9485,7 @@ class cancel_purchase(Resource):
                 refund_info['purchase_uid'] = purchaseID
                 print("2.36")
                 print(refund_info)
-                refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
+                refund_info['refunded_id'] = change_purchase().stripe_refund(refund_info, conn)
                 print("2.4")
                 if refund_info['refunded_id'] is not None:
                     refunded = True
