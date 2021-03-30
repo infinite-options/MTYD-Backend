@@ -10512,6 +10512,7 @@ api.add_resource(delivery_weekdays, '/api/v2/delivery_weekdays')
 api.add_resource(favourite_food, '/api/v2/favourite_food/<string:action>')
 
 #api.add_resource(Paypal_Payment_key_checker, '/api/v2/Paypal_Payment_key_checker')
+
 api.add_resource(Copy_Menu, '/api/v2/Copy_Menu')
 
 # Run on below IP address and port
