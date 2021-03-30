@@ -279,7 +279,7 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 #stripe.api_key = stripe_secret_test_key
 
 #use below for local testing
-#stripe.api_key = "sk_test_51Hyqrgo00yD1lTRNK"
+#stripe.api_key = "sk_test_51HyqrgLMju5***Gkl299bo00yD1lTRNK"
 
 
 
@@ -10148,11 +10148,18 @@ class favourite_food(Resource):
                         """
                 #print(query1)
                 items1 = execute(query1, 'get', conn)
+                print("check 1")
                 print(items1)
+                print("check 2")
                 print(items1["result"][0]["favorites"])
                 favorite = str(data['favorite']).replace("'", '"')
                 print(favorite)
-                favorite=items1["result"][0]["favorites"]+ "," + favorite
+                if items1["result"][0]["favorites"] == None:
+                    favorite = favorite
+                else:
+                    favorite=items1["result"][0]["favorites"]+ "," + favorite
+                print("check 3")
+                #favorite=items1["result"][0]["favorites"]+ "," + favorite
                 print(favorite)
                 query = """
                         UPDATE customers 
