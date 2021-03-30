@@ -9585,7 +9585,7 @@ class cancel_purchase(Resource):
             print(refund_id)
             print("end input")
             payment_query = """
-                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
+                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, start_delivery_date, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
                     values(
                         '""" + new_paymentId + """',
                         '""" + new_paymentId + """',
@@ -9597,6 +9597,7 @@ class cancel_purchase(Resource):
                             order by purchase_date desc
                             limit 1
                         ),
+                        now(),
                         now(),
                         '""" + new_refund + """',
                         '""" + new_refund + """',
