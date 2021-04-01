@@ -2840,7 +2840,22 @@ class Menu (Resource):
         finally:
             disconnect(conn)
 
-
+class AllMenus (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    #  ADMIN QUERY 1: 
+                    #  MEALS & MENUS: 1. CREATE/EDIT MENUS: SEE MENU FOR A PARTICULAR DAY  (ADD/DELETE MENU ITEM)
+                    SELECT * FROM M4ME.menu
+                    LEFT JOIN M4ME.meals
+                        ON menu_meal_id = meal_uid
+                    """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest("Request failed, Please try again later.")
+        finally:
+            disconnect(conn)
 
 class Delete_Menu_Specific (Resource):
     def delete(self):
@@ -10378,6 +10393,9 @@ api.add_resource(Ordered_By_Date, '/api/v2/ordered_by_date')
 api.add_resource(Ingredients_Need, '/api/v2/ingredients_need')
 
 #**********************************************************************************#
+
+
+api.add_resource(AllMenus, '/api/v2/allMenus')
 
 api.add_resource(Edit_Menu, '/api/v2/Edit_Menu')
 
