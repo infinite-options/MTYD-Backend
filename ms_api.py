@@ -9479,9 +9479,25 @@ class change_purchase(Resource):
         print(d_query)
         old_discount = d_query["result"][0]["delivery_discount"]
         #old_price = d_query["result"][0]["item_price"]
-        customer_paid = float(price)*int(num_days)*(1-old_discount/100)
+
+
+        serviceFee = info_res['service_fee']
+        print("serviceFee :", serviceFee)
+
+        driver_tip = info_res['driver_tip']
+        print("driver_tip :", driver_tip)
+
+        taxes = info_res['taxes']
+        print("taxes :", taxes)
+
+        delivery_fee = info_res['delivery_fee']
+        print("delivery_fee :", delivery_fee)
+
+
+        customer_paid = float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes) + float(delivery_fee)
         print("4.6")
-        print("customer paid " + str(float(price)*int(num_days)*(1-old_discount/100)))
+        print("customer paid " + str(float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes) + float(delivery_fee)))
+
         print("here 4.7")
         #print(d_query["result"][0]["item_price"])
         new_price = (d_query["result"][0]["item_price"])
