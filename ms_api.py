@@ -1685,6 +1685,7 @@ class Get_Latest_Purchases_Payments(Resource):
                     LEFT JOIN M4ME.customers c
                         ON lp.pur_customer_uid = c.customer_uid
                     WHERE pur_customer_uid = '""" + customer_uid + """'
+                    and purchase_status = "ACTIVE"
                     and items like "%200-000002%";
                     """
             response = simple_get_execute(query, __class__.__name__, conn)
@@ -1888,6 +1889,11 @@ class Checkout(Resource):
             charge_id = data['charge_id']
             payment_type = data['payment_type']
 
+            taxes = data['tax']
+            tip = data['tip']
+            service_fee = data['service_fee']
+            delivery_fee = data['delivery_fee']
+
             print(data['charge_id'])
             print(data['payment_type'])
 
@@ -2024,7 +2030,11 @@ class Checkout(Resource):
                                 cc_num = \'''' + cc_num  + '''\', 
                                 cc_exp_date = \'''' + cc_exp_date + '''\', 
                                 cc_cvv = \'''' + cc_cvv + '''\', 
-                                cc_zip = \'''' + cc_zip + '''\';
+                                cc_zip = \'''' + cc_zip + '''\',
+                                taxes = \'''' + taxes + '''\',
+                                driver_tip = \'''' + tip + '''\',
+                                service_fee = \'''' + service_fee + '''\',
+                                delivery_fee = \'''' + service_fee + '''\';
                             ''',
                             '''
                             INSERT INTO  M4ME.purchases
@@ -2592,7 +2602,7 @@ class Refund_Calculator (Resource):
                 return {"message": "Internal Server Error"}, 500
             # Calculate refund
             try:
-                refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+                refund_info = change_purchase().refund_calculator(info_res[0]['result'][0], conn)
             except:
                 print("calculated error")
                 return {"message": "Internal Server Error"}, 500
@@ -9381,6 +9391,18 @@ class change_purchase(Resource):
         price = (json.loads(info_res['items'])[0].get('price'))
 
         print("price :", price)
+
+        serviceFee = info_res['service_fee']
+        print("serviceFee :", serviceFee)
+
+        driver_tip = info_res['driver_tip']
+        print("driver_tip :", driver_tip)
+
+        taxes = info_res['taxes']
+        print("taxes :", taxes)
+
+        delivery_fee = info_res['delivery_fee']
+        print("delivery_fee :", delivery_fee)
         # get remaining days
         #delivered_num
         remaining_delivery_days = num_days - delivered_num 
@@ -9456,6 +9478,7 @@ class change_purchase(Resource):
         print("here 4.5")
         print(d_query)
         old_discount = d_query["result"][0]["delivery_discount"]
+        #old_price = d_query["result"][0]["item_price"]
         customer_paid = float(price)*int(num_days)*(1-old_discount/100)
         print("4.6")
         print("customer paid " + str(float(price)*int(num_days)*(1-old_discount/100)))
@@ -9523,6 +9546,17 @@ class cancel_purchase(Resource):
                 return {"message": "Internal Server Error"}, 500
             # Calculate refund
             print("1")
+
+
+            print(info_res[0]['result'][0]["purchase_notes"])
+            if stripe.api_key is not None:
+                temp_key = stripe.api_key
+            if info_res[0]['result'][0]["purchase_notes"] == "M4METEST":
+                stripe.api_key = stripe_secret_test_key
+                print('TEST')
+            else:
+                stripe.api_key = stripe_secret_live_key
+                print('LIVE')
             print("try here 0")
             #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
             refund_info = change_purchase().new_refund_calculator(info_res[0]['result'][0], conn)
@@ -9530,6 +9564,9 @@ class cancel_purchase(Resource):
             #print("2")
             print("try here 1")
             print(refund_info)
+
+
+            
             refund_amount = refund_info['refund_amount']
             print(refund_amount)
             if refund_amount > 0:
@@ -9639,6 +9676,7 @@ class cancel_purchase(Resource):
             print(response2)
             if response2['code'] != 281:
                 return {"message": "Internal Server Error"}, 500
+            stripe.api_key = temp_key
             return response2
 
         except:
