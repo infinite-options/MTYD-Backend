@@ -2003,7 +2003,7 @@ class Checkout(Resource):
                     thurs += timedelta(days=7)
 
                 #the next saturday
-                start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+                start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d 00:00:00")
 
                 #find tax, delivery fee etc
                 find_zone = '''
@@ -9501,16 +9501,20 @@ class change_purchase(Resource):
 
         serviceFee = info_res['service_fee']
         print("serviceFee :", serviceFee)
-
+        if serviceFee is None:
+            serviceFee = 0
         driver_tip = info_res['driver_tip']
         print("driver_tip :", driver_tip)
-
+        if driver_tip is None:
+            driver_tip = 0
         taxes = info_res['taxes']
         print("taxes :", taxes)
-
+        if taxes is None:
+            taxes = 0
         delivery_fee = info_res['delivery_fee']
         print("delivery_fee :", delivery_fee)
-
+        if delivery_fee is None:
+            delivery_fee = 0
 
         customer_paid = (float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes)) * 1+ float(delivery_fee)
         print("4.6")
