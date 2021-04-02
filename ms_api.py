@@ -9302,10 +9302,10 @@ class change_purchase(Resource):
                 # print("processing id: ", process_id)
                 # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
                 #retrieve info from stripe for specific charge_id:
-                print("stripe 1")
+                print("during stripe: stripe 1")
                 print(process_id)
                 #print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
-                refunded_info = stripe.Charge.retrieve(process_id,)
+                refunded_info = stripe.Charge.retrieve(process_id)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
                 print(refunded_info.get('amount_refunded'))
@@ -9512,9 +9512,9 @@ class change_purchase(Resource):
         print("delivery_fee :", delivery_fee)
 
 
-        customer_paid = float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes) + float(delivery_fee)
+        customer_paid = (float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes)) * 1+ float(delivery_fee)
         print("4.6")
-        print("customer paid " + str(float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes) + float(delivery_fee)))
+        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes)) * 1+ float(delivery_fee)))
 
         print("here 4.7")
         #print(d_query["result"][0]["item_price"])
@@ -9582,10 +9582,11 @@ class cancel_purchase(Resource):
             print("1")
 
 
-            print(info_res[0]['result'][0]["purchase_notes"])
+            print(info_res[0]['result'][0]["delivery_instructions"])
+            temp_key = ""
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
-            if info_res[0]['result'][0]["purchase_notes"] == "M4METEST":
+            if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
                 stripe.api_key = stripe_secret_test_key
                 print('TEST')
             else:
@@ -9710,7 +9711,10 @@ class cancel_purchase(Resource):
             print(response2)
             if response2['code'] != 281:
                 return {"message": "Internal Server Error"}, 500
-            stripe.api_key = temp_key
+            print("before api reset")
+            print(temp_key)
+            if temp_key is not None:
+                stripe.api_key = temp_key
             return response2
 
         except:
