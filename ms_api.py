@@ -1997,7 +1997,7 @@ class Checkout(Resource):
 
                 # Get the soonest Thursday, same day if today is Thursday
                 thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
-
+                print("problem start")
                 # If today is Thursday after 4PM'
                 if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
                     thurs += timedelta(days=7)
@@ -9516,9 +9516,9 @@ class change_purchase(Resource):
         if delivery_fee is None:
             delivery_fee = 0
 
-        customer_paid = (float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes)) * 1+ float(delivery_fee)
+        customer_paid = (float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)) * 1+ float(taxes)
         print("4.6")
-        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(taxes)) * 1+ float(delivery_fee)))
+        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)) * 1+ float(taxes)))
 
         print("here 4.7")
         #print(d_query["result"][0]["item_price"])
@@ -9545,7 +9545,7 @@ class change_purchase(Resource):
             d2_query = execute(delivery_query2, 'get', conn)
             print("here 6")
             new_discount = d2_query["result"][0]["delivery_discount"]
-            customer_used_amount = delivered_num*new_price*(1-new_discount/100)
+            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * 1+ float(taxes)
         print("here 7")
         print(customer_used_amount)
         refund_amount = (float(customer_paid) - float(customer_used_amount))
@@ -10277,7 +10277,32 @@ class favourite_food(Resource):
 
 
 
+class lplp_specific(Resource):
+    def get(self, p_uid):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select * from lplp
+                    where pay_purchase_uid = \'""" + p_uid + """\';
+                    """
 
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "infomation selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
 # Define API routes
@@ -10605,6 +10630,8 @@ api.add_resource(favourite_food, '/api/v2/favourite_food/<string:action>')
 #api.add_resource(Paypal_Payment_key_checker, '/api/v2/Paypal_Payment_key_checker')
 
 api.add_resource(Copy_Menu, '/api/v2/Copy_Menu')
+
+api.add_resource(lplp_specific, '/api/v2/lplp_specific/<string:p_uid>')
 
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
