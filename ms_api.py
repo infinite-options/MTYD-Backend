@@ -1882,6 +1882,7 @@ class Checkout(Resource):
             amount_due = data['amount_due']
             amount_discount = data['amount_discount']
             amount_paid = data['amount_paid']
+            print("test 0.7")
             cc_num = data['cc_num']
             cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
             cc_cvv = data['cc_cvv']
@@ -1893,6 +1894,7 @@ class Checkout(Resource):
             tip = data['tip']
             service_fee = data['service_fee']
             delivery_fee = data['delivery_fee']
+            subtotal = data['subtotal']
 
             print(data['charge_id'])
             print(data['payment_type'])
@@ -2034,7 +2036,8 @@ class Checkout(Resource):
                                 taxes = \'''' + taxes + '''\',
                                 driver_tip = \'''' + tip + '''\',
                                 service_fee = \'''' + service_fee + '''\',
-                                delivery_fee = \'''' + service_fee + '''\';
+                                delivery_fee = \'''' + service_fee + '''\',
+                                subtotal = \'''' + subtotal + '''\';
                             ''',
                             '''
                             INSERT INTO  M4ME.purchases
