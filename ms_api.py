@@ -3058,9 +3058,10 @@ class create_update_meals(Resource):
                 return response
             response[0]['meal_uid'] = meal_uid
             print("4")
-            lists=get_all_s3_keys(mtyd)
-            print("ending sequence")
-            return response, lists
+            # lists=get_all_s3_keys(mtyd)
+            # print("ending sequence")
+            # return response, lists
+            return response
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
