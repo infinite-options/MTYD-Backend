@@ -3002,6 +3002,8 @@ class create_update_meals(Resource):
             conn = connect()
             # data = request.get_json(force=True)
 
+            print("meal category input: " + request.form.get('meal_category'))
+            # print("meal photo url input: " + request.form.get('meal_photo_url'))
             meal_category = request.form.get('meal_category')
             meal_name = request.form.get('meal_name') if request.form.get('meal_name') is not None else 'NULL'
             meal_desc = request.form.get('meal_desc') if request.form.get('meal_desc') is not None else 'NULL'
@@ -3021,12 +3023,12 @@ class create_update_meals(Resource):
             if meal_uid[1] != 200:
                 return meal_uid
             meal_uid = meal_uid[0]['result']
-            print("1")
+            print("meal id: " + meal_uid)
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
-            print(key)
+            print("key: " + key)
+            # print("meal photo url: " + meal_photo_url)
             meal_photo = helper_upload_meal_img(meal_photo_url, key)
-            print("2")
             print(meal_uid)
             #print(meal_notes)
             # INSERT query
@@ -3055,9 +3057,10 @@ class create_update_meals(Resource):
                 return response
             response[0]['meal_uid'] = meal_uid
             print("4")
-            lists=get_all_s3_keys(mtyd)
-            print("ending sequence")
-            return response, lists
+            # lists=get_all_s3_keys(mtyd)
+            # print("ending sequence")
+            # return response, lists
+            return response
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
