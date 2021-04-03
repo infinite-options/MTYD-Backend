@@ -8890,7 +8890,7 @@ class test_cal(Resource):
         remaining_delivery_days = num_days - delivered_num 
         print("days reamin :",remaining_delivery_days)
 
-
+        return remaining_delivery_days
         # if weeks remaining are 0 return 
         if remaining_delivery_days == 0:
             {"week_remaining": 0, "refund_amount": 0}
@@ -8909,6 +8909,7 @@ class test_cal(Resource):
 
         if discount['code'] != 280:
             return discount
+        
         
         # get discount combinations in a dictionary
         discount_dict = {}
