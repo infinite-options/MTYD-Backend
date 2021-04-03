@@ -41,10 +41,6 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import os
 s3 = boto3.client('s3')
-#stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
-#stripe_secret_key = 'sk_test_fe99fW2owhFEGTACgW3qaykd006gHUwj1j'
-#stripe.api_key = stripe_secret_key
-stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
 # RDS for AWS SQL 5.7
 # RDS_HOST = 'pm-mysqldb.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
 # RDS for AWS SQL 8.0
@@ -100,7 +96,7 @@ def connect():
 
     print("Trying to connect to RDS (API v2)...")
     try:
-        conn = pymysql.connect(RDS_HOST,
+        conn = pymysql.connect(host=RDS_HOST,
                                user=RDS_USER,
                                port=RDS_PORT,
                                passwd=RDS_PW,
@@ -279,9 +275,8 @@ def helper_upload_meal_img(file, key):
 paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
 paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
 
-
-#stripe_public_test_key for ocal testing
-stripe_public_key = 'pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw'
+paypal_client_test_key = os.environ.get('paypal_client_test_key')
+paypal_client_live_key = os.environ.get('paypal_client_live_key')
 
 stripe_public_test_key = os.environ.get('stripe_public_test_key')
 stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
@@ -289,14 +284,19 @@ stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
 stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
-paypal_client_test_key = os.environ.get('paypal_client_test_key')
-paypal_client_live_key = os.environ.get('paypal_client_live_key')
+#stripe.api_key = stripe_secret_test_key
+
+#use below for local testing
+#stripe.api_key = "sk_test_51HyqrgLMju5***Gkl299bo00yD1lTRNK"
+
+
 
 
 def get_all_s3_keys(bucket):
     """Get a list of all keys in an S3 bucket."""
+    print("list 2")
     keys = []
-
+    print("list 1")
     kwargs = {'Bucket': "mtyd"}
     while True:
         resp = s3.list_objects_v2(**kwargs)
@@ -359,7 +359,7 @@ def get_all_s3_keys(bucket):
 
 #             if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False:
 #                 social_signup = False
-#             else:
+#             else:str
 #                 social_signup = True
 
 #             print(social_signup)
@@ -942,7 +942,7 @@ def confirm():
             # redirect to login page
             # only for testing on localhost
             #return redirect('http://localhost:3000/login?email={}&hashed={}'.format(email, hashed))
-            return redirect('https://mealtoyourdoor.netlify.app/login?email={}&hashed={}'.format(email, hashed)) #need to change url
+            return redirect('https://mealsfor.me/login?email={}&hashed={}'.format(email, hashed)) #need to change url
             #https://mealtoyourdoor.netlify.app/choose-plan
             #return redirect('https://mealtoyourdoor.netlify.app/home')
         else:
@@ -1296,7 +1296,7 @@ class AppleLogin (Resource):
                             item['message'] = 'Check insert sql query'
                             return item
                         print('successful redirect to signup')
-                        return redirect("https://mealtoyourdoor.netlify.app/social-sign-up?id=" + NewUserID)
+                        return redirect("https://mealsfor.me/social-sign-up?id=" + NewUserID)
 
 
                     # Existing customer
@@ -1309,17 +1309,17 @@ class AppleLogin (Resource):
                         print('1-----')
                         items['message'] = "Wrong social media used for signup. Use \'" + items['result'][0]['user_social_media'] + "\'."
                         items['code'] = 400
-                        return redirect("https://mealtoyourdoor.netlify.app/")
+                        return redirect("https://mealsfor.me/")
 
                     elif items['result'][0]['social_id'] != sub:
                         print('20-----')
                         items['message'] = "social_id mismatch"
                         items['code'] = 400
-                        return redirect("https://mealtoyourdoor.netlify.app/")
+                        return redirect("https://mealsfor.me/")
 
                     else:
                         print('successful redirect to farms')
-                        return redirect("https://mealtoyourdoor.netlify.app/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+                        return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
 
 
 
@@ -1659,7 +1659,8 @@ class Get_Upcoming_Menu(Resource):
                     SELECT * FROM M4ME.menu
                     LEFT JOIN M4ME.meals m
                         ON menu.menu_meal_id = m.meal_uid
-                    WHERE menu_date > CURDATE();
+                    WHERE menu_date > CURDATE()
+                    order by menu_date;
                     """
 
             items = execute(query, 'get', conn)
@@ -1692,7 +1693,8 @@ class Get_Latest_Purchases_Payments(Resource):
                     LEFT JOIN M4ME.customers c
                         ON lp.pur_customer_uid = c.customer_uid
                     WHERE pur_customer_uid = '""" + customer_uid + """'
-                    and items like "%200-000001%";
+                    and purchase_status = "ACTIVE"
+                    and items like "%200-000002%";
                     """
             response = simple_get_execute(query, __class__.__name__, conn)
             if response[1] != 200:
@@ -1707,6 +1709,7 @@ class Get_Latest_Purchases_Payments(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
 class Next_Billing_Date(Resource):
     def get(self):
         try:
@@ -1721,12 +1724,23 @@ class Next_Billing_Date(Resource):
                         FROM (
                             SELECT lplpibr.*,
                                 si.*,
-                                ts.true_skips
+                                ts.skip_count
                             FROM M4ME.lplp_items_by_row AS lplpibr
                             LEFT JOIN M4ME.subscription_items si
                                 ON lplpibr.lplpibr_jt_item_uid = si.item_uid
-                            LEFT JOIN M4ME.true_skips AS ts
-                                ON lplpibr.lplpibr_purchase_id = ts.d_purchase_id) AS nbd
+                            LEFT JOIN 
+                                (SELECT COUNT(delivery_day) AS skip_count FROM
+                                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
+                                        WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
+                                        GROUP BY sel_menu_date) AS GB
+                                        INNER JOIN meals_selected S
+                                        ON S.sel_purchase_id = GB.sel_purchase_id
+                                            AND S.sel_menu_date = GB.sel_menu_date
+                                            AND S.selection_time = GB.max_selection_time
+                                WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
+                                    AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
+                                    AND delivery_day = 'SKIP'
+                                ORDER BY S.sel_menu_date) as ts
                         WHERE lplpibr_customer_uid = '""" + customer_uid + """';
                         """
             return simple_get_execute(query, __class__.__name__, conn)
@@ -1876,10 +1890,23 @@ class Checkout(Resource):
             amount_due = data['amount_due']
             amount_discount = data['amount_discount']
             amount_paid = data['amount_paid']
+            print("test 0.7")
             cc_num = data['cc_num']
             cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
+            charge_id = data['charge_id']
+            payment_type = data['payment_type']
+
+            taxes = data['tax']
+            tip = data['tip']
+            service_fee = data['service_fee']
+            delivery_fee = data['delivery_fee']
+            subtotal = data['subtotal']
+
+            print(data['charge_id'])
+            print(data['payment_type'])
+
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
             print("0")
             # We should sanitize the variable before writting into database.
@@ -1924,7 +1951,7 @@ class Checkout(Resource):
             #     if latest_purchase['result'] is None:
             #         response['message'] = "Credit card number is invalid."
             #         return response, 400
-            #     if str(latest_purchase['result']['cc_num'][:-4]) != str(data['cc_num'][:-4]):
+            #     if str(latest_purchase['result']['cc_num'][:-4refund_calculator]) != str(data['cc_num'][:-4]):
             #         response['message'] = "Credit card number is invalid."
             #         return response, 400
             #     cc_num = latest_purchase['result']['cc_num']
@@ -1936,23 +1963,27 @@ class Checkout(Resource):
             try:
                 print("1.5")
                 # create a token for stripe
-                card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
-                stripe_charge = {}
-                try:
-                    card_token = stripe.Token.create(card=card_dict)
-                    print("2")
-                    if int(amount_must_paid) > 0:
-                        stripe_charge = stripe.Charge.create(
-                            amount=int(round(amount_must_paid*100, 0)),
-                            currency="usd",
-                            source=card_token,
-                            description="Charge customer for new Subscription")
-                    # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
-                    amount_paid = amount_due
-                except stripe.error.CardError as e:
-                    # Since it's a decline, stripe.error.CardError will be caught
-                    response['message'] = e.error.message
-                    return response, 400
+                #card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
+                #print(card_dict)
+                #stripe_charge = {}
+                
+                # print(stripe.Token.create(card=card_dict))
+                # print("1.6")
+                # try:
+                #     card_token = stripe.Token.create(card=card_dict)
+                #     print("2")
+                #     if int(amount_must_paid) > 0:
+                #         stripe_charge = stripe.Charge.create(
+                #             amount=int(round(amount_must_paid*100, 0)),
+                #             currency="usd",
+                #             source=card_token,
+                #             description="Charge customer for new Subscription")
+                #     # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
+                #     amount_paid = amount_due
+                # except stripe.error.CardError as e:
+                #     # Since it's a decline, stripe.error.CardError will be caught
+                #     response['message'] = e.error.message
+                #     return response, 400
 
                 # update coupon table
                 coupon_id = data.get('coupon_id')
@@ -1964,21 +1995,32 @@ class Checkout(Resource):
                     res = execute(coupon_query, 'post', conn)
                 else:
                     coupon_id = 'NULL'
-                charge_id = 'NULL' if stripe_charge.get('id') is None else "'" + stripe_charge.get('id') + "'"
+
+                #charge_id = 'NULL' if stripe_charge.get('id') is None else "'" + stripe_charge.get('id') + "'"
+                # charge_id = 'TEST'
+
                 #calculate the start_delivery_date
 
                 dayOfWeek = datetime.now().weekday()
 
                 # Get the soonest Thursday, same day if today is Thursday
                 thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
-
+                print("problem start")
                 # If today is Thursday after 4PM'
                 if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
                     thurs += timedelta(days=7)
 
                 #the next saturday
-                start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+                start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d 00:00:00")
+
+                #find tax, delivery fee etc
+                find_zone = '''
+                            select * from zones
+                            where 
+                            '''
                 # write into Payments table
+
+                
                 queries = [
                             '''
                             INSERT INTO M4ME.payments
@@ -1992,13 +2034,18 @@ class Checkout(Resource):
                                 amount_discount = \'''' + amount_discount + '''\',
                                 amount_paid = \'''' + amount_paid + '''\',
                                 pay_coupon_id = ''' + coupon_id + ''',
-                                charge_id = ''' + charge_id + ''',
-                                payment_type = 'STRIPE',
+                                charge_id = \'''' + charge_id + '''\',
+                                payment_type = \'''' + payment_type + '''\',
                                 info_is_Addon = 'FALSE',
                                 cc_num = \'''' + cc_num  + '''\', 
                                 cc_exp_date = \'''' + cc_exp_date + '''\', 
                                 cc_cvv = \'''' + cc_cvv + '''\', 
-                                cc_zip = \'''' + cc_zip + '''\';
+                                cc_zip = \'''' + cc_zip + '''\',
+                                taxes = \'''' + taxes + '''\',
+                                driver_tip = \'''' + tip + '''\',
+                                service_fee = \'''' + service_fee + '''\',
+                                delivery_fee = \'''' + service_fee + '''\',
+                                subtotal = \'''' + subtotal + '''\';
                             ''',
                             '''
                             INSERT INTO  M4ME.purchases
@@ -2021,7 +2068,8 @@ class Checkout(Resource):
                                 delivery_latitude = \'''' + delivery_latitude + '''\',
                                 items = ''' + items + ''',
                                 order_instructions = ''' + order_instructions + ''',
-                                purchase_notes = ''' + purchase_notes + ''';'''
+                                purchase_notes = ''' + purchase_notes + ''';
+                            '''
                             ]
                 response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
                 if response[1] == 201:
@@ -2031,6 +2079,7 @@ class Checkout(Resource):
                     if "paymentId" in locals() and "purchaseId" in locals():
                         execute("""DELETE FROM payments WHERE payment_uid = '""" + paymentId + """';""", 'post', conn)
                         execute("""DELETE FROM purchases WHERE purchase_uid = '""" + purchaseId + """';""", 'post', conn)
+                
                 return response
                 # return "OK", 201
             except:
@@ -2116,468 +2165,443 @@ class check_stripe_id(Resource):
         except:
             return "error"
 
-class Change_Purchase (Resource):
-    
-    def refund_calculator(self, info_res,  conn):
-        print("in refund calculator")
-        # Getting the original start and end date for requesting purchase
-        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
-        # check for SKIP. Let consider the simple case. The customer can change their purchases if and only if their purchase
-        # still active.
-        week_remaining = int(info_res['payment_frequency'])
-
-        end_delivery_date = start_delivery_date + timedelta(days=(week_remaining) * 7)
-        skip_query = """SELECT COUNT(delivery_day) AS skip_count FROM
-                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
-                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
-                                GROUP BY sel_menu_date) AS GB
-                                INNER JOIN meals_selected S
-                                ON S.sel_purchase_id = GB.sel_purchase_id
-                                    AND S.sel_menu_date = GB.sel_menu_date
-                                    AND S.selection_time = GB.max_selection_time
-                        WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
-                            AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
-                            AND delivery_day = 'SKIP'
-                        ORDER BY S.sel_menu_date;
-                    """
-        skip_res = simple_get_execute(skip_query, "SKIP QUERY", conn)
-        if skip_res[1] != 200:
-            return skip_res
-        skip = int(skip_res[0].get('skip_count')) if skip_res[0].get('skip_count') else 0
-        
-        # delivered = freq - skip
-        # delivered = 4 - 0
-        
-        if datetime.now().date() > start_delivery_date.date():
-            delivered = (datetime.now().date() - start_delivery_date.date()).days//7 + 1 - skip
-            week_remaining -= delivered
-        elif (datetime.now().date() > end_delivery_date.date()):
-            print("There is something wrong with the query to get info for the requested purchase.")
-            response = {'message': "Internal Server Error."}
-            return response, 500
-        print("start here")
-        print(info_res)
-        item_price = json.loads(info_res['items'])[0].get('price')
-        print("price is")
-        print(item_price)
-        customer_paid = float(item_price)
-        print("paid amount is")
-        print(customer_paid)
-        print("end here")
-        # get the price of the new item.
-        items_query = """
-                        SELECT * FROM subscription_items
-                        WHERE item_name = '""" + info_res['item_name'] + """'
-                        """
-        items_res = simple_get_execute(items_query, "GET Subscription_items QUERY", conn)
-        if items_res[1] != 200:
-            return items_res
-        price = {}
-        for item in items_res[0]['result']:
-            price[item['num_issues']] = item['item_price']
-        refund = 0
-        if info_res['num_issues'] == 4: # 4 week prepaid
-            print("matching 4 week pre-pay")
-            if week_remaining == 0:
-                refund = 0
-            elif week_remaining == 1:
-                refund = customer_paid - float(price[2]) - float(price[1])
-            elif week_remaining == 2:
-                refund = customer_paid - float(price[2])
-            elif week_remaining == 3:
-                refund = customer_paid - float(price[2])
-            elif week_remaining == 4:
-                refund = customer_paid
-        elif info_res['num_issues'] == 2:
-            print("matching 2 week Pre-pay")
-            print("r0")
-            if week_remaining == 0:
-                refund = 0
-                print("r1")
-            elif week_remaining == 1:
-                refund = customer_paid - float(price['1'])
-                print("r2")
-            elif week_remaining == 2:
-                refund = customer_paid
-                print("r3")
-        elif info_res['num_issues'] == 1:
-            print("matching weekly")
-            if week_remaining == 0:
-                refund = 0
-            elif week_remaining == 1:
-                refund = customer_paid
-        return {"week_remaining": week_remaining, "refund_amount": refund}
-
-    def stripe_refund (self, refund_info, conn):
-        refund_amount = refund_info['refund_amount']
-        refund_id = []
-        # retrieve charge info from stripe to determine how much refund amount left on current charge_id
-        # if refund amount left on current charge_id < refund amount needed then trace back the latest previous payment
-        # to get the next stripe_charge_id.
-        #list all charge ids which are associated with current purchase_id
-        query = '''SELECT charge_id from M4ME.payments
-               WHERE pay_purchase_id = (SELECT pay_purchase_id FROM M4ME.payments
-                                       WHERE pay_purchase_uid = "''' + refund_info['purchase_uid'] + '''")
-                    ORDER BY payment_time_stamp DESC;'''
-        res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
-        # print("res in stripe_refund: ", res)
-        if not res[0]['result']:
-            print("Cannot process refund. No charge id found")
-            return {"message": "Internal Server Error"}, 500
-        else:
-            charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
-            amount_should_refund = round(refund_amount*100,0)
-            print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
-            while len(charge_ids) > 0 and amount_should_refund > 0:
-                print("#######################################################################################")
-                print("amount should refund: ", amount_should_refund)
-                process_id = charge_ids.pop(0)
-                print("processing id: ", process_id)
-                print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
-                #retrieve info from stripe for specific charge_id:
-                try:
-                    refunded_info = stripe.Charge.retrieve(process_id, )
-                except:
-                    print('IN error')
-                print("refunded_info: ", refunded_info)
-                print("refunded_info.get('amount'): ", refunded_info.get('amount_refunded'))
-                if refunded_info.get('amount') is not None and refunded_info.get('amount_refunded') is not None:
-                    amount_could_refund = round(float(refunded_info['amount'] - refunded_info['amount_refunded']),0)
-                    print("amount_could_refund: ", amount_could_refund)
-                    print("amount_should_refund: ", amount_should_refund)
-                    if amount_should_refund <= amount_could_refund:
-                        # refund it right away => amount should be refund is equal refunded_amount
-                        print("here")
-                        try:
-                            refund_res = stripe.Refund.create(
-                                charge=process_id,
-                                amount=int(amount_should_refund)
-                            )
-                        except stripe.error.CardError as e:
-                            # Since it's a decline, stripe.error.CardError will be caught
-                            response['message'] = e.error.message
-                            return response, 400
-                        print("refund_res: ", refund_res)
-                        amount_should_refund = 0
-                    elif amount_could_refund == 0:
-                        print('zero amount')
-                        continue
-                    else:
-                        # refund it and then calculate how much is left for amount_should_refund
-                        try:
-                            refund_res = stripe.Refund.create(
-                                charge=process_id,
-                                amount=int(amount_could_refund)
-                            )
-                            print("before substraction")
-                            print(type(amount_should_refund))
-                            print(type(amount_could_refund))
-                            amount_should_refund -= int(amount_could_refund)
-                            print("amount_should_refund after recalculate: ", amount_should_refund)
-                        except stripe.error.CardError as e:
-                            # Since it's a decline, stripe.error.CardError will be caught
-                            response['message'] = e.error.message
-                            return response, 400
-                    refund_id.append(refund_res.get('id'))
-            print(refund_id)
-            return refund_id
-
-    def post(self):
-        try:
-            conn = connect()
-            print("NEW CHANGES ##################################")
-            response = {}
-            charge_id = None
-            refunded = False
-            refund_ui = None
-            # For this update_purchase endpoint, we should consider to ask customer provide their identity to make sure the right
-            # person is doing what he/she want.
-            # Also, using POST to protect sensitive information.
-            data = request.get_json(force=True)
-            customer_email = data['customer_email']
-            password = data.get('password')
-            refresh_token = data.get('refresh_token')
-            cc_num = str(data['cc_num'])
-            cc_exp_date = data['cc_exp_date']
-            #cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
-            cc_cvv = data['cc_cvv']
-            cc_zip = data['cc_zip']
-            purchaseID = data['purchase_id']
-            new_item_id = data['new_item_id']
-            #num_deliveries = data['qty']
-            # temp hardcoded
-            num_deliveries = 3
-            #customer_uid = data["customer_id"]
-            items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
-            print("1")
-            #Check user's identity
-            cus_query = """
-                        SELECT password_hashed,
-                                user_refresh_token, customer_phone_num
-                        FROM customers
-                        WHERE customer_email = '""" + customer_email + """';
-                        """
-            cus_res = simple_get_execute(cus_query, "Update_Purchase - Check Login", conn)
-            if cus_res[1] != 200:
-                return cus_res
-            customer_phone_num = cus_res[0]['result'][0]['customer_phone_num']
-            if not password and not refresh_token:
-                raise BadRequest("Request failed, please try again later.")
-            elif password:
-                if password != cus_res[0]['result'][0]['password_hashed']:
-                    response['message'] = 'Wrong password'
-                    return response, 401
-            elif refresh_token:
-                if refresh_token != cus_res[0]['result'][0]['mobile_refresh_token']:
-                    response['message'] = 'Token Invalid'
-                    return response, 401
-            print("1.5")
-            # query info for requesting purchase
-            # Get info of requesting purchase_id
-            info_query = """
-                        SELECT pur.*, pay.*, sub.*
-                        FROM purchases pur, payments pay, subscription_items sub
-                        WHERE pur.purchase_uid = pay.pay_purchase_uid
-                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
-                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
-                            AND pur.purchase_uid = '""" + purchaseID + """'
-                            AND pur.purchase_status='ACTIVE';  
-                        """
-            print("info_query", info_query)
-            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-            print(info_res)
-            if info_res[1] != 200:
-                return {"message": "Internal Server Error"}, 500
 
 
-            # Calculate refund
-            print("1.9")
-            refund_info = test_cal().new_refund_calculator(info_res[0]['result'][0], conn)
-            print("2")
-            refund_amount = refund_info['refund_amount']
-            print("refund_amount",refund_amount)
+# class Change_Purchase (Resource):
+#     def refund_calculator(self, info_res,  conn):
 
-            # price for the new purchase
-            # this query below for querying the price may be redundant, the front end can send it in data['items']
-            # Should we do it here to make sure that the front end did not make any error?
-            ''' 
-            #old item price query
-            item_query = """
-                        SELECT * FROM subscription_items
-                        WHERE item_uid = '""" + new_item_id + """';
-                        """
-            
-            item_res = simple_get_execute(item_query, "QUERY PRICE FOR NEW PURCHASE.", conn)
-            if item_res[1] != 200:
-                return {"message": "Internal Server Error"}, 500
-            amount_will_charge = float(item_res[0]['result'][0]['item_price']) - refund_amount
-            '''
-            item_query = """
-                        SELECT * FROM subscription_items
-                        WHERE item_uid = '""" + new_item_id + """';
-                        """
-            
-            item_res = simple_get_execute(item_query, "QUERY PRICE FOR NEW PURCHASE.", conn)
-            if item_res[1] != 200:
-                return {"message": "Internal Server Error"}, 500
+#         # Getting the original start and end date for requesting purchase
+#         start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+#         # check for SKIP. Let consider the simple case. The customer can change their purchases if and only if their purchase
+#         # still active.
+#         week_remaining = int(info_res['payment_frequency'])
 
-            num_meals = int(item_res[0]['result'][0]['item_name'][0])
+#         end_delivery_date = start_delivery_date + timedelta(days=(week_remaining) * 7)
+#         skip_query = """
+#                     SELECT COUNT(delivery_day) AS skip_count FROM
+#                         (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
+#                             WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
+#                             GROUP BY sel_menu_date) AS GB
+#                             INNER JOIN meals_selected S
+#                             ON S.sel_purchase_id = GB.sel_purchase_id
+#                                 AND S.sel_menu_date = GB.sel_menu_date
+#                                 AND S.selection_time = GB.max_selection_time
+#                     WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
+#                         AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
+#                         AND delivery_day = 'SKIP'
+#                     ORDER BY S.sel_menu_date;
+#                     """
+#         skip_res = simple_get_execute(skip_query, "SKIP QUERY", conn)
+#         if skip_res[1] != 200:
+#             return skip_res
+#         skip = int(skip_res[0].get('skip_count')) if skip_res[0].get('skip_count') else 0
+#         if datetime.now().date() > start_delivery_date.date():
+#             delivered = (datetime.now().date() - start_delivery_date.date()).days//7 + 1 - skip
+#             week_remaining -= delivered
+#         elif (datetime.now().date() > end_delivery_date.date()):
+#             print("There is something wrong with the query to get info for the requested purchase.")
+#             response = {'message': "Internal Server Error."}
+#             return response, 500
+#         print("start here")
+#         print(info_res)
+#         item_price = json.loads(info_res['items'])[0].get('price')
+#         print("price is")
+#         print(item_price)
+#         customer_paid = float(item_price)
+#         print("paid amount is")
+#         print(customer_paid)
+#         print("end here")
+#         # get the price of the new item.
+#         items_query = """
+#                         SELECT * FROM subscription_items
+#                         WHERE item_name = '""" + info_res['item_name'] + """'
+#                         """
+#         items_res = simple_get_execute(items_query, "GET Subscription_items QUERY", conn)
+#         if items_res[1] != 200:
+#             return items_res
+#         price = {}
+#         for item in items_res[0]['result']:
+#             price[item['num_issues']] = item['item_price']
+#         refund = 0
+#         if info_res['num_issues'] == 4: # 4 week prepaid
+#             print("matching 4 week pre-pay")
+#             if week_remaining == 0:
+#                 refund = 0
+#             elif week_remaining == 1:
+#                 refund = customer_paid - float(price[2]) - float(price[1])
+#             elif week_remaining == 2:
+#                 refund = customer_paid - float(price[2])
+#             elif week_remaining == 3:
+#                 refund = customer_paid - float(price[2])
+#             elif week_remaining == 4:
+#                 refund = customer_paid
+#         elif info_res['num_issues'] == 2:
+#             print("matching 2 week Pre-pay")
+#             print("r0")
+#             print(week_remaining)
+#             print(price[1])
+#             if week_remaining == 0:
+#                 refund = 0
+#                 print("r1")
+#             elif week_remaining == 1:
+#                 refund = customer_paid - float(price[1])
+#                 print("r2")
+#             elif week_remaining == 2:
+#                 refund = customer_paid
+#                 print("r3")
+#         elif info_res['num_issues'] == 1:
+#             print("matching weekly")
+#             if week_remaining == 0:
+#                 refund = 0
+#             elif week_remaining == 1:
+#                 refund = customer_paid
+#         #return {"week_remaining": week_remaining, "refund_amount": refund} #original written by quang
+#         return {"purchase_uid" : info_res['purchase_id'], "week_remaining": week_remaining, "refund_amount": refund}
 
-
-            discount_query = """
-                        SELECT * FROM M4ME.discounts;
-                        """
-            discount = execute(discount_query, 'get', conn)
-
-            if discount['code'] != 280:
-                return discount
-            
-            # get discount combinations in a dictionary
-            discount_dict = {}
-            for val in discount['result']:
-                discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
-            
-            customer_paid = 12*num_meals*num_deliveries*(1-discount_dict[(num_days,num_meals)])
-
-                
-            amount_will_charge = float(item_res[0]['result'][0]['item_price']) - refund_amount
-            # Process stripe
-            print("amount_will_charge",amount_will_charge)
-            if amount_will_charge > 0:
-                #charge with stripe
-                #wrap credit_card info
-                query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date
-                                FROM M4ME.payments
-                                WHERE pay_purchase_uid = "''' + purchaseID + '";'
-                res = simple_get_execute(query, "GET CREDIT CARD INFO FOR CHANGING MEAL PLAN", conn)
-                if res[1] != 200:
-                    return {"message": "Cannot collect credit card info"}, 500
-
-                [cc_num, cc_cvv, cc_exp_date, cc_zip] = destructure(res[0]['result'][0], "cc_num",  "cc_cvv", "cc_exp_date", "cc_zip")
-
-                month = cc_exp_date.split("-")[1]
-                year  = cc_exp_date.split("-")[0]
-
-                card_dict = {"number": cc_num, "exp_month": int(month), "exp_year": int(year), "cvc": cc_cvv}
-                try:
-                    card_token = stripe.Token.create(card=card_dict)
-                    charge_id = stripe.Charge.create(
-                        amount=int(amount_will_charge * 100),
-                        currency="usd",
-                        source=card_token,
-                        description="Charge for changing Meal Plan",
-                    )
-                except stripe.error.CardError as e:
-                    # Since it's a decline, stripe.error.CardError will be caught
-                    response['message'] = e.error.message
-                    return response, 400
-            elif amount_will_charge < 0:
-                # establishing more info for refund_info before we feed it in stripe_refund
-                refund_info['refund_amount'] = abs(amount_will_charge)
-                refund_info['purchase_uid'] = purchaseID
-                print("IN elif", refund_info)
-                refund_info['refunded_id'] = self.stripe_refund(refund_info, conn)
-                if refund_info['refunded_id'] is not None:
-                    refunded = True
-                else:
-                    return {"message": "REFUND PROCESS ERROR."}, 500
+#     def stripe_refund (self, refund_info, conn):
+#         refund_amount = refund_info['refund_amount']
+#         refund_id = []
+#         # retrieve charge info from stripe to determine how much refund amount left on current charge_id
+#         # if refund amount left on current charge_id < refund amount needed then trace back the latest previous payment
+#         # to get the next stripe_charge_id.
+#         #list all charge ids which are associated with current purchase_id
+#         query = '''SELECT charge_id from M4ME.payments
+#                WHERE pay_purchase_id = (SELECT pay_purchase_id FROM M4ME.payments
+#                                        WHERE pay_purchase_uid = "''' + refund_info['purchase_uid'] + '''")
+#                     ORDER BY payment_time_stamp DESC;'''
+#         res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
+#         # print("res in stripe_refund: ", res)
+#         if not res[0]['result']:
+#             print("Cannot process refund. No charge id found")
+#             return {"message": "Internal Server Error"}, 500
+#         else:
+#             charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
+#             print(charge_ids)
+#             amount_should_refund = round(refund_amount*100,0)
+#             # print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
+#             while len(charge_ids) > 0 and amount_should_refund > 0:
+#                 # print("amount should refund: ", amount_should_refund)
+#                 print(len(charge_ids))
+#                 process_id = charge_ids.pop(0)
+#                 print(charge_ids)
+#                 # print("processing id: ", process_id)
+#                 # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
+#                 #retrieve info from stripe for specific charge_id:
+#                 print("stripe 1")
+#                 print(process_id)
+#                 print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
+#                 refunded_info = stripe.Charge.retrieve(process_id,)
+#                 print("stripe 2")
+#                 print(refunded_info.get("amount"))
+#                 print(refunded_info.get('amount_refunded'))
+#                 print("start inputs")
+#                 print(refunded_info['amount'])
+#                 print(refunded_info['amount_refunded'])
+#                 print("end inputs ")
+#                 # print("refunded_info: ", refunded_info)
+#                 # print("refunded_info.get('amount'): ", refunded_info.get('amount_refunded'))
+#                 if refunded_info.get('amount') is not None and refunded_info.get('amount_refunded') is not None:
+#                     amount_could_refund = round(float(refunded_info['amount'] - refunded_info['amount_refunded']),0)
+#                     print(amount_could_refund)
+#                     print(amount_should_refund)
+#                     # print("amount_could_refund: ", amount_could_refund)
+#                     # print("amount_should_refund: ", amount_should_refund)
+#                     if amount_should_refund <= amount_could_refund:
+#                         # refund it right away => amount should be refund is equal refunded_amount
+#                         print("here")
+#                         try:
+#                             refund_res = stripe.Refund.create(
+#                                 charge=process_id,
+#                                 amount=int(amount_should_refund)
+#                             )
+#                         except stripe.error.CardError as e:
+#                             # Since it's a decline, stripe.error.CardError will be caught
+#                             response['message'] = e.error.message
+#                             return response, 400
+#                         # print("refund_res: ", refund_res)
+#                         amount_should_refund = 0
+#                     elif amount_could_refund==0:
+#                         print ("problem here")
+#                         continue
+#                     else:
+#                         # refund it and then calculate how much is left for amount_should_refund
+#                         try:
+#                             refund_res = stripe.Refund.create(
+#                                 charge=process_id,
+#                                 amount=int(amount_could_refund)
+#                             )
+#                             # print("before substraction")
+#                             # print(type(amount_should_refund))
+#                             # print(type(amount_could_refund))
+#                             amount_should_refund -= int(amount_could_refund)
+#                             # print("amount_should_refund after recalculate: ", amount_should_refund)
+#                         except stripe.error.CardError as e:
+#                             # Since it's a decline, stripe.error.CardError will be caught
+#                             response['message'] = e.error.message
+#                             return response, 400
+#                     refund_id.append(refund_res.get('id'))
+#             return refund_id
 
 
 
-            #gathering data before writting info to database
-            # need to calculate the start_delivery_date
-            dayOfWeek = datetime.now().weekday()
+#     def post(self):
+#         try:
+#             conn = connect()
+#             response = {}
+#             charge_id = None
+#             refunded = False
+#             refund_ui = None
+#             # For this update_purchase endpoint, we should consider to ask customer provide their identity to make sure the right
+#             # person is doing what he/she want.
+#             # Also, using POST to protect sensitive information.
+#             data = request.get_json(force=True)
+#             customer_email = data['customer_email']
+#             password = data.get('password')
+#             refresh_token = data.get('refresh_token')
+#             cc_num = str(data['cc_num'])
+#             cc_exp_date = data['cc_exp_date']
+#             #cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
+#             cc_cvv = data['cc_cvv']
+#             cc_zip = data['cc_zip']
+#             purchaseID = data['purchase_id']
+#             new_item_id = data['new_item_id']
+#             #customer_uid = data["customer_id"]
+#             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
+#             print("1")
+#             #Check user's identity
+#             cus_query = """
+#                         SELECT password_hashed,
+#                                 user_refresh_token, customer_phone_num
+#                         FROM customers
+#                         WHERE customer_email = '""" + customer_email + """';
+#                         """
+#             cus_res = simple_get_execute(cus_query, "Update_Purchase - Check Login", conn)
+#             if cus_res[1] != 200:
+#                 return cus_res
+#             customer_phone_num = cus_res[0]['result'][0]['customer_phone_num']
+#             if not password and not refresh_token:
+#                 raise BadRequest("Request failed, please try again later.")
+#             elif password:
+#                 if password != cus_res[0]['result'][0]['password_hashed']:
+#                     response['message'] = 'Wrong password'
+#                     return response, 401
+#             elif refresh_token:
+#                 if refresh_token != cus_res[0]['result'][0]['mobile_refresh_token']:
+#                     response['message'] = 'Token Invalid'
+#                     return response, 401
+#             print("1.5")
+#             # query info for requesting purchase
+#             # Get info of requesting purchase_id
+#             info_query = """
+#                         SELECT pur.*, pay.*, sub.*
+#                         FROM purchases pur, payments pay, subscription_items sub
+#                         WHERE pur.purchase_uid = pay.pay_purchase_uid
+#                             AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
+#                                                     FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+#                             AND pur.purchase_uid = '""" + purchaseID + """'
+#                             AND pur.purchase_status='ACTIVE';  
+#                         """
+#             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+#             print(info_res)
+#             if info_res[1] != 200:
+#                 return {"message": "Internal Server Error"}, 500
+#             # Calculate refund
+#             print("1.9")
+#             refund_info = self.refund_calculator(info_res[0]['result'][0], conn)
+#             print("2")
+#             refund_amount = refund_info['refund_amount']
 
-                # Get the soonest Thursday, same day if today is Thursday
-            thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
+#             # price for the new purchase
+#             # this query below for querying the price may be redundant, the front end can send it in data['items']
+#             # Should we do it here to make sure that the front end did not make any error?
+#             item_query = """
+#                         SELECT * FROM subscription_items
+#                         WHERE item_uid = '""" + new_item_id + """';
+#                         """
+#             item_res = simple_get_execute(item_query, "QUERY PRICE FOR NEW PURCHASE.", conn)
+#             if item_res[1] != 200:
+#                 return {"message": "Internal Server Error"}, 500
+#             amount_will_charge = float(item_res[0]['result'][0]['item_price']) - refund_amount
+#             # Process stripe
 
-                # If today is Thursday after 4PM'
-            if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
-                thurs += timedelta(days=7)
+#             if amount_will_charge > 0:
+#                 #charge with stripe
+#                 #wrap credit_card info
+#                 query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date
+#                                 FROM M4ME.payments
+#                                 WHERE pay_purchase_uid = "''' + purchaseID + '";'
+#                 res = simple_get_execute(query, "GET CREDIT CARD INFO FOR CHANGING MEAL PLAN", conn)
+#                 if res[1] != 200:
+#                     return {"message": "Cannot collect credit card info"}, 500
 
-                #the next saturday
-            start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+#                 [cc_num, cc_cvv, cc_exp_date, cc_zip] = destructure(res[0]['result'][0], "cc_num",  "cc_cvv", "cc_exp_date", "cc_zip")
+
+#                 month = cc_exp_date.split("-")[1]
+#                 year  = cc_exp_date.split("-")[0]
+
+#                 card_dict = {"number": cc_num, "exp_month": int(month), "exp_year": int(year), "cvc": cc_cvv}
+#                 try:
+#                     card_token = stripe.Token.create(card=card_dict)
+#                     charge_id = stripe.Charge.create(
+#                         amount=int(amount_will_charge * 100),
+#                         currency="usd",
+#                         source=card_token,
+#                         description="Charge for changing Meal Plan",
+#                     )
+#                 except stripe.error.CardError as e:
+#                     # Since it's a decline, stripe.error.CardError will be caught
+#                     response['message'] = e.error.message
+#                     return response, 400
+#             elif amount_will_charge < 0:
+#                 # establishing more info for refund_info before we feed it in stripe_refund
+#                 refund_info['refund_amount'] = abs(amount_will_charge)
+#                 refund_info['purchase_uid'] = purchaseID
+#                 refund_info['refunded_id'] = self.stripe_refund(refund_info, conn)
+#                 if refund_info['refunded_id'] is not None:
+#                     refunded = True
+#                 else:
+#                     return {"message": "REFUND PROCESS ERROR."}, 500
+
+
+
+#             #gathering data before writting info to database
+#             # need to calculate the start_delivery_date
+#             dayOfWeek = datetime.now().weekday()
+
+#                 # Get the soonest Thursday, same day if today is Thursday
+#             thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
+
+#                 # If today is Thursday after 4PM'
+#             if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
+#                 thurs += timedelta(days=7)
+
+#                 #the next saturday
+#             start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
 
            
-            charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
-            info_res = info_res[0]['result'][0]
+#             charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
+#             info_res = info_res[0]['result'][0]
 
-            payment_id = info_res.get("payment_id")
-            purchase_id = info_res.get("purchase_id")
-            customer_uid = info_res.get("pur_customer_uid")
-            delivery_first_name = info_res.get("delivery_first_name")
-            delivery_last_name = info_res.get("delivery_last_name")
-            delivery_email = info_res.get("delivery_email")
-            delivery_phone = info_res.get("delivery_phone_num")
-            delivery_address = info_res.get("delivery_address")
-            delivery_unit = info_res.get("delivery_unit")
-            delivery_city = info_res.get("delivery_city")
-            delivery_state = info_res.get("delivery_state")
-            delivery_zip = info_res.get("delivery_zip")
-            delivery_instructions = info_res.get("delivery_instructions") if info_res.get('delivery_instruction') else "NULL"
-            delivery_longitude = info_res.get("delivery_longitude")
-            delivery_latitude = info_res.get("delivery_latitude")
-            order_instructions = info_res.get("order_instructions") if info_res.get("order_instructions") else "NULL"
-            purchase_notes = info_res.get("purchase_notes") if info_res.get("purchase_notes") else "NULL"
-            # get the new ids
-            print("writting into database")
-            purchase_uid = get_new_purchaseID(conn)
-            if purchase_uid[1] == 500:
-                return {"message": "Internal Server Error."}, 500
-            payment_uid = get_new_paymentID(conn)
-            if payment_uid[1] == 500:
-                print(payment_uid[0])
-                return {"message": "Internal Server Error."}, 500
-            # write the new purchase_id and payment_id into database
-                # write into Payments table
-            queries = [
-                '''
-                INSERT INTO M4ME.payments
-                SET payment_uid = "''' + payment_uid + '''",
-                                        payment_time_stamp = "''' + getNow() + '''",
-                                        start_delivery_date = "''' + start_delivery_date + '''",
-                                        payment_id = "''' + payment_id + '''",
-                                        pay_purchase_id = "''' + purchase_id + '''",
-                                        pay_purchase_uid = "''' + purchase_uid + '''",
-                                        amount_due = "''' + str(round(amount_will_charge,2)) + '''",
-                                        amount_discount = 0,
-                                        amount_paid = "''' + str(round(amount_will_charge,2)) + '''",
-                                        pay_coupon_id = NULL,
-                                        charge_id = ''' + charge_id + ''',
-                                        payment_type = NULL,
-                                        info_is_Addon = "FALSE",
-                                        cc_num = "''' + str(cc_num) + '''",
-                                        cc_exp_date = "''' + str(cc_exp_date) + '''",
-                                        cc_cvv = "''' + str(cc_cvv) + '''",
-                                        cc_zip = "''' + str(cc_zip) + '''";
-                ''',
-                '''
-                INSERT INTO  M4ME.purchases
-                SET purchase_uid = "''' + purchase_uid + '''",
-                                        purchase_date = "''' + getNow() + '''",
-                                        purchase_id = "''' + purchase_id + '''",
-                                        purchase_status = 'ACTIVE',
-                                        pur_customer_uid = "''' + customer_uid + '''",
-                                        delivery_first_name = "''' + delivery_first_name + '''",
-                                        delivery_last_name = "''' + delivery_last_name + '''",
-                                        delivery_email = "''' + delivery_email + '''",
-                                        delivery_phone_num = "''' + str(delivery_phone) + '''",
-                                        delivery_address = "''' + delivery_address + '''",
-                                        delivery_unit = "''' + str(delivery_unit) + '''",
-                                        delivery_city = "''' + delivery_city + '''",
-                                        delivery_state = "''' + delivery_state + '''",
-                                        delivery_zip = "''' + str(delivery_zip) + '''",
-                                        delivery_instructions = "''' + delivery_instructions + '''",
-                                        delivery_longitude = "''' + delivery_longitude + '''",
-                                        delivery_latitude = "''' + delivery_latitude + '''",
-                                        items = ''' + items + ''',
-                                        order_instructions = "''' + order_instructions + '''",
-                                        purchase_notes = "''' + purchase_notes + '''";'''
-            ]
-            if refunded:  # if refunded is true then write it to refund table
-                res_refund_uid = get_new_id("CALL new_refund_uid", "GET NEW REFUND UID", conn)
-                if res_refund_uid[1] != 200:
-                    return {"message": "Error happened when requesting new refund_uid"}, 500
-                refund_uid = res_refund_uid[0]['result']
-                print("refund_uid: ", refund_uid)
+#             payment_id = info_res.get("payment_id")
+#             purchase_id = info_res.get("purchase_id")
+#             customer_uid = info_res.get("pur_customer_uid")
+#             delivery_first_name = info_res.get("delivery_first_name")
+#             delivery_last_name = info_res.get("delivery_last_name")
+#             delivery_email = info_res.get("delivery_email")
+#             delivery_phone = info_res.get("delivery_phone_num")
+#             delivery_address = info_res.get("delivery_address")
+#             delivery_unit = info_res.get("delivery_unit")
+#             delivery_city = info_res.get("delivery_city")
+#             delivery_state = info_res.get("delivery_state")
+#             delivery_zip = info_res.get("delivery_zip")
+#             delivery_instructions = info_res.get("delivery_instructions") if info_res.get('delivery_instruction') else "NULL"
+#             delivery_longitude = info_res.get("delivery_longitude")
+#             delivery_latitude = info_res.get("delivery_latitude")
+#             order_instructions = info_res.get("order_instructions") if info_res.get("order_instructions") else "NULL"
+#             purchase_notes = info_res.get("purchase_notes") if info_res.get("purchase_notes") else "NULL"
+#             # get the new ids
+#             print("writting into database")
+#             purchase_uid = get_new_purchaseID(conn)
+#             if purchase_uid[1] == 500:
+#                 print(purchaseId[0])
+#                 return {"message": "Internal Server Error."}, 500
+#             payment_uid = get_new_paymentID(conn)
+#             if payment_uid[1] == 500:
+#                 print(payment_uid[0])
+#                 return {"message": "Internal Server Error."}, 500
+#             # write the new purchase_id and payment_id into database
+#                 # write into Payments table
+#             queries = [
+#                 '''
+#                 INSERT INTO M4ME.payments
+#                 SET payment_uid = "''' + payment_uid + '''",
+#                                         payment_time_stamp = "''' + getNow() + '''",
+#                                         start_delivery_date = "''' + start_delivery_date + '''",
+#                                         payment_id = "''' + payment_id + '''",
+#                                         pay_purchase_id = "''' + purchase_id + '''",
+#                                         pay_purchase_uid = "''' + purchase_uid + '''",
+#                                         amount_due = "''' + str(round(amount_will_charge,2)) + '''",
+#                                         amount_discount = 0,
+#                                         amount_paid = "''' + str(round(amount_will_charge,2)) + '''",
+#                                         pay_coupon_id = NULL,
+#                                         charge_id = ''' + charge_id + ''',
+#                                         payment_type = NULL,
+#                                         info_is_Addon = "FALSE",
+#                                         cc_num = "''' + str(cc_num) + '''",
+#                                         cc_exp_date = "''' + str(cc_exp_date) + '''",
+#                                         cc_cvv = "''' + str(cc_cvv) + '''",
+#                                         cc_zip = "''' + str(cc_zip) + '''";
+#                 ''',
+#                 '''
+#                 INSERT INTO  M4ME.purchases
+#                 SET purchase_uid = "''' + purchase_uid + '''",
+#                                         purchase_date = "''' + getNow() + '''",
+#                                         purchase_id = "''' + purchase_id + '''",
+#                                         purchase_status = 'ACTIVE',
+#                                         pur_customer_uid = "''' + customer_uid + '''",
+#                                         delivery_first_name = "''' + delivery_first_name + '''",
+#                                         delivery_last_name = "''' + delivery_last_name + '''",
+#                                         delivery_email = "''' + delivery_email + '''",
+#                                         delivery_phone_num = "''' + str(delivery_phone) + '''",
+#                                         delivery_address = "''' + delivery_address + '''",
+#                                         delivery_unit = "''' + str(delivery_unit) + '''",
+#                                         delivery_city = "''' + delivery_city + '''",
+#                                         delivery_state = "''' + delivery_state + '''",
+#                                         delivery_zip = "''' + str(delivery_zip) + '''",
+#                                         delivery_instructions = "''' + delivery_instructions + '''",
+#                                         delivery_longitude = "''' + delivery_longitude + '''",
+#                                         delivery_latitude = "''' + delivery_latitude + '''",
+#                                         items = ''' + items + ''',
+#                                         order_instructions = "''' + order_instructions + '''",
+#                                         purchase_notes = "''' + purchase_notes + '''";'''
+#             ]
+#             if refunded:  # if refunded is true then write it to refund table
+#                 res_refund_uid = get_new_id("CALL new_refund_uid", "GET NEW REFUND UID", conn)
+#                 if res_refund_uid[1] != 200:
+#                     return {"message": "Error happened when requesting new refund_uid"}, 500
+#                 refund_uid = res_refund_uid[0]['result']
+#                 print("refund_uid: ", refund_uid)
 
-                query = '''INSERT INTO M4ME.refunds
-                                    SET refund_uid = "''' + refund_uid + '''",
-                                        created_at = "''' + getNow() + '''",
-                                        email_id = "''' + customer_email + '''",
-                                        phone_num = "''' + str(customer_phone_num) + '''",
-                                        image_url = "NOT REQUIRED",
-                                        customer_note = "NOT REQUIRED",
-                                        admin_note = "CHANGED MEAL PLAN",
-                                        refund_amount = "''' + str(abs(amount_will_charge)) + '";'
-                print(query)
-                refund_res = simple_post_execute([query], ["REFUND"], conn)
-                print("refund_res: ", refund_res)
-                if refund_res[1] != 201:
-                    return {"message": "Error happened while writting into refund table"}, 500
-            response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
+#                 query = '''INSERT INTO M4ME.refunds
+#                                     SET refund_uid = "''' + refund_uid + '''",
+#                                         created_at = "''' + getNow() + '''",
+#                                         email_id = "''' + customer_email + '''",
+#                                         phone_num = "''' + str(customer_phone_num) + '''",
+#                                         image_url = "NOT REQUIRED",
+#                                         customer_note = "NOT REQUIRED",
+#                                         admin_note = "CHANGED MEAL PLAN",
+#                                         refund_amount = "''' + str(abs(amount_will_charge)) + '";'
+#                 print(query)
+#                 refund_res = simple_post_execute([query], ["REFUND"], conn)
+#                 print("refund_res: ", refund_res)
+#                 if refund_res[1] != 201:
+#                     return {"message": "Error happened while writting into refund table"}, 500
+#             response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
 
-            if response[1] == 201:
-                if refunded:
-                    response[0]['refund_uid'] = refund_uid
-                response[0]['payment_id'] = payment_uid
-                response[0]['purchase_id'] = purchase_uid
-                query = '''UPDATE M4ME.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
-                simple_post_execute([query], ["UPDATE OLD PURCHASES"], conn)
+#             if response[1] == 201:
+#                 if refunded:
+#                     response[0]['refund_uid'] = refund_uid
+#                 response[0]['payment_id'] = payment_uid
+#                 response[0]['purchase_id'] = purchase_uid
+#                 query = '''UPDATE M4ME.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
+#                 simple_post_execute([query], ["UPDATE OLD PURCHASES"], conn)
 
-                return response
+#                 return response
 
-            else:
-                if "payment_uid" in locals() and "purchase_uid" in locals():
-                    execute("""DELETE FROM payments WHERE payment_uid = '""" + payment_uid + """';""", 'post', conn)
-                    execute("""DELETE FROM purchases WHERE purchase_uid = '""" + purchase_uid + """';""", 'post',
-                            conn)
-                return {"message": "Internal Server Error."}, 500
+#             else:
+#                 if "payment_uid" in locals() and "purchase_uid" in locals():
+#                     execute("""DELETE FROM payments WHERE payment_uid = '""" + payment_uid + """';""", 'post', conn)
+#                     execute("""DELETE FROM purchases WHERE purchase_uid = '""" + purchase_uid + """';""", 'post',
+#                             conn)
+#                 return {"message": "Internal Server Error."}, 500
 
-        except:
-            raise BadRequest("Request failed, please try again later.")
-        finally:
-            disconnect(conn)
+#         except:
+#             raise BadRequest("Request failed, please try again later.")
+#         finally:
+#             disconnect(conn)
+
+
+
 
 
 class Refund_Calculator (Resource):
@@ -2598,6 +2622,36 @@ class Refund_Calculator (Resource):
             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
             if info_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
+
+
+            # Calculate refund
+            try:
+                refund_info = change_purchase().refund_calculator(info_res[0]['result'][0], conn)
+            except:
+                print("calculated error")
+                return {"message": "Internal Server Error"}, 500
+            return {'message': "Successful", 'result': [{"refund_amount": refund_info['refund_amount']}]}, 200
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+    def refund_calf(self, p_uid):
+        try:
+            conn = connect()
+            #purchase_uid = request.args.get('purchase_uid')
+
+            info_query = """
+                       SELECT pur.*, pay.*, sub.*
+                       FROM purchases pur, payments pay, subscription_items sub
+                       WHERE pur.purchase_uid = pay.pay_purchase_uid
+                           AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                   FROM purchases WHERE purchase_uid = '""" + p_uid + """')
+                           AND pur.purchase_uid = '""" + p_uid + """'
+                           AND pur.purchase_status='ACTIVE';  
+                       """
+            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            if info_res[1] != 200:
+                return {"message": "Internal Server Error"}, 500
             # Calculate refund
             try:
                 refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
@@ -2609,6 +2663,7 @@ class Refund_Calculator (Resource):
             raise BadRequest("Request failed, please try again later.")
         finally:
             disconnect(conn)
+
 
 
 class Update_Delivery_Info (Resource):
@@ -2665,13 +2720,20 @@ class Plans(Resource):
     def get(self):
         try:
             conn = connect()
-            business_uid = request.args['business_uid']
+            #business_uid = request.args['business_uid']
+            print("1")
             query = """
-                    # ADMIN QUERY 5: PLANS
-                    SELECT * FROM M4ME.subscription_items si
-                    -- WHERE itm_business_uid = "200-000007"; 
-                    WHERE itm_business_uid = \'""" + business_uid + """\';
+                    select * from subscription_items 
+                    join discounts
+                    where itm_business_uid = "200-000002";
                     """
+            # query = """
+            #         # ADMIN QUERY 5: PLANS 
+            #         SELECT * FROM M4ME.subscription_items si 
+            #         -- WHERE itm_business_uid = "200-000007"; 
+            #         WHERE itm_business_uid = \'""" + business_uid + """\';
+            #         """
+            print("2")
             return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -2802,7 +2864,22 @@ class Menu (Resource):
         finally:
             disconnect(conn)
 
-
+class AllMenus (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    #  ADMIN QUERY 1: 
+                    #  MEALS & MENUS: 1. CREATE/EDIT MENUS: SEE MENU FOR A PARTICULAR DAY  (ADD/DELETE MENU ITEM)
+                    SELECT * FROM M4ME.menu
+                    LEFT JOIN M4ME.meals
+                        ON menu_meal_id = meal_uid
+                    """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest("Request failed, Please try again later.")
+        finally:
+            disconnect(conn)
 
 class Delete_Menu_Specific (Resource):
     def delete(self):
@@ -2962,6 +3039,7 @@ class create_update_meals(Resource):
             meal_sugar = request.form.get('meal_sugar') if request.form.get('meal_sugar') is not None else 'NULL'
             meal_fat = request.form.get('meal_fat') if request.form.get('meal_fat') is not None else 'NULL'
             meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
+            #meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
             meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
             if meal_uid[1] != 200:
@@ -2974,6 +3052,7 @@ class create_update_meals(Resource):
             meal_photo = helper_upload_meal_img(meal_photo_url, key)
             print("2")
             print(meal_uid)
+            #print(meal_notes)
             # INSERT query
             query = """
                     INSERT INTO meals
@@ -3000,8 +3079,10 @@ class create_update_meals(Resource):
                 return response
             response[0]['meal_uid'] = meal_uid
             print("4")
-            lists=get_all_s3_keys(mtyd)
-            return response, lists
+            # lists=get_all_s3_keys(mtyd)
+            # print("ending sequence")
+            # return response, lists
+            return response
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -3031,6 +3112,7 @@ class create_update_meals(Resource):
             meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
             meal_uid = request.form.get('meal_sat') 
+            #meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
             print("1")
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
@@ -3038,6 +3120,7 @@ class create_update_meals(Resource):
             meal_photo = helper_upload_meal_img(meal_photo_url, key)
             print("2")
             print(meal_uid)
+            print(meal_notes)
             # INSERT query
             query = """
                     Update meals
@@ -3479,7 +3562,7 @@ class CouponDetails(Resource):
             conn = connect()
             query = """
                     SELECT * FROM M4ME.coupons
-                    WHERE coupon_id = \'""" + coupon_id + """\'
+                    WHERE coupon_uid = \'""" + coupon_id + """\'
                     """
             items = execute(query, 'get', conn)
 
@@ -3654,34 +3737,37 @@ class Edit_Menu(Resource):
             print("data received")
             print(menu_date)
             print(menu)
-            items['delete_menu'] = execute("""delete from menu
-                                                        where menu_date = \'""" + str(menu_date) + """\';
-                                                            """, 'post', conn)
-            print("menu deleted")
+            # items['delete_menu'] = execute("""delete from menu
+            #                                             where menu_date = \'""" + str(menu_date) + """\';
+            #                                                 """, 'post', conn)
+            # print("menu deleted")
 
             i = 0
             for eachitem in data['menu']:
-                menu_category = menu[i]['menu_category']
-                menu_type = menu[i]['menu_type']
-                meal_cat = menu[i]['meal_cat']
-                meal_name = menu[i]['meal_name']
-                default_meal = menu[i]['default_meal']
-
+                menu_category = eachitem['menu_category'] if eachitem['menu_category'] else "null"
+                menu_type = eachitem['menu_type'] if eachitem['menu_type'] else "null"
+                meal_cat = eachitem['meal_cat'] if eachitem['meal_cat'] else "null"
+                meal_name = eachitem['meal_name'] if eachitem['meal_name'] else "null"
+                default_meal = eachitem['default_meal'] if eachitem['default_meal'] else "null" 
+                menu_uid = get_new_id("CALL new_menu_uid", "get_new_menu_ID", conn)
                 print(menu_category)
                 print(menu_type)
                 print(meal_cat)
                 print(meal_name)
                 print(default_meal)
 
-                query = """insert into M4ME.menu 
+                query = """insert into M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, menu_meal_id, default_meal) 
                         values 
-                        (\'""" + menu_date + """\',
+                        (\'""" + menu_uid + """\'
+                        \'""" + menu_date + """\',
                         \'""" + menu_category + """\',
                         \'""" + menu_type + """\',
                         \'""" + meal_cat + """\',
-                        (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
+                        (select meal_uid from meals where meal_name = \'""" + meal_name + """\'),
                         \'""" + default_meal + """\');"""
+                print(query)
                 items = execute(query,'post',conn)
+                print(items)
                 i += 1
             print("done")
                 
@@ -3717,12 +3803,13 @@ class Edit_Meal(Resource):
         finally:
             disconnect(conn)
 
-    def patch(self):
+    def post(self):
         response = {}
         items = {}
         try:
             conn = connect()
             data = request.get_json(force=True)
+            meal = data["meal"]
 
             mealId = data['mealId']
             meal_category = data['meal_category']
@@ -3738,25 +3825,33 @@ class Edit_Meal(Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
+            i = 0
+            for eachitem in data['meal']:
+                mealId = eachitem['mealId'] if eachitem['mealId'] else "null"
+                meal_category = eachitem['meal_category']
+                meal_name = eachitem['meal_name']
+                meal_desc = eachitem['meal_desc']
+                meal_hint = eachitem['meal_hint']
+                meal_photo_URL = eachitem['meal_photo_URL']
+                meal_calories = eachitem['meal_calories']
+                meal_protein = eachitem['meal_protein']
+                meal_carbs = eachitem['meal_carbs']
+                meal_fiber = eachitem['meal_fiber']
+                meal_sugar = eachitem['meal_sugar']
+                meal_fat = eachitem['meal_fat']
+                meal_sat = eachitem['meal_sat']
             print(data)
             print("Items read...")
-            items['update_meal'] = execute("""update meals 
-                                                set
-                                                meal_category = \'""" + str(meal_category) + """\',
-                                                meal_name = \'""" + str(meal_name) + """\',
-                                                meal_desc = \'""" + str(meal_desc) + """\',
-                                                meal_hint = \'""" + str(meal_hint) + """\',
-                                                meal_photo_URL = \'""" + str(meal_photo_URL) + """\',
-                                                meal_calories = \'""" + str(meal_calories) + """\',
-                                                meal_protein = \'""" + str(meal_protein) + """\',
-                                                meal_carbs = \'""" + str(meal_carbs) + """\',
-                                                meal_fiber = \'""" + str(meal_fiber) + """\',
-                                                meal_sugar = \'""" + str(meal_sugar) + """\',
-                                                meal_fat = \'""" + str(meal_fat) + """\',
-                                                meal_sat  = \'""" + str(meal_sat) + """\'
-                                                where
-                                                meal_id = \'""" + str(mealId) + """\';""", 'post', conn)                                            
-            print("meal_updated...")
+            query = """
+                        insert into M4ME.menu 
+                        values 
+                        (\'""" + menu_date + """\',
+                        \'""" + menu_category + """\',
+                        \'""" + menu_type + """\',
+                        \'""" + meal_cat + """\',
+                        (select meal_id from meals where meal_name = \'""" + meal_name + """\'),
+                        \'""" + default_meal + """\');
+                    """
             
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -4457,7 +4552,8 @@ class customer_infos(Resource):
                                 cust_guid_device_id_notification, 
                                 SMS_last_notification,
                                 max(purchase_date),
-                                count(purchase_id) 
+                                count(purchase_id),
+                                role 
                             from customers
                             left join lplp lp
                             on customer_uid = pur_customer_uid
@@ -4987,7 +5083,7 @@ class get_orders(Resource):
                     from customers
                     inner join M4ME.lplp_items_by_row
                     on customer_uid = lplpibr_customer_uid
-                    where lplpibr_jt_business_uid = "200-000001";
+                    where lplpibr_jt_business_uid = "200-000002";
                     """
             items = execute(query, 'get', conn)
             print(items["code"])
@@ -5200,9 +5296,102 @@ class get_delivery_info(Resource):
 
 
 
+# class update_guid_notification(Resource):
+
+#     def post(self, role):
+#         response = {}
+#         items = {}
+
+#         try:
+#             conn = connect()
+#             data = request.get_json(force=True)
+
+#             print(data)
+#             if role == 'customer':
+#                 uid = data['uid']
+#                 guid = data['guid']
+#                 notification = data['notification']
+#                 query = """
+#                         SELECT *
+#                         FROM M4ME.customers c
+#                         WHERE customer_uid = \'""" + uid + """\'
+#                         """
+#                 items = execute(query, 'get', conn)
+#                 del data['uid']
+#                 test = str(data).replace("'", "\"")
+#                 print('test---------', test)
+#                 data = "'" + test + "'"
+
+#                 print(data)
+#                 if items['result']:
+
+#                     query = " " \
+#                             "UPDATE M4ME.customers " \
+#                             "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
+#                             "WHERE customer_uid = '" + str(uid) + "';" \
+#                             ""
+
+#                     items = execute(query, 'post', conn)
+#                     print(items)
+#                     if items['code'] == 281:
+#                         items['code'] = 200
+#                         items['message'] = 'Device_id notification and GUID updated'
+#                     else:
+#                         items['message'] = 'check sql query'
+
+#                 else:
+#                     items['message'] = "UID doesn't exists"
+
+#                 return items
+
+#             elif role == 'business':
+#                 uid = data['uid']
+#                 guid = data['guid']
+#                 query = """
+#                         SELECT *
+#                         FROM M4ME.businesses b
+#                         WHERE business_uid = \'""" + uid + """\'
+#                         """
+#                 items = execute(query, 'get', conn)
+
+#                 del data['uid']
+#                 test = str(data).replace("'", "\"")
+#                 print('test---------', test)
+#                 data = "'" + test + "'"
+
+#                 if items['result']:
+#                     data
+#                     query = " " \
+#                             "UPDATE M4ME.businesses " \
+#                             "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
+#                             "WHERE business_uid = '" + str(uid) + "';" \
+#                             ""
+
+#                     items = execute(query, 'post', conn)
+
+#                     if items['code'] == 281:
+#                         items['code'] = 200
+#                         items['message'] = 'Device_id notification and GUID updated'
+#                     else:
+#                         items['message'] = 'check sql query'
+
+#                 else:
+#                     items['message'] = "UID doesn't exists"
+
+#                 return items
+
+#             else:
+#                 return 'choose correct option'
+
+#         except:
+#             raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
+
+
 class update_guid_notification(Resource):
 
-    def post(self, role):
+    def post(self, role, action):
         response = {}
         items = {}
 
@@ -5211,13 +5400,13 @@ class update_guid_notification(Resource):
             data = request.get_json(force=True)
 
             print(data)
-            if role == 'customer':
+            if role == 'customer' and action == 'add':
                 uid = data['uid']
                 guid = data['guid']
                 notification = data['notification']
                 query = """
                         SELECT *
-                        FROM M4ME.customers c
+                        FROM customers c
                         WHERE customer_uid = \'""" + uid + """\'
                         """
                 items = execute(query, 'get', conn)
@@ -5230,7 +5419,7 @@ class update_guid_notification(Resource):
                 if items['result']:
 
                     query = " " \
-                            "UPDATE M4ME.customers " \
+                            "UPDATE customers " \
                             "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
                             "WHERE customer_uid = '" + str(uid) + "';" \
                             ""
@@ -5248,12 +5437,12 @@ class update_guid_notification(Resource):
 
                 return items
 
-            elif role == 'business':
+            elif role == 'business' and action == 'add':
                 uid = data['uid']
                 guid = data['guid']
                 query = """
                         SELECT *
-                        FROM M4ME.businesses b
+                        FROM businesses b
                         WHERE business_uid = \'""" + uid + """\'
                         """
                 items = execute(query, 'get', conn)
@@ -5266,7 +5455,7 @@ class update_guid_notification(Resource):
                 if items['result']:
                     data
                     query = " " \
-                            "UPDATE M4ME.businesses " \
+                            "UPDATE businesses " \
                             "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
                             "WHERE business_uid = '" + str(uid) + "';" \
                             ""
@@ -5284,6 +5473,89 @@ class update_guid_notification(Resource):
 
                 return items
 
+            #GUIDS
+
+            elif role == 'customer' and action == 'update':
+                query = """
+                    SELECT cust_guid_device_id_notification
+                    FROM customers c
+                    WHERE customer_uid = \'""" + data['uid'] + """\';
+                    """
+                items = execute(query, 'get', conn)
+                json_guid = json.loads(items['result'][0]['cust_guid_device_id_notification'])
+                print('0', json_guid)
+                for i, vals in enumerate(json_guid):
+                    print(i, vals)
+                    if vals == None or vals == 'null':
+                        continue
+                    if vals['guid'] == data['guid']:
+                        print(vals)
+                        json_guid[i]['notification'] = data['notification']
+                        break
+                if json_guid[0] == None:
+                    print('none')
+                    json_guid[0] = 'null'
+
+                print('1', json_guid)
+                guid = str(json_guid)
+                guid = guid.replace("'", '"')
+                print('2', guid)
+                print(guid)
+                guid = "[null," + guid[8:]
+                print('replace',guid)
+                query = """
+                        UPDATE customers  
+                        SET
+                        cust_guid_device_id_notification = \'""" + guid + """\'
+                        WHERE ( customer_uid  = '""" + data['uid'] + """' );
+                        """
+                print(query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = 'guid not updated check sql query and data'
+
+                else:
+                    print(items)
+                    items['message'] = 'guid updated'
+                return items
+
+            elif role == 'business' and action == 'update':
+                query = """
+                    SELECT bus_guid_device_id_notification
+                    FROM businesses b
+                    WHERE business_uid = \'""" + data['uid'] + """\';
+                    """
+                items = execute(query, 'get', conn)
+                json_guid = json.loads(items['result'][0]['bus_guid_device_id_notification'])
+                for i, vals in enumerate(json_guid):
+                    print(i, vals)
+                    if vals == None or vals == 'null':
+                        continue
+                    if vals['guid'] == data['guid']:
+                        print(vals)
+                        json_guid[i]['notification'] = data['notification']
+                        break
+                if json_guid[0] == None:
+                    json_guid[0] = 'null'
+
+                guid = str(json_guid)
+                guid = guid.replace("'", '"')
+                print(guid)
+                guid = "[null," + guid[8:]
+                query = """
+                        UPDATE  businesses
+                        SET
+                        bus_guid_device_id_notification = \'""" + guid + """\'
+                        WHERE ( business_uid  = '""" + data['uid'] + """' );
+                        """
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = 'guid not updated check sql query and data'
+
+                else:
+                    items['message'] = 'guid updated'
+                return items
+
             else:
                 return 'choose correct option'
 
@@ -5291,9 +5563,6 @@ class update_guid_notification(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
 
 
 
@@ -5819,7 +6088,7 @@ class customer_info(Resource):
                                                 itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
                                      ) AS deconstruct, M4ME.payments AS pay, M4ME.customers AS cust
                     WHERE purchase_uid = pay.pay_purchase_uid AND pur_customer_uid = cust.customer_uid
-                            and items like "%200-000001%"
+                            and items like "%200-000002%"
                     GROUP BY deconstruct.itm_business_uid, pur_customer_uid
                     ; 
                     """
@@ -5842,18 +6111,113 @@ class customer_info(Resource):
 
 
 
+# class Send_Notification(Resource):
+
+#     def post(self, role):
+
+#         def deconstruct(uids, role):
+#             print('IN decon')
+#             conn = connect()
+#             uids_array = uids.split(',')
+#             output = []
+#             for uid in uids_array:
+#                 if role == 'customer':
+#                     query = """SELECT cust_guid_device_id_notification FROM customers WHERE customer_uid = \'""" + uid + """\';"""
+#                     items = execute(query, 'get', conn)
+
+#                     if items['code'] != 280:
+#                         items['message'] = "check sql query"
+#                         items['code'] = 404
+#                         return items
+
+#                     json_val = items['result'][0]['cust_guid_device_id_notification']
+
+#                 else:
+
+#                     query = """SELECT bus_guid_device_id_notification FROM businesses WHERE business_uid = \'""" + uid + """\';"""
+#                     items = execute(query, 'get', conn)
+
+#                     if items['code'] != 280:
+#                         items['message'] = "check sql query"
+#                         items['code'] = 404
+#                         return items
+
+#                     json_val = items['result'][0]['bus_guid_device_id_notification']
+
+#                 if json_val != 'null':
+#                     print("in deconstruct")
+#                     print(type(json_val))
+#                     print(json_val)
+#                     input_val = json.loads(json_val)
+#                     print(type(input_val))
+#                     print(input_val)
+#                     for vals in input_val:
+#                         print('vals--', vals)
+#                         print(type(vals))
+#                         if vals == None:
+#                             continue
+#                         print('guid--', vals['guid'])
+#                         print('notification---', vals['notification'])
+#                         if vals['notification'] == 'TRUE':
+#                             output.append('guid_' + vals['guid'])
+#             output = ",".join(output)
+#             print('output-----', output)
+#             return output
+#         print('IN---')
+
+#         hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
+
+
+#         print('role----', role)
+#         uids = request.form.get('uids')
+#         message = request.form.get('message')
+#         print('uids', uids)
+#         print('role', role)
+#         tags = deconstruct(uids, role)
+#         print('tags-----', tags)
+
+#         if tags == []:
+#             return 'No GUIDs found for the UIDs provided'
+#         #tags = uids
+#         if tags is None:
+#             raise BadRequest('Request failed. Please provide the tag field.')
+#         if message is None:
+#             raise BadRequest('Request failed. Please provide the message field.')
+#         tags = tags.split(',')
+#         tags = list(set(tags))
+#         print('tags11-----', tags)
+#         print('RESULT-----',tags)
+#         for tag in tags:
+#             print('tag-----', tag)
+#             print(type(tag))
+#             alert_payload = {
+#                 "aps" : {
+#                     "alert" : message,
+#                 },
+#             }
+#             hub.send_apple_notification(alert_payload, tags = tag)
+
+#             fcm_payload = {
+#                 "data":{"message": message}
+#             }
+#             hub.send_gcm_notification(fcm_payload, tags = tag)
+
+#         return 200
+
+
+
 class Send_Notification(Resource):
 
     def post(self, role):
 
         def deconstruct(uids, role):
-
+            print('IN decon')
             conn = connect()
             uids_array = uids.split(',')
             output = []
             for uid in uids_array:
                 if role == 'customer':
-                    query = """SELECT cust_guid_device_id_notification FROM M4ME.customers WHERE customer_uid = \'""" + uid + """\';"""
+                    query = """SELECT cust_guid_device_id_notification FROM sf.customers WHERE customer_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
 
                     if items['code'] != 280:
@@ -5865,7 +6229,7 @@ class Send_Notification(Resource):
 
                 else:
 
-                    query = """SELECT bus_guid_device_id_notification FROM M4ME.businesses WHERE business_uid = \'""" + uid + """\';"""
+                    query = """SELECT bus_guid_device_id_notification FROM sf.businesses WHERE business_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
 
                     if items['code'] != 280:
@@ -5876,6 +6240,7 @@ class Send_Notification(Resource):
                     json_val = items['result'][0]['bus_guid_device_id_notification']
 
                 if json_val != 'null':
+                    print("in deconstruct")
                     print(type(json_val))
                     print(json_val)
                     input_val = json.loads(json_val)
@@ -5893,15 +6258,19 @@ class Send_Notification(Resource):
             output = ",".join(output)
             print('output-----', output)
             return output
+        print('IN---')
 
         hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
-        print(hub)
+
+
         print('role----', role)
         uids = request.form.get('uids')
         message = request.form.get('message')
         print('uids', uids)
         print('role', role)
         tags = deconstruct(uids, role)
+        print('tags-----', tags)
+
         if tags == []:
             return 'No GUIDs found for the UIDs provided'
         #tags = uids
@@ -5910,6 +6279,9 @@ class Send_Notification(Resource):
         if message is None:
             raise BadRequest('Request failed. Please provide the message field.')
         tags = tags.split(',')
+        tags = list(set(tags))
+        print('tags11-----', tags)
+        print('RESULT-----',tags)
         for tag in tags:
             print('tag-----', tag)
             print(type(tag))
@@ -5926,6 +6298,7 @@ class Send_Notification(Resource):
             hub.send_gcm_notification(fcm_payload, tags = tag)
 
         return 200
+
 
 
 
@@ -6479,7 +6852,7 @@ class UpdatePassword(Resource):
                 #new_profile = newPaymentUID_query['result'][0]['new_id']
                 print("1")
                 uid= data['uid']
-                old_password=data['passworld']
+                #old_password=data['passworld']
                 salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
                 #print("1.5")
                 new_password = sha512((data['password'] + salt).encode()).hexdigest()
@@ -6490,8 +6863,7 @@ class UpdatePassword(Resource):
                                     update M4ME.customers
                                     set
                                     password_hashed = \'""" + new_password + """\'
-                                    WHERE customer_uid =\'""" + uid + """\'
-                                    and password_hashed = \'""" + old_password + """\';  
+                                    WHERE customer_uid =\'""" + uid + """\';  
                                 """]
                 print("2")
                 print(customer_insert_query)
@@ -6680,7 +7052,7 @@ class Change_Purchase_ID (Resource):
                             AND pur.purchase_status='ACTIVE';  
                         """
             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-            print(info_res[1])
+            print(info_res)
             if info_res[1] != 200:
                 print(info_res[1])
                 return {"message": "Internal Server Error"}, 500
@@ -6828,7 +7200,8 @@ class Get_Upcoming_Menu_Date(Resource):
                     SELECT DISTINCT menu_date
                     FROM M4ME.menu
                     WHERE menu_date > CURDATE() AND
-                    menu_date <= ADDDATE(CURDATE(), 43);
+                    menu_date <= ADDDATE(CURDATE(), 43)
+                    order by menu_date;
                     """
 
             items = execute(query, 'get', conn)
@@ -7326,13 +7699,16 @@ class Orders_by_Purchase_Id_with_Date(Resource):
 
 
 
-
+# key_checkers are only for Mobile applications
 class Stripe_Payment_key_checker(Resource):
     def post(self):
         response = {}
         data = request.get_json(force=True)
-        key_test = "pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw"
-        key_live = "pk_live_g0VCt4AW6k7tyjRw61O3ac5a00Tefdbp8E"
+        # key_test = "pk_test_6RSoSd9tJgB2fN2hGkEDHCXp00MQdrK3Tw"
+        # key_live = "pk_live_g0VCt4AW6k7tyjRw61O3ac5a00Tefdbp8E"
+
+        key_test = stripe_public_test_key
+        key_live = stripe_public_live_key
 
         if data['key'] == key_test:
             # if app is in testing
@@ -7343,9 +7719,9 @@ class Stripe_Payment_key_checker(Resource):
 
         elif data['key'] == key_live:
             # if app is in testing
-            stripe_status = "Test"
+            #stripe_status = "Test"
             # if app is live
-            #stripe_status = "Live"
+            stripe_status = "Live"
             return stripe_status
 
         else:
@@ -7353,6 +7729,7 @@ class Stripe_Payment_key_checker(Resource):
         return response
 
 
+# key_checkers are only for Mobile applications
 class Paypal_Payment_key_checker(Resource):
     def post(self):
         response = {}
@@ -7365,13 +7742,15 @@ class Paypal_Payment_key_checker(Resource):
             paypal_status = 'Test'
             # if app is live
             #paypal_status = 'Live'
+            print(paypal_status)
             return paypal_status
 
         elif data['key'] == key_live:
             # if app is in testing
-            paypal_status = 'Test'
+            #paypal_status = 'Test'
             # if app is live
-            #paypal_status = 'Live'
+            paypal_status = 'Live'
+            print(paypal_status)
             return paypal_status
 
         else:
@@ -7767,7 +8146,7 @@ class payment_info (Resource):
             print('process completed')
 
 
-class payment_info_history (Resource):
+class payment_info_history (Resource): #edit to take in purchase_uid
     def get(self, p_id):
         try:
             conn = connect()
@@ -7877,7 +8256,7 @@ class Orders_by_Purchase_Id_with_Pid(Resource):
                     FROM fcs_items_by_row
                     where d_purchase_id = \'""" + p_id + """\' and lplpibr_purchase_status = "ACTIVE"
                     group by d_purchase_id, d_menu_date
-                    order by ;
+                    order by d_menu_date desc;
                     """
 
             items = execute(query, 'get', conn)
@@ -7996,7 +8375,7 @@ class categoricalOptions(Resource):
                      
                     FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
                     FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
-                    FROM sf.zones z) AS DD
+                    FROM zones z) AS DD
                     WHERE In_Zone = 'True'
                     ;
                     """
@@ -8012,7 +8391,7 @@ class categoricalOptions(Resource):
             print('START')
             zones = ['Random', 'Random']
             query = """
-                    SELECT * from sf.zones;
+                    SELECT * from zones;
                   """
             items = execute(query, 'get', conn)
             if items['code'] != 280:
@@ -8055,11 +8434,14 @@ class categoricalOptions(Resource):
                     rjzjt.LB_long,rjzjt.LB_lat,rjzjt.LT_long,rjzjt.LT_lat,rjzjt.RT_long,rjzjt.RT_lat,rjzjt.RB_long,rjzjt.RB_lat,
                     b.business_type,
                     b.business_image,
-                    b.business_accepting_hours
-                    FROM sf.businesses b
+                    b.business_accepting_hours,
+                    rjzjt.tax_rate,
+                    rjzjt.service_fee,
+                    rjzjt.delivery_fee
+                    FROM businesses b
                     RIGHT JOIN
                     (SELECT *
-                         FROM sf.zones AS z,
+                         FROM zones AS z,
                          json_table(z_businesses, '$[*]'
                              COLUMNS (
                                     z_id FOR ORDINALITY,
@@ -8079,13 +8461,1131 @@ class categoricalOptions(Resource):
         finally:
             disconnect(conn)
 
-class cancel_purchase (Resource):
+# class cancel_purchase (Resource):
+#     def put(self):
+#         try:
+#             print("00")
+#             conn = connect()
+#             response = {}
+#             response2 = {}
+#             response3 = {}
+#             data = request.get_json(force=True)
+#             purchaseID = data["purchase_uid"]
+#             print(data)
+#             print("0")
+#             info_query = """
+#                         SELECT pur.*, pay.*, sub.*
+#                         FROM purchases pur, payments pay, subscription_items sub
+#                         WHERE pur.purchase_uid = pay.pay_purchase_uid
+#                             AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+#                                                     FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+#                             AND pur.purchase_uid = '""" + purchaseID + """'
+#                             AND pur.purchase_status='ACTIVE';
+#                         """
+#             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+#             if info_res[1] != 200:
+#                 return {"message": "Internal Server Error"}, 500
+#             # Calculate refund
+#             print(info_res)
+#             print("1")
+#             refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+#             print("2")
+#             print(refund_info)
+#             refund_amount = refund_info['refund_amount']
+#             print(refund_amount)
+#             if refund_amount > 0:
+#                 print("2.3")
+#                 # establishing more info for refund_info before we feed it in stripe_refund
+#                 refund_info['refund_amount'] = abs(refund_amount)
+#                 print("2.33")
+#                 refund_info['purchase_uid'] = purchaseID
+#                 print("2.36")
+#                 print(refund_info)
+#                 refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
+#                 print("2.4")
+#                 if refund_info['refunded_id'] is not None:
+#                     refunded = True
+#                 else:
+#                     return {"message": "REFUND PROCESS ERROR."}, 500
+#             print("2.5")
+#             query = """
+#                     Update M4ME.purchases
+#                     set 
+#                         purchase_status = "CANCELLED and REFUNDED"
+#                     where purchase_uid = '""" + purchaseID + """';
+#                     """
+#             response = execute(query, 'post', conn)
+#             print("3")
+#             print(response)
+#             if response['code'] != 281:
+#                 return {"message": "Internal Server Error"}, 500
+#             print("3.3")
+#             new_paymentId = get_new_paymentID(conn)
+#             print("3.4")
+#             if new_paymentId[1] == 500:
+#                 print(new_paymentId[0])
+#                 response['message'] = "Internal Server Error."
+#                 return response, 500
+#             print("3.5")
+#             print(refund_amount)
+#             new_refund = 0-abs(refund_amount)
+            
+#             new_refund = str(new_refund)
+#             print("3.6")
+#             #print(info_res["result"][2])
+#             print(type(new_refund))
+#             print(new_refund)
+#             #print(refund_info["refunded_id"][0])
+#             refund_id = str(refund_info["refunded_id"][0])
+#             #print(refund_id)
+#             print("3.65")
+#             print("start input")
+#             print(new_paymentId)
+#             print(purchaseID)
+#             print(new_refund)
+#             print(refund_id)
+#             print("end input")
+#             payment_query = """
+#                     insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
+#                     values(
+#                         '""" + new_paymentId + """',
+#                         '""" + new_paymentId + """',
+#                         '""" + purchaseID + """',
+#                         (
+#                             select purchase_id
+#                             from purchases
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by purchase_date desc
+#                             limit 1
+#                         ),
+#                         now(),
+#                         '""" + new_refund + """',
+#                         '""" + new_refund + """',
+#                         '""" + refund_id + """',
+#                         "STRIPE",
+#                         (
+#                             select cc_num
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         ),
+#                         (
+#                             select cc_exp_date
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         ),
+#                         (
+#                             select cc_cvv
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         ),
+#                         (
+#                             select cc_zip
+#                             from lplp
+#                             where purchase_uid = '""" + purchaseID + """'
+#                             order by payment_time_stamp desc
+#                             limit 1
+#                         )
+#                     );
+#                     """
+#             print("3.7")
+#             response2 = execute(payment_query, 'post', conn)
+#             print("4")
+#             print(response2)
+#             if response2['code'] != 281:
+#                 return {"message": "Internal Server Error"}, 500
+#             print("4.5")
+#             cancel_query = """
+#                     update purchases
+#                     set cancel_date = now()
+#                     where purchase_uid = '""" + purchaseID + """';
+#                     """
+#             print("4.7")
+#             print(cancel_query)
+#             response2 = execute(cancel_query, 'post', conn)
+#             print("5")
+#             print(response2)
+#             if response2['code'] != 281:
+#                 print("6")
+#                 return {"message": "Internal Server Error"}, 500
+#             print("7")
+#             return response2
+
+#         except:
+#             raise BadRequest("Request failed, please try again later.")
+#         finally:
+#             disconnect(conn)
+
+
+class get_Zones_specific (Resource):
+    def get(self, lat, long):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM M4ME.zones
+                    where lat > LB_lat
+                    and lat < LT_lat
+                    and lat > RB_lat
+                    and lat < RT_lat
+                    and long > LB_long
+                    and long < RB_long
+                    and long > LT_long
+                    and long < RT_long;
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting zones")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+class find_next_sat (Resource):
+    def get(self):
+        try:
+            #conn = connect()
+            print("1")
+            d = date.today() # Monday
+            print("2")
+            t = timedelta((12 - d.weekday()) % 7)
+            d + t
+            datetime.datetime(2013, 6, 1, 0, 0)
+            date = str((d + t).strftime('%Y-%m-%d'))
+            return date
+        except:
+            print("error")
+        finally:
+            #disconnect(conn)
+            print("done")
+
+
+class get_final_price (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            purchase_uid = data["p_uid"]
+            data = request.get_json(force=True)
+            query = {
+
+            }
+            return date
+        except:
+            print("error")
+        finally:
+            #disconnect(conn)
+            print("done")
+
+
+
+class Get_Latest_Purchases_Payments_with_Refund(Resource):
+    # HTTP method GET
+    def get(self):
+        try:
+            conn = connect()
+            customer_uid = request.args['customer_uid']
+            #purchase_uid = request.args['purchase_uid']
+            query = """
+                    # CUSTOMER QUERY 2: CUSTOMER LATEST PURCHASE AND LATEST PAYMENT HISTORY
+                    # NEED CUSTOMER ADDRESS IN CASE CUSTOMER HAS NOT ORDERED BEFORE
+                    SELECT * FROM M4ME.lplp lp
+                    LEFT JOIN M4ME.customers c
+                        ON lp.pur_customer_uid = c.customer_uid
+                    WHERE pur_customer_uid = '""" + customer_uid + """'
+                    and items like "%200-000002%"
+                    and purchase_status = "ACTIVE";
+                    """
+            response = simple_get_execute(query, __class__.__name__, conn)
+            if response[1] != 200:
+                return response[1]
+            except_list = ['password_hashed', 'password_salt', 'password_algorithm']
+            for i in range(len(response[0]['result'])):
+                for key in except_list:
+                     if response[0]['result'][i].get(key) is not None:
+                        del response[0]['result'][i][key]
+            refundinfo = {}
+            print("here")
+            intx=0
+            for i2 in range(len(response[0]['result'])):
+                print("here 1")
+                print(response[0]['result'][intx]["purchase_uid"])
+                info_query = """
+                       SELECT pur.*, pay.*, sub.*
+                       FROM purchases pur, payments pay, subscription_items sub
+                       WHERE pur.purchase_uid = pay.pay_purchase_uid
+                           AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                   FROM purchases WHERE purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """')
+                           AND pur.purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """'
+                           AND pur.purchase_status='ACTIVE';  
+                       """
+                info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+                refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+
+                refundinfo[intx]=refund_info
+                intx=intx+1
+            response2 = {}
+            inty = 0
+            print("changes here")
+            for i2 in range(len(response[0]['result'])):
+                #print(response[0]['result'][i2])
+                response2[inty]=str(response[0]['result'][i2]) + "" + str(refundinfo[i2])
+                print("1")
+                #inty=inty+1
+                #print(refundinfo[i2])
+                #response2[inty+1]=refundinfo[i2]
+                print("2")
+                inty=inty+1
+            print("here 3")
+            print(response2)
+            return response2
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class payment_info_history_fixed (Resource): #edit to take in purchase_uid
+    def get(self, p_uid):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM purchases
+                    inner join payments
+                        on purchase_id = pay_purchase_id
+                    WHERE purchase_id = (select pay_purchase_id from payments where pay_purchase_uid = \'""" + p_uid + """\');
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+class add_surprise (Resource):
+    def post(self, p_uid):
+        try:
+            conn = connect()
+            # query = """
+            #         select num_issues 
+            #         from subscription_items
+            #         where item_price=
+            #         (SELECT json_extract(items, '$[0].price') price
+            #         FROM purchases WHERE purchase_uid = \'""" + p_uid + """\');
+            #         """
+
+            query = """
+                    
+                    SELECT json_extract(items, '$[0].qty') as qty
+                    FROM purchases WHERE purchase_uid = \'""" + p_uid + """\';
+                    """
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            #print(int(items["result"][0]["num_issues"]))
+            print("1")
+            query1 ="""
+                        select purchase_id
+                        from purchases
+                        where purchase_uid = \'""" + p_uid + """\';
+                    """
+            print("1.5")
+            p_id = execute(query1, 'get', conn)
+            print("1.7")
+            tempstring = items["result"][0]["qty"].strip('\"')
+            inty=int(tempstring)
+            print(inty)
+            intx=0
+
+            print("2")
+            query3 ="""
+                        select distinct menu_date
+                        from menu
+                        where menu_date > now()
+                        order by menu_date asc;
+                    """
+            print("3")
+            menu_date = execute(query3, 'get', conn)
+            intx=0
+            print(menu_date['result'][intx]['menu_date'])
+            for intx in range(0,inty):
+                res = execute("CALL new_meals_selected_uid();", 'get', conn)
+                print("4")
+                print(intx)
+                #temparr= str(menu_date['result'][intx]['menu_date'])
+                #print(temparr)
+                print(p_id)
+                query2 ="""
+                            insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
+                            values(
+                                \'""" + res['result'][0]['new_id'] + """\',
+                                \'""" + p_id["result"][0]["purchase_id"] + """\',
+                                now(),
+                                \'""" + menu_date['result'][intx]['menu_date'] + """\',
+                                '[{
+                                    "qty": "", 
+                                    "name": "SURPRISE", 
+                                    "price": "", 
+                                    "item_uid": ""
+                                }]',
+                                "SUNDAY"
+                            );
+                        """
+                print("5")
+                sur_item = execute(query2, 'post', conn)
+                print(sur_item)
+                print("6")
+                # query3= """
+                #             update meals_selected
+                #             set
+                #             sel_menu_date = '""" + menu_date['result'][intx]['menu_date'] + """'
+                #             where selection_uid = \'""" + res['result'][0]['new_id'] + """\';
+                #         """
+                # udate = execute(query3, 'post', conn)
+                print("7")
+            return sur_item
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+
+class discount_percentage (Resource): #edit to take in purchase_uid
+    def get(self, n_delivery):
+        try:
+            conn = connect()
+            query = """
+                    SELECT *
+                    FROM discounts
+                    WHERE num_deliveries = \'""" + n_delivery + """\';
+                    """
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting discount info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+class Copy_Menu(Resource):
+
+    def post(self):
+        # date1 and date2 are passed from json body
+        # (params should be called date1 and date2)
+        # example: {"date1" = "2020-10-03 00:00:00", "date2" = "2020-10-12 00:00:00"}
+        # goal: copy the menu items from date1 to date2 (we can use INSERT INTO command)
+        # query: with dates passed from json body we can get the rows from the database
+        # containing date1, iterate through these rows to give them a new menu_uid and update 
+        # the menu_date to date2. We also have to insert the new row one at a time because to
+        # generate a new menu_uid each time, we have to insert the row with the most recently
+        # generated new menu_uid to get a new one for the next row to be inserted
+        try:
+            conn = connect()
+            dates = request.get_json(force=True)
+            copyFromDate = dates['date1']
+            copyToDate = dates['date2']
+            query = """ SELECT * FROM M4ME.menu WHERE menu_date = \'""" + copyFromDate + """\'; """
+            items = execute(query, 'get', conn)
+            records = items['result']
+            
+            for i in range(len(records)):
+                newIdQuery = """ call M4ME.new_menu_uid(); """
+                newId = execute(newIdQuery, 'get', conn)
+                newMenuUid = newId['result'][0]['new_id']
+                #print(newMenuUid)
+                date = copyToDate
+                #print(date)
+                category = records[i]['menu_category']
+                #print(category)
+                menuType = records[i]['menu_type']
+                #print(menuType)
+                cat = records[i]['meal_cat']
+                #print(cat)
+                menuMealId = records[i]['menu_meal_id']
+                #print(menuMealId)
+                defaultMeal = records[i]['default_meal']
+                #print(defaultMeal)
+                deliveryDays = records[i]['delivery_days']
+                #print(deliveryDays)
+                price = records[i]['meal_price']
+                #print(price)
+                postQuery = """ INSERT INTO 
+                                M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, 
+                                           menu_meal_id, default_meal, delivery_days, meal_price) 
+                                VALUES (\'""" + str(newMenuUid) + """\', \'""" + str(date) + """\', \'""" + str(category) + """\', 
+                                        \'""" + str(menuType) + """\', \'""" + str(cat) + """\', \'""" + str(menuMealId) + """\', 
+                                        \'""" + str(defaultMeal) + """\', \'""" + str(deliveryDays) + """\', \'""" + str(price) + """\'); """
+                #print(postQuery)
+                copiedRow = execute(postQuery, 'post', conn)
+        except:
+            print('Error has occurred trying to copy menu items')
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('Process completed')
+
+
+# Parva Code  -----------------------------------------------------------------------------------------------------------
+
+class change_purchase(Resource):
+    def get(self, purchaseID):
+        
+        conn = connect()
+        info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';  
+                        """
+        print("info_query", info_query)
+        info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+        print(info_res)
+        if info_res[1] != 200:
+            return {"message": "Internal Server Error"}, 500
+        # Calculate refund
+        print("1.9")
+        refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
+
+        return refund_info
+
+    def post(self, purchaseID):
+        try:
+            conn = connect()
+            #response = {}
+            charge_id = None
+            refunded = False
+            refund_ui = None
+            # For this update_purchase endpoint, we should consider to ask customer provide their identity to make sure the right
+            # person is doing what he/she want.
+            # Also, using POST to protect sensitive information.
+            data = request.get_json(force=True)
+            customer_email = data['customer_email']
+            password = data.get('password')
+            refresh_token = data.get('refresh_token')
+            cc_num = str(data['cc_num'])
+            cc_exp_date = data['cc_exp_date']
+            #cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
+            cc_cvv = data['cc_cvv']
+            cc_zip = data['cc_zip']
+            purchaseID = data['purchase_id']
+            new_item_id = data['new_item_id']
+            #customer_uid = data["customer_id"]
+            items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
+            print(items)
+            print("1")
+            #Check user's identity
+            cus_query = """
+                        SELECT password_hashed,
+                                user_refresh_token, customer_phone_num
+                        FROM customers
+                        WHERE customer_email = '""" + customer_email + """';
+                        """
+            cus_res = simple_get_execute(cus_query, "Update_Purchase - Check Login", conn)
+            if cus_res[1] != 200:
+                return cus_res
+            customer_phone_num = cus_res[0]['result'][0]['customer_phone_num']
+            if not password and not refresh_token:
+                raise BadRequest("Request failed, please try again later.")
+            elif password:
+                if password != cus_res[0]['result'][0]['password_hashed']:
+                    response['message'] = 'Wrong password'
+                    return response, 401
+            elif refresh_token:
+                if refresh_token != cus_res[0]['result'][0]['mobile_refresh_token']:
+                    response['message'] = 'Token Invalid'
+                    return response, 401
+            print("1.5")
+            # query info for requesting purchase
+            # Get info of requesting purchase_id
+            info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';  
+                        """
+            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            print(info_res)
+            if info_res[1] != 200:
+                return {"message": "Internal Server Error"}, 500
+            # Calculate refund
+            print("1.9")
+            refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
+            print("2")
+            refund_amount = refund_info['refund_amount']
+
+            # price for the new purchase
+            # this query below for querying the price may be redundant, the front end can send it in data['items']
+            # Should we do it here to make sure that the front end did not make any error?
+
+            print("start probelm here")
+            #####################
+            num_meals = data["items"][0]["name"][0]
+            print("meals :",num_meals)
+            # # get number of days
+            num_days = data["items"][0]["qty"]
+            
+            print("days :", num_days)
+
+            # price = (json.loads(info_res['items'])[0].get('price'))
+
+            # print("price :", price)
+            ####################
+
+
+            delivery_query= """
+                            select item_price, delivery_discount from subscription_items si
+                            join discounts
+                            where itm_business_uid = "200-000002"
+                            and si.num_items = '""" + num_meals + """' 
+                            and num_deliveries = '""" + num_days + """';
+                        """
+            d_query = simple_get_execute(delivery_query, 'get', conn)
+            print("2")
+            print(d_query[0]["result"][0]["item_price"])
+            price = int(d_query[0]["result"][0]["item_price"])
+            print(price)
+            discount = int(d_query[0]["result"][0]["delivery_discount"])
+            print("3")
+            customer_used_amount = int(num_days)*price*(1-discount/100)
+            print(refund_info["refund_amount"])
+            print("customer_used_amount " + str(customer_used_amount))
+            print("refund_info " + str(refund_info["refund_amount"]))
+            amount_will_charge = customer_used_amount - refund_info["refund_amount"]
+            print("amount will charge " + str(amount_will_charge))
+            # Process stripe
+            print("start here 1")
+            print(amount_will_charge)
+            if amount_will_charge > 0:
+                #charge with stripe
+                #wrap credit_card info
+                query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date
+                                FROM M4ME.payments
+                                WHERE pay_purchase_uid = "''' + purchaseID + '";'
+                res = simple_get_execute(query, "GET CREDIT CARD INFO FOR CHANGING MEAL PLAN", conn)
+                print("continue here 1")
+                if res[1] != 200:
+                    return {"message": "Cannot collect credit card info"}, 500
+
+                [cc_num, cc_cvv, cc_exp_date, cc_zip] = destructure(res[0]['result'][0], "cc_num",  "cc_cvv", "cc_exp_date", "cc_zip")
+
+                month = cc_exp_date.split("-")[1]
+                year  = cc_exp_date.split("-")[0]
+
+                card_dict = {"number": cc_num, "exp_month": int(month), "exp_year": int(year), "cvc": cc_cvv}
+                try:
+                    card_token = stripe.Token.create(card=card_dict)
+                    charge_id = stripe.Charge.create(
+                        amount=int(amount_will_charge * 100),
+                        currency="usd",
+                        source=card_token,
+                        description="Charge for changing Meal Plan",
+                    )
+                except stripe.error.CardError as e:
+                    # Since it's a decline, stripe.error.CardError will be caught
+                    response['message'] = e.error.message
+                    return response, 400
+                print("continue here 2")
+            elif amount_will_charge < 0:
+                # establishing more info for refund_info before we feed it in stripe_refund
+                refund_info['refund_amount'] = abs(amount_will_charge)
+                refund_info['purchase_uid'] = purchaseID
+                refund_info['refunded_id'] = self.stripe_refund(refund_info, conn)
+                print("end stripe refund")
+
+                ###
+                if refund_info['refunded_id'] is not None:
+                    refunded = True
+                else:
+                    return {"message": "REFUND PROCESS ERROR."}, 500
+
+
+
+            #gathering data before writting info to database
+            # need to calculate the start_delivery_date
+            dayOfWeek = datetime.now().weekday()
+
+                # Get the soonest Thursday, same day if today is Thursday
+            thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
+
+                # If today is Thursday after 4PM'
+            if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
+                thurs += timedelta(days=7)
+
+                #the next saturday
+            start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+            print("start here 5")
+            #print(stop)
+            charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
+            info_res = info_res[0]['result'][0]
+
+            payment_id = info_res.get("payment_id")
+            purchase_id = info_res.get("purchase_id")
+            customer_uid = info_res.get("pur_customer_uid")
+            delivery_first_name = info_res.get("delivery_first_name")
+            delivery_last_name = info_res.get("delivery_last_name")
+            delivery_email = info_res.get("delivery_email")
+            delivery_phone = info_res.get("delivery_phone_num")
+            delivery_address = info_res.get("delivery_address")
+            delivery_unit = info_res.get("delivery_unit")
+            delivery_city = info_res.get("delivery_city")
+            delivery_state = info_res.get("delivery_state")
+            delivery_zip = info_res.get("delivery_zip")
+            delivery_instructions = info_res.get("delivery_instructions") if info_res.get('delivery_instruction') else "NULL"
+            delivery_longitude = info_res.get("delivery_longitude")
+            delivery_latitude = info_res.get("delivery_latitude")
+            order_instructions = info_res.get("order_instructions") if info_res.get("order_instructions") else "NULL"
+            purchase_notes = info_res.get("purchase_notes") if info_res.get("purchase_notes") else "NULL"
+            # get the new ids
+            print("writting into database")
+            purchase_uid = get_new_purchaseID(conn)
+            if purchase_uid[1] == 500:
+                print(purchaseId[0])
+                return {"message": "Internal Server Error."}, 500
+            payment_uid = get_new_paymentID(conn)
+            if payment_uid[1] == 500:
+                print(payment_uid[0])
+                return {"message": "Internal Server Error."}, 500
+            # write the new purchase_id and payment_id into database
+                # write into Payments table
+            queries = [
+                '''
+                INSERT INTO M4ME.payments
+                SET payment_uid = "''' + payment_uid + '''",
+                                        payment_time_stamp = "''' + getNow() + '''",
+                                        start_delivery_date = "''' + start_delivery_date + '''",
+                                        payment_id = "''' + payment_id + '''",
+                                        pay_purchase_id = "''' + purchase_id + '''",
+                                        pay_purchase_uid = "''' + purchase_uid + '''",
+                                        amount_due = "''' + str(round(amount_will_charge,2)) + '''",
+                                        amount_discount = 0,
+                                        amount_paid = "''' + str(round(amount_will_charge,2)) + '''",
+                                        pay_coupon_id = NULL,
+                                        charge_id = ''' + charge_id + ''',
+                                        payment_type = NULL,
+                                        info_is_Addon = "FALSE",
+                                        cc_num = "''' + str(cc_num) + '''",
+                                        cc_exp_date = "''' + str(cc_exp_date) + '''",
+                                        cc_cvv = "''' + str(cc_cvv) + '''",
+                                        cc_zip = "''' + str(cc_zip) + '''";
+                ''',
+                '''
+                INSERT INTO  M4ME.purchases
+                SET purchase_uid = "''' + purchase_uid + '''",
+                                        purchase_date = "''' + getNow() + '''",
+                                        purchase_id = "''' + purchase_id + '''",
+                                        purchase_status = 'ACTIVE',
+                                        pur_customer_uid = "''' + customer_uid + '''",
+                                        delivery_first_name = "''' + delivery_first_name + '''",
+                                        delivery_last_name = "''' + delivery_last_name + '''",
+                                        delivery_email = "''' + delivery_email + '''",
+                                        delivery_phone_num = "''' + str(delivery_phone) + '''",
+                                        delivery_address = "''' + delivery_address + '''",
+                                        delivery_unit = "''' + str(delivery_unit) + '''",
+                                        delivery_city = "''' + delivery_city + '''",
+                                        delivery_state = "''' + delivery_state + '''",
+                                        delivery_zip = "''' + str(delivery_zip) + '''",
+                                        delivery_instructions = "''' + delivery_instructions + '''",
+                                        delivery_longitude = "''' + delivery_longitude + '''",
+                                        delivery_latitude = "''' + delivery_latitude + '''",
+                                        items = ''' + items + ''',
+                                        order_instructions = "''' + order_instructions + '''",
+                                        purchase_notes = "''' + purchase_notes + '''";'''
+            ]
+            if refunded:  # if refunded is true then write it to refund table
+                res_refund_uid = get_new_id("CALL new_refund_uid", "GET NEW REFUND UID", conn)
+                if res_refund_uid[1] != 200:
+                    return {"message": "Error happened when requesting new refund_uid"}, 500
+                refund_uid = res_refund_uid[0]['result']
+                print("refund_uid: ", refund_uid)
+
+                query = '''INSERT INTO M4ME.refunds
+                                    SET refund_uid = "''' + refund_uid + '''",
+                                        created_at = "''' + getNow() + '''",
+                                        email_id = "''' + customer_email + '''",
+                                        phone_num = "''' + str(customer_phone_num) + '''",
+                                        image_url = "NOT REQUIRED",
+                                        customer_note = "NOT REQUIRED",
+                                        admin_note = "CHANGED MEAL PLAN",
+                                        refund_amount = "''' + str(abs(amount_will_charge)) + '";'
+                print(query)
+                refund_res = simple_post_execute([query], ["REFUND"], conn)
+                print("refund_res: ", refund_res)
+                if refund_res[1] != 201:
+                    return {"message": "Error happened while writting into refund table"}, 500
+            response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
+
+            if response[1] == 201:
+                if refunded:
+                    response[0]['refund_uid'] = refund_uid
+                response[0]['payment_id'] = payment_uid
+                response[0]['purchase_id'] = purchase_uid
+                query = '''UPDATE M4ME.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
+                simple_post_execute([query], ["UPDATE OLD PURCHASES"], conn)
+
+                return response
+
+            else:
+                if "payment_uid" in locals() and "purchase_uid" in locals():
+                    execute("""DELETE FROM payments WHERE payment_uid = '""" + payment_uid + """';""", 'post', conn)
+                    execute("""DELETE FROM purchases WHERE purchase_uid = '""" + purchase_uid + """';""", 'post',
+                            conn)
+                return {"message": "Internal Server Error."}, 500
+
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
+
+    def stripe_refund (self, refund_info, conn):
+        print("start stripe refund")
+        refund_amount = refund_info['refund_amount']
+        print("stripe 1")
+        refund_id = []
+        # retrieve charge info from stripe to determine how much refund amount left on current charge_id
+        # if refund amount left on current charge_id < refund amount needed then trace back the latest previous payment
+        # to get the next stripe_charge_id.
+        #list all charge ids which are associated with current purchase_id
+        query = '''SELECT charge_id from M4ME.payments
+               WHERE pay_purchase_id = (SELECT pay_purchase_id FROM M4ME.payments
+                                       WHERE pay_purchase_uid = "''' + refund_info['purchase_uid'] + '''")
+                    ORDER BY payment_time_stamp DESC;'''
+        res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
+        print(res)
+        # print("res in stripe_refund: ", res)
+        if not res[0]['result']:
+            print("Cannot process refund. No charge id found")
+            return {"message": "Internal Server Error"}, 500
+        else:
+            print ("stripe 2")
+            #print(res[0]['result'][0]["charge_id"])
+            # print(len(res[0]['result']))
+            intx = 0
+            charge_ids = {}
+            inty = 0
+            for intx in range(0,len(res[0]["result"])):
+                if res[0]["result"][intx]["charge_id"] is not None:
+                    charge_ids[inty] = res[0]["result"][intx]["charge_id"]
+                    inty=inty+1
+            #print(charge_ids)
+            print(charge_ids)
+            #charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
+            #print("charge id " + charge_ids[intx])
+            amount_should_refund = round(refund_amount*100,0)
+            # print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
+            inty=inty-1
+            while len(charge_ids) > 0 and amount_should_refund > 0:
+                # print("amount should refund: ", amount_should_refund)
+                print("stripe3")
+                print(len(charge_ids))
+                #process_id = charge_ids.pop(0)
+                process_id = charge_ids[inty]
+                inty = inty - 1
+                print(charge_ids)
+                # print("processing id: ", process_id)
+                # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
+                #retrieve info from stripe for specific charge_id:
+                print("during stripe: stripe 1")
+                print(process_id)
+                #print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
+                refunded_info = stripe.Charge.retrieve(process_id)
+                print("stripe 2")
+                print(refunded_info.get("amount"))
+                print(refunded_info.get('amount_refunded'))
+                print("start inputs")
+                print(refunded_info['amount'])
+                print(refunded_info['amount_refunded'])
+                print("end inputs ")
+                # print("refunded_info: ", refunded_info)
+                # print("refunded_info.get('amount'): ", refunded_info.get('amount_refunded'))
+                if refunded_info.get('amount') is not None and refunded_info.get('amount_refunded') is not None:
+                    amount_could_refund = round(float(refunded_info['amount'] - refunded_info['amount_refunded']),0)
+                    print(amount_could_refund)
+                    print(amount_should_refund)
+                    # print("amount_could_refund: ", amount_could_refund)
+                    # print("amount_should_refund: ", amount_should_refund)
+                    if amount_should_refund <= amount_could_refund:
+                        # refund it right away => amount should be refund is equal refunded_amount
+                        print("here")
+                        try:
+                            refund_res = stripe.Refund.create(
+                                charge=process_id,
+                                amount=int(amount_should_refund)
+                            )
+                        except stripe.error.CardError as e:
+                            # Since it's a decline, stripe.error.CardError will be caught
+                            response['message'] = e.error.message
+                            return response, 400
+                        # print("refund_res: ", refund_res)
+                        amount_should_refund = 0
+                    elif amount_could_refund==0:
+                        print ("problem here")
+                        continue
+                    else:
+                        # refund it and then calculate how much is left for amount_should_refund
+                        try:
+                            refund_res = stripe.Refund.create(
+                                charge=process_id,
+                                amount=int(amount_could_refund)
+                            )
+                            # print("before substraction")
+                            # print(type(amount_should_refund))
+                            # print(type(amount_could_refund))
+                            amount_should_refund -= int(amount_could_refund)
+                            # print("amount_should_refund after recalculate: ", amount_should_refund)
+                        except stripe.error.CardError as e:
+                            # Since it's a decline, stripe.error.CardError will be caught
+                            response['message'] = e.error.message
+                            return response, 400
+                    refund_id.append(refund_res.get('id'))
+            return refund_id
+
+
+
+
+
+
+
+
+
+    def new_refund_calculator(self, info_res,  conn):
+
+        
+        print("in refund calculator")
+        
+        # checking skips new
+
+        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+        week_remaining = int(info_res['payment_frequency'])
+        
+        all_deliveries = """
+                    SELECT COUNT(delivery_day) AS delivery_count FROM
+                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
+                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
+                                GROUP BY sel_menu_date) AS GB
+                                INNER JOIN meals_selected S
+                                ON S.sel_purchase_id = GB.sel_purchase_id
+                                    AND S.sel_menu_date = GB.sel_menu_date
+                                    AND S.selection_time = GB.max_selection_time
+                    WHERE 
+                        S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H:%M:%S") + """'
+                        AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """'
+                        AND delivery_day != 'SKIP'
+                    ORDER BY S.sel_menu_date;
+                    """
+        print("here 1")
+        delivered_num = execute(all_deliveries, "get", conn)
+        if delivered_num['code'] != 280:
+            return delivered_num
+        delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
+        print("delivered_num :", delivered_num)
+
+
+        # get number of meals from item name
+        num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
+        print("meals :",num_meals)
+        # get number of days
+        num_days = int(json.loads(info_res['items'])[0].get('qty'))
+        
+        print("days :", num_days)
+
+        price = (json.loads(info_res['items'])[0].get('price'))
+
+        print("price :", price)
+
+        serviceFee = info_res['service_fee']
+        print("serviceFee :", serviceFee)
+
+        driver_tip = info_res['driver_tip']
+        print("driver_tip :", driver_tip)
+
+        taxes = info_res['taxes']
+        print("taxes :", taxes)
+
+        delivery_fee = info_res['delivery_fee']
+        print("delivery_fee :", delivery_fee)
+        # get remaining days
+        #delivered_num
+        remaining_delivery_days = num_days - delivered_num 
+        print("days reamin :",remaining_delivery_days)
+
+
+        # if weeks remaining are 0 return 
+        if remaining_delivery_days == 0:
+            {"week_remaining": 0, "refund_amount": 0}
+
+
+        # if remaining days are negative then it means there is some error 
+        if remaining_delivery_days < 0:
+            print("There is something wrong with the query to get info for the requested purchase.")
+            response = {'message': "Internal Server Error."}
+            return response, 500
+        print("here 2")
+        discount_query = """
+                        SELECT * FROM M4ME.discounts;
+                        """
+        discount = execute(discount_query, 'get', conn)
+
+        if discount['code'] != 280:
+            return discount
+        print("here 3")
+        # get discount combinations in a dictionary
+        discount_dict = {}
+
+        # for val in discount['result']:
+        #     discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
+        # print("here 4")
+        # customer_paid = 12*num_meals*num_days*(1-discount_dict[(num_days,num_meals)])
+
+        # customer_used_amount = 12*num_meals*delivered_num *(1-discount_dict[(delivered_num ,num_meals)])
+
+        # refund_amount = customer_paid - customer_used_amount
+        print(info_res["purchase_uid"])
+        purchase_query = """
+                        SELECT * FROM M4ME.payments
+                        join purchases on pay_purchase_uid = purchase_uid
+                        join subscription_items on item_uid = (SELECT json_extract(items, '$[0].item_uid') as item_uid
+                                                        FROM purchases WHERE purchase_uid = '""" + info_res["purchase_uid"] + """')
+                        where pay_purchase_uid = '""" + info_res["purchase_uid"] + """';
+                        """
+        pchase = execute(purchase_query, 'get', conn)
+        #print(pchase["result"][0]["items"][1])
+        
+
+        # queryn1:"""
+        #             SELECT json_extract(items, '$[0].qty') as qty
+        #             FROM purchases WHERE purchase_uid = '""" + info_res["purchase_uid"] + """'
+        #         """
+        # pchase = execute(queryn1, 'get', conn)
+        #print(pchase["result"][0]["num_items"])
+        #print(discount['result'])
+        for val in discount['result']:
+            discount_dict[(val['num_deliveries'])] = float(val['delivery_discount'])
+        print("here 4")
+        #print(pchase["result"][0]["num_items"])
+        print("number of days " + str(num_days))
+        strdays = str(num_days)
+        print("number of meals " + str(num_meals))
+        strmeal = str(num_meals)
+        #print(info_res)
+        delivery_query = """
+                    select item_price, delivery_discount from subscription_items si
+                    join discounts
+                    where itm_business_uid = "200-000002"
+                    and si.num_items = '""" + strmeal + """' 
+                    and num_deliveries = '""" + strdays + """';
+                    """
+        d_query = execute(delivery_query, 'get', conn)
+        print("here 4.5")
+        print(d_query)
+        old_discount = d_query["result"][0]["delivery_discount"]
+        #old_price = d_query["result"][0]["item_price"]
+
+
+        serviceFee = info_res['service_fee']
+        print("serviceFee :", serviceFee)
+        if serviceFee is None:
+            serviceFee = 0
+        driver_tip = info_res['driver_tip']
+        print("driver_tip :", driver_tip)
+        if driver_tip is None:
+            driver_tip = 0
+        taxes = info_res['taxes']
+        print("taxes :", taxes)
+        if taxes is None:
+            taxes = 0
+        delivery_fee = info_res['delivery_fee']
+        print("delivery_fee :", delivery_fee)
+        if delivery_fee is None:
+            delivery_fee = 0
+
+        customer_paid = (float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)) * 1+ float(taxes)
+        print("4.6")
+        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)) * 1+ float(taxes)))
+
+        print("here 4.7")
+        #print(d_query["result"][0]["item_price"])
+        new_price = (d_query["result"][0]["item_price"])
+        print(new_price)
+        d_num = str(delivered_num)
+        print(delivered_num)
+
+
+
+
+
+        if delivered_num==0:
+            customer_used_amount = 0
+        elif delivered_num != 0:
+            print("here 5")
+            delivery_query2 = """
+                                select delivery_discount from subscription_items si
+                                join discounts
+                                where itm_business_uid = "200-000002"
+                                and si.num_items = '""" + strmeal + """' 
+                                and num_deliveries = '""" + d_num + """';
+                              """
+            d2_query = execute(delivery_query2, 'get', conn)
+            print("here 6")
+            new_discount = d2_query["result"][0]["delivery_discount"]
+            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * 1+ float(taxes)
+        print("here 7")
+        print(customer_used_amount)
+        refund_amount = (float(customer_paid) - float(customer_used_amount))
+        #print(refund_amount)
+        print("refund amount " + str(round(refund_amount, 2)))
+        #remaining_delivery_days = int(remaining_delivery_days)
+        print("end refund calculator")
+        return{"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
+
+
+class cancel_purchase(Resource):
     def put(self):
         try:
             print("00")
             conn = connect()
             response = {}
             response2 = {}
+            refund_info = {}
             data = request.get_json(force=True)
             purchaseID = data["purchase_uid"]
             print(data)
@@ -8099,17 +9599,35 @@ class cancel_purchase (Resource):
                             AND pur.purchase_uid = '""" + purchaseID + """'
                             AND pur.purchase_status='ACTIVE';
                         """
-            print(info_query)
+            
             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            print(info_res[0]['result'][0])
             if info_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
             # Calculate refund
-            print(info_res)
             print("1")
+
+
+            print(info_res[0]['result'][0]["delivery_instructions"])
+            temp_key = ""
+            if stripe.api_key is not None:
+                temp_key = stripe.api_key
+            if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
+                stripe.api_key = stripe_secret_test_key
+                print('TEST')
+            else:
+                stripe.api_key = stripe_secret_live_key
+                print('LIVE')
+            print("try here 0")
             #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
-            refund_info = test_cal().new_refund_calculator(info_res[0]['result'][0], conn)
-            print("2")
+            refund_info = change_purchase().new_refund_calculator(info_res[0]['result'][0], conn)
+            #print(refund_info)
+            #print("2")
+            print("try here 1")
             print(refund_info)
+
+
+            
             refund_amount = refund_info['refund_amount']
             print(refund_amount)
             if refund_amount > 0:
@@ -8120,7 +9638,7 @@ class cancel_purchase (Resource):
                 refund_info['purchase_uid'] = purchaseID
                 print("2.36")
                 print(refund_info)
-                refund_info['refunded_id'] = Change_Purchase().stripe_refund(refund_info, conn)
+                refund_info['refunded_id'] = change_purchase().stripe_refund(refund_info, conn)
                 print("2.4")
                 if refund_info['refunded_id'] is not None:
                     refunded = True
@@ -8165,7 +9683,7 @@ class cancel_purchase (Resource):
             print(refund_id)
             print("end input")
             payment_query = """
-                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
+                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, start_delivery_date, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
                     values(
                         '""" + new_paymentId + """',
                         '""" + new_paymentId + """',
@@ -8177,6 +9695,7 @@ class cancel_purchase (Resource):
                             order by purchase_date desc
                             limit 1
                         ),
+                        now(),
                         now(),
                         '""" + new_refund + """',
                         '""" + new_refund + """',
@@ -8218,6 +9737,10 @@ class cancel_purchase (Resource):
             print(response2)
             if response2['code'] != 281:
                 return {"message": "Internal Server Error"}, 500
+            print("before api reset")
+            print(temp_key)
+            if temp_key is not None:
+                stripe.api_key = temp_key
             return response2
 
         except:
@@ -8226,712 +9749,582 @@ class cancel_purchase (Resource):
             disconnect(conn)
 
 
-### Code by Parva ################################################################################
+# Only for Web applications.  Mobile applications handles stripe directly from Mobile App
+class Stripe_Intent(Resource):
+    def post(self):
+        response = {}
 
-def sendAutopayEmails(email, start_delivery_date, id):
-
-    try:
-        msg = Message("Update Subscription", sender='support@mealsfor.me', recipients=[email])
-        
-        print('MESSAGE----', msg)
-        print('message complete')
-        
-        msg.body =  "Hi,\n\n"\
-                    "Thank you for orderding your meals from MTYD\n"\
-                    "We want to let you know that we will be charging you for your next subscription which will start on "+start_delivery_date[:10]+".\n"\
-                    "If you want to cancel this subscription please do it witihin 1 day of this email. \n\n"\
-                    "Thx - MTYD Team"
-
-
-        print('msg-bd----', msg.body)
-        mail.send(msg)
-        return 'successfull'
-    except:
-        print('error occured')
-        return id
-    
-
-def couponsLogic(id, email, amount_due):
-    try:
-        print('in coupons logic')
-        conn2 = connect()
-        query = """
-                SELECT * FROM M4ME.coupons;
-                """
-        print(query)
-        items = execute(query, 'get', conn2)
-        print(items['code'], type(items['code']))
-        
-        coupons = {}
-        print('after coupons')
-        print(items['result'])
-        for vals in items['result']:
-            if vals['email_id'] == 'delivery_email' or vals['email_id'] == '' or vals['email_id'] == None:
-                print('1')
-                print(float(vals['threshold']), float(amount_due))
-                if float(vals['threshold']) <= float(amount_due):
-                    print('2')
-                    if vals['recurring'] == 'T' :
-                        print('3')
-                        if vals['limits'] != vals['num_used']:
-                            print('4')
-                            print(vals['expire_date'])
-                            print(datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S"))
-                            print(datetime.now())
-                            if datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S") >= datetime.now():
-                                print('5')
-                                coupons[vals['coupon_uid']] = [vals['discount_percent'],vals['discount_amount'],vals['discount_shipping']]
-
-        print('coupons', coupons)
-        
-        min_amt = amount_due
-        min_amt_cp = ''
-        for key, vals in coupons.items():
-            tmp = amount_due
-            if vals[0] > 0:
-                tmp -= (vals[0]/100)*tmp
-                
-            if vals[1] > 0:
-                tmp -= float(vals[1])
-
-            if vals[2] > 0:
-                tmp -= float(vals[2])
-            
-            tmp = round(tmp,2)
-            if min_amt > tmp:
-                min_amt_cp = key
-                min_amt = tmp
-    
-        print(min_amt, min_amt_cp)
-        if min_amt_cp != '':
-            coupon_query = """UPDATE coupons SET num_used = num_used + 1
-                              WHERE coupon_id =  """ + min_amt_cp + ";"
-            res = execute(coupon_query, 'post', conn2)
+        #stripe.api_key = stripe_secret_test_key
+        note = request.form.get('note')
+        print(note, type(note))
+        if note == "M4METEST":
+            stripe.api_key = stripe_secret_test_key
+            print('TEST')
         else:
-            min_amt = 0
-            min_amt_cp = ''
-        
-        return min_amt, min_amt_cp
-    
-    except:
-        return 'error_except'
-    finally:
-        disconnect(conn2)
+            stripe.api_key = stripe_secret_live_key
+            print('LIVE')
 
-def createNewPurchase(id, start_delivery_date):
-    # Implement coupons logic 
-    # need zappa setting file to create cron job   
-    try:
-        print('IN createaccount')
-        conn1 = connect()
-
-        query = """
-                SELECT *
-                FROM M4ME.purchases as pur, M4ME.payments as pay
-                WHERE pur.purchase_uid = '"""+ id +"""' AND pur.purchase_uid=pay.pay_purchase_uid;
-                """
-        items = execute(query, 'get', conn1)
-        if items['code'] != 280:
-            items['message'] = 'check sql query for new purchases'
-            return id
-        
-        print('query done')
-        data = items['result'][0]
-        print('data loaded')
-        
-        customer_uid = data['pur_customer_uid']
-        business_uid = data['business_uid'] if data.get('business_uid') is not None else 'NULL'
-        delivery_first_name = data['delivery_first_name']
-        delivery_last_name = data['delivery_last_name']
-        delivery_email = data['delivery_email']
-        delivery_phone = data['delivery_phone_num']
-        delivery_address = data['delivery_address']
-        delivery_unit = data['unit'] if data.get('unit') is not None else 'NULL'
-        delivery_city = data['delivery_city']
-        delivery_state = data['delivery_state']
-        delivery_zip = data['delivery_zip']
-        delivery_instructions = "'" + data['delivery_instructions'] + "'" if data.get('delivery_instructions') else 'NULL'
-        delivery_longitude = data['delivery_longitude']
-        delivery_latitude = data['delivery_latitude']
-        items = "'" + str(data['items']) + "'"
-        order_instructions = "'" + data['order_instructions'] + "'" if data.get('order_instructions') is not None else 'NULL'
-        purchase_notes = "'" + data['purchase_notes'] + "'" if data.get('purchase_notes') is not None else 'NULL'
-        amount_due = data['amount_due']
-        amount_discount = data['amount_discount']
-        amount_paid = data['amount_paid']
-        service_fee = data['service_fee'] if data.get('service_fee') is not None else 0
-        delivery_fee = data['delivery_fee'] if data.get('delivery_fee') is not None else 0
-        driver_tip = data['driver_tip'] if data.get('driver_tip') is not None else 0
-        taxes = data['taxes'] if data.get('taxes') is not None else 0
-        subtotal = data['subtotal'] if data.get('subtotal') is not None else 0
-        cc_num = data['cc_num']
-        cc_exp_date = data['cc_exp_date']
-        cc_cvv = data['cc_cvv']
-        cc_zip = data['cc_zip']
-        month = data['cc_exp_date'][5:7]
-        year = data['cc_exp_date'][:4]
-        
-        print('data done')
-        purchaseId = get_new_purchaseID(conn1)
-        
-        paymentId = get_new_paymentID(conn1)
-        print('ids done')
-
-        ##### check for coupons
-        amount_due += service_fee + delivery_fee + driver_tip + taxes 
-        rt = couponsLogic(id, delivery_email, amount_due)
-        print(rt)
-        amount_discount = amount_due - rt[0]
-        coupon_id = rt[1]
-        amount_due = rt[0]
-        amount_must_paid = float(amount_due)
-        print(amount_must_paid)
-        print('coupon done')
-        
-        
-        ###### create a token for stripe
-        card_dict = {"number": data['cc_num'], "exp_month": int(month), "exp_year": int(year),"cvc": data['cc_cvv']}
-        stripe_charge = {}
+        if request.form.get('amount') == None:
+            raise BadRequest('Request failed. Please provide the amount field.')
         try:
-            card_token = stripe.Token.create(card=card_dict)
-            print("2")
-            if int(amount_must_paid) > 0:
-                stripe_charge = stripe.Charge.create(
-                    amount=int(round(amount_must_paid*100, 0)),
-                    currency="usd",
-                    source=card_token,
-                    description="Charge customer for new Subscription")
-            # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
-            amount_paid = amount_due
-        except stripe.error.CardError as e:
-            # Since it's a decline, stripe.error.CardError will be caught
-            response['message'] = e.error.message
-            return response, 400
-        
-        print(stripe_charge)
-        # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
-        amount_paid = amount_due
-        print('stripe done')
-        charge_id = 'NULL' if stripe_charge.get('id') is None else stripe_charge.get('id')
-        
-        print('delivery done')
-        
-        ####### write into Payment and purchase table
-        queries = [
-                    '''
-                    INSERT INTO M4ME.payments
-                    SET payment_uid = \'''' + paymentId + '''\',
-                        payment_id = \'''' + paymentId + '''\',
-                        pay_purchase_uid = \'''' + purchaseId + '''\',
-                        pay_purchase_id = \'''' + purchaseId + '''\',
-                        payment_time_stamp = \'''' + str(getNow()) + '''\',
-                        start_delivery_date = \'''' + str(start_delivery_date) + '''\',
-                        pay_coupon_id = \'''' + coupon_id + '''\',
-                        subtotal = \'''' + str(subtotal) + '''\',
-                        amount_discount = \'''' + str(amount_discount) + '''\',
-                        service_fee = \'''' + str(service_fee) + '''\',
-                        delivery_fee = \'''' + str(delivery_fee) + '''\',
-                        driver_tip = \'''' + str(driver_tip) + '''\',
-                        taxes = \'''' + str(taxes) + '''\',
-                        amount_due = \'''' + str(amount_due) + '''\',
-                        amount_paid = \'''' + str(amount_paid) + '''\',
-                        info_is_Addon = 'FALSE',
-                        cc_num = \'''' + cc_num  + '''\', 
-                        cc_exp_date = \'''' + cc_exp_date + '''\', 
-                        cc_cvv = \'''' + cc_cvv + '''\', 
-                        cc_zip = \'''' + cc_zip + '''\',
-                        charge_id = \'''' + charge_id + '''\',
-                        payment_type = 'STRIPE';
-                    ''',
-                    '''
-                    INSERT INTO  M4ME.purchases
-                    SET purchase_uid = \'''' + purchaseId + '''\',
-                        purchase_date = \'''' + str(getNow()) + '''\',
-                        purchase_id = \'''' + purchaseId + '''\',
-                        purchase_status = 'ACTIVE',
-                        pur_customer_uid = \'''' + str(customer_uid) + '''\',
-                        delivery_first_name = \'''' + delivery_first_name + '''\',
-                        delivery_last_name = \'''' + delivery_last_name + '''\',
-                        delivery_email = \'''' + delivery_email + '''\',
-                        delivery_phone_num = \'''' + delivery_phone + '''\',
-                        delivery_address = \'''' + delivery_address + '''\',
-                        delivery_unit = \'''' + delivery_unit + '''\',
-                        delivery_city = \'''' + delivery_city + '''\',
-                        delivery_state = \'''' + delivery_state + '''\',
-                        delivery_zip = \'''' + delivery_zip + '''\',
-                        delivery_instructions = \'''' + delivery_instructions + '''\',
-                        delivery_longitude = \'''' + str(delivery_longitude) + '''\',
-                        delivery_latitude = \'''' + delivery_latitude + '''\',
-                        items = ''' + items + ''',
-                        order_instructions = \'''' + order_instructions + '''\',
-                        purchase_notes = \'''' + purchase_notes + '''\';
-                        ''',
-                        '''
-                        UPDATE M4ME.purchases SET purchase_status = 'AutoPay' WHERE (purchase_uid = \'''' + id + '''\');
-                        '''
-                    ]
-        print('queries')
-        print(queries[0])
-        print(queries[1])
-        print(queries[2])
-        response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES", "purchase_status"], conn1)
-        print('queries done')
-        print(response)
-        if response[1] == 201:
-            response[0]['payment_id'] = paymentId
-            response[0]['purchase_id'] = purchaseId
-            print('correct response')
-        else:
-            if "paymentId" in locals() and "purchaseId" in locals():
-                execute("""DELETE FROM payments WHERE payment_uid = '""" + paymentId + """';""", 'post', conn1)
-                execute("""DELETE FROM purchases WHERE purchase_uid = '""" + purchaseId + """';""", 'post', conn1)
-                print('incorect response delete')
-                return id
-        
-        return 'successfull'
-    except:
-        return id
-    finally:
-        disconnect(conn1)
+            amount = int(float(request.form.get('amount')) * 100)
+        except:
+            raise BadRequest('Request failed. Unable to convert amount to int')
+        print('AMOUNT------', amount)
 
-class checkAutoPay(Resource):
-    def get(self):
+        intent = stripe.PaymentIntent.create(
+        amount=amount,
+        currency='usd',
+        )
+        print('INTENT------', intent)
+        client_secret = intent.client_secret
+        intent_id = intent.id
+        response['client_secret'] = client_secret
+        response['id'] = intent_id
+        response['code'] = 200
+        print(response['client_secret'])
+        print(response['id'])
+        return response
 
-        def next_weekday(d, weekday):
-            days_ahead = weekday - d.weekday()
-            if days_ahead <= 0: # Target day already happened this week
-                days_ahead += 7
-            return d + timedelta(days_ahead)
 
-        conn = connect()
-        res = []
-        fat_res = []
+# Parva Code  ----------------------------------------------------------------------------------------------------------
 
-        delivery_days = ['mon', 'wed', 'fri']
-        autoPay_days = ['tue', 'thu', 'sat']
-        
-        days_num = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-        x = datetime.now()
-        day_of_week = x.strftime("%a").lower()
-        
-        query = """
-                SELECT pur.*, pay.*, ms.delivery_day
-                FROM M4ME.purchases as pur, M4ME.payments as pay, M4ME.meals_selected as ms
-                WHERE pur.purchase_status = 'ACTIVE' AND pur.purchase_uid=pay.pay_purchase_uid AND ms.sel_purchase_id = pur.purchase_uid
-                GROUP BY pur.purchase_uid;
-                """
-        items = execute(query, 'get', conn)
-        if items['code'] != 280:
-            items['message'] = 'check sql query for purchases'
+
+
+
+
+
+
+class createAccount2(Resource):
+    def post(self):
+        response = {}
+        items = []
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print(data)
+            email = data['email']
+            firstName = data['first_name']
+            lastName = data['last_name']
+            # phone = data['phone_number']
+            # address = data['address']
+            # unit = data['unit'] if data.get('unit') is not None else 'NULL'
+            # social_id = data['social_id'] if data.get('social_id') is not None else 'NULL'
+            # city = data['city']
+            # state = data['state']
+            # zip_code = data['zip_code']
+            # latitude = data['latitude']
+            # longitude = data['longitude']
+            referral = data['referral_source']
+            role = data['role']
+            cust_id = data['cust_id'] if data.get('cust_id') is not None else 'NULL'
+
+            if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False or data.get('social') == 'NULL':
+                social_signup = False
+            else:
+                social_signup = True
+
+            print(social_signup)
+            get_user_id_query = "CALL new_customer_uid();"
+            NewUserIDresponse = execute(get_user_id_query, 'get', conn)
+
+            if NewUserIDresponse['code'] == 490:
+                string = " Cannot get new User id. "
+                print("*" * (len(string) + 10))
+                print(string.center(len(string) + 10, "*"))
+                print("*" * (len(string) + 10))
+                response['message'] = "Internal Server Error."
+                return response, 500
+            NewUserID = NewUserIDresponse['result'][0]['new_id']
+
+            if social_signup == False:
+
+                salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+
+                password = sha512((data['password'] + salt).encode()).hexdigest()
+                print('password------', password)
+                algorithm = "SHA512"
+                mobile_access_token = 'NULL'
+                mobile_refresh_token = 'NULL'
+                user_access_token = 'NULL'
+                user_refresh_token = 'NULL'
+                user_social_signup = 'NULL'
+            else:
+
+                mobile_access_token = data['mobile_access_token']
+                mobile_refresh_token = data['mobile_refresh_token']
+                user_access_token = data['user_access_token']
+                user_refresh_token = data['user_refresh_token']
+                salt = 'NULL'
+                password = 'NULL'
+                algorithm = 'NULL'
+                user_social_signup = data['social']
+
+                print('ELSE- OUT')
+
+            if cust_id != 'NULL' and cust_id:
+
+                NewUserID = cust_id
+
+                query = '''
+                            SELECT user_access_token, user_refresh_token, mobile_access_token, mobile_refresh_token 
+                            FROM M4ME.customers
+                            WHERE customer_uid = \'''' + cust_id + '''\';
+                       '''
+                it = execute(query, 'get', conn)
+                print('it-------', it)
+
+                if it['result'][0]['user_access_token'] != 'FALSE':
+                    user_access_token = it['result'][0]['user_access_token']
+
+                if it['result'][0]['user_refresh_token'] != 'FALSE':
+                    user_refresh_token = it['result'][0]['user_refresh_token']
+
+                if it['result'][0]['mobile_access_token'] != 'FALSE':
+                    mobile_access_token = it['result'][0]['mobile_access_token']
+
+                if it['result'][0]['mobile_refresh_token'] != 'FALSE':
+                    mobile_refresh_token = it['result'][0]['mobile_refresh_token']
+
+                customer_insert_query =  ['''
+                                    UPDATE M4ME.customers 
+                                    SET 
+                                    customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
+                                    customer_first_name = \'''' + firstName + '''\',
+                                    customer_last_name = \'''' + lastName + '''\',
+                                    customer_phone_num = \'''' + phone + '''\',
+                                    password_salt = \'''' + salt + '''\',
+                                    password_hashed = \'''' + password + '''\',
+                                    password_algorithm = \'''' + algorithm + '''\',
+                                    referral_source = \'''' + referral + '''\',
+                                    role = \'''' + role + '''\',
+                                    user_social_media = \'''' + user_social_signup + '''\',
+                                    social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
+                                    WHERE customer_uid = \'''' + cust_id + '''\';
+                                    ''']
+
+
+            else:
+
+                # check if there is a same customer_id existing
+                query = """
+                        SELECT customer_email FROM M4ME.customers
+                        WHERE customer_email = \'""" + email + "\';"
+                print('email---------')
+                items = execute(query, 'get', conn)
+                if items['result']:
+
+                    items['result'] = ""
+                    items['code'] = 409
+                    items['message'] = "Email address has already been taken."
+
+                    return items
+
+                if items['code'] == 480:
+
+                    items['result'] = ""
+                    items['code'] = 480
+                    items['message'] = "Internal Server Error."
+                    return items
+
+
+                # write everything to database
+                customer_insert_query = ["""
+                                        INSERT INTO M4ME.customers 
+                                        (
+                                            customer_uid,
+                                            customer_created_at,
+                                            customer_first_name,
+                                            customer_last_name,
+                                            password_salt,
+                                            password_hashed,
+                                            password_algorithm,
+                                            referral_source,
+                                            role,
+                                            user_social_media,
+                                            user_access_token,
+                                            social_timestamp,
+                                            user_refresh_token,
+                                            mobile_access_token,
+                                            mobile_refresh_token,
+                                            social_id
+                                        )
+                                        VALUES
+                                        (
+                                        
+                                            \'""" + NewUserID + """\',
+                                            \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                                            \'""" + firstName + """\',
+                                            \'""" + lastName + """\',
+                                            \'""" + salt + """\',
+                                            \'""" + password + """\',
+                                            \'""" + algorithm + """\',
+                                            \'""" + referral + """\',
+                                            \'""" + role + """\',
+                                            \'""" + user_social_signup + """\',
+                                            \'""" + user_access_token + """\',
+                                            DATE_ADD(now() , INTERVAL 14 DAY),
+                                            \'""" + user_refresh_token + """\',
+                                            \'""" + mobile_access_token + """\',
+                                            \'""" + mobile_refresh_token + """\',
+                                            \'""" + social_id + """\');"""]
+            print(customer_insert_query[0])
+            items = execute(customer_insert_query[0], 'post', conn)
+
+            if items['code'] != 281:
+                items['result'] = ""
+                items['code'] = 480
+                items['message'] = "Error while inserting values in database"
+
+                return items
+
+
+            items['result'] = {
+                'first_name': firstName,
+                'last_name': lastName,
+                'customer_uid': NewUserID,
+                'access_token': user_access_token,
+                'refresh_token': user_refresh_token,
+                'access_token': mobile_access_token,
+                'refresh_token': mobile_refresh_token,
+                'social_id': social_id
+
+
+            }
+            items['message'] = 'Signup successful'
+            items['code'] = 200
+
+            print('sss-----', social_signup)
             return items
-        
-        
-        for vals in items['result']:
-            #------------------########
-            cust_email = vals['delivery_email']
-            
-            if vals['purchase_uid'] != '400-000095':
-                continue
-            print('********#####TEST********#####', vals['purchase_uid'])
-            sub_id = json.loads(vals['items'])
-            query = """
-                    SELECT sub.*
-                    FROM M4ME.subscription_items sub
-                    WHERE sub.item_uid = '"""+sub_id[0]['item_uid']+"""';
+
+        except:
+            print("Error happened while Sign Up")
+            if "NewUserID" in locals():
+                execute("""DELETE FROM customers WHERE customer_uid = '""" + NewUserID + """';""", 'post', conn)
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
+
+class brandAmbassador(Resource):
+
+    def post(self, action):
+        try:
+
+            data = request.get_json(force=True)
+            conn = connect()
+            if not data.get('amb_email'):
+                return 'Please enter ambassador email'
+            query_amb = """
+                    SELECT * FROM coupons
+                    WHERE email_id = \'""" + data['amb_email'] + """\';
                     """
+            items_amb = execute(query_amb, 'get', conn)
+
+            if items_amb['code'] != 280:
+                items_amb['message'] = 'No data available for this ambassador email'
+                return items_amb
+
+            if action == 'create_ambassador':
+                
+                for vals in items_amb['result']:
+                    if vals['coupon_id'] == 'SFAmbassador':
+                        return 'Customer already a Ambassador'
+                
+                # all check done, now make the custoamer a ambassador and issue them a coupon
+
+                query = ["CALL new_coupons_uid;"]
+                couponIDresponse = execute(query[0], 'get', conn)
+                couponID = couponIDresponse['result'][0]['new_id']
+                print('all checks done')
+                dateObject = datetime.now()
+
+                exp_date = dateObject.replace(year=dateObject.year + 5)
+                exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                query = """
+                INSERT INTO coupons 
+                (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                VALUES ( \'""" + couponID + """\', 'SFAmbassador', 'TRUE', '0', '10', '5', \'""" + exp_date + """\', '2', 'SFAmbassador', '0', 'F', \'""" + data['amb_email'] + """\', 'null', '5');
+                """
+                print(query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = "check sql query"
+                    items['code'] = 400
+                    return items
+
+
+                items['message'] = 'SF Ambassdaor created'
+                items['code'] = 200
+                return items
+
+            elif action == 'generate_coupon':
+
+                # check if customer is already a ambassador because ambassador cannot refer himself or get referred
+                query_cust = """
+                    SELECT * FROM coupons
+                    WHERE email_id = \'""" + data['cust_email'] + """\';
+                    """
+                items_cust = execute(query_cust, 'get', conn)
+                for vals in items_cust['result']:
+                    if vals['coupon_id'] == 'SFAmbassador':
+                        return 'Customer himself is an Ambassador'
+
+
+                flag = 0
+                # check if ambassador exists
+                for vals in items_amb['result']:
+                    if vals['coupon_id'] == 'SFAmbassador':
+                        flag = 1
+                
+                if flag == 0:
+                    return 'No such Ambassador email exists'
+                
+
+                cust_email = data['cust_email']
+
+                # customer can be referred only once so check that
+
+                flag = 0
+                for vals in items_cust['result']:
+                    if vals['coupon_id'] == 'Referral':
+                        flag = 1
+                
+                if flag == 1:
+                    return 'Customer has already been refered in past'
+
+
+                # generate coupon for refereed customer
+
+                query = ["CALL new_coupons_uid;"]
+                couponIDresponse = execute(query[0], 'get', conn)
+                couponID = couponIDresponse['result'][0]['new_id']
+                
+                dateObject = datetime.now()
+                exp_date = dateObject.replace(year=dateObject.year + 1)
+                exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                query = """
+                INSERT INTO coupons 
+                (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                VALUES ( \'""" + couponID + """\', 'Referral', 'TRUE', '0', '10', '5', \'""" + exp_date + """\', '2', 'Referral', '0', 'F', \'""" + cust_email + """\', 'null', '5');
+                """
+                print(query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = "check sql query"
+                    return items
+
+                # Now update ambasaddor coupon
+                print('updating amb')
+                query = """
+                        UPDATE coupons SET limits = limits + 2 
+                        WHERE coupon_id = 'SFAmbassador' AND email_id = \'""" + data['amb_email'] + """\'
+                        """
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = "check sql query"
+                    return items
+                items['message'] = 'customer and ambassador coupons generated'
+                query2= """
+                        select * from coupons
+                        where coupon_uid = '""" + couponID + """';
+                        """
+                items2 = execute(query2, 'get', conn)
+                if items2['code'] != 280:
+                    items2['message'] = "check sql query"
+                    return items
+                items2['message'] = 'customer and ambassador coupons generated'
+                return items2
             
-            items = execute(query,'get',conn)
+            else:
+                return 'enter correct option'
             
-            if items['code'] != 280:
-                items['message'] = 'check sql query for sub id'
+            
+
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
+class orders_by_customers(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select d_menu_date,
+                            jt_name,
+                            customer_first_name as First_Name,
+                            customer_last_name as Last_Name,
+                            sum(jt_qty) as Qty
+                    FROM fcs_items_by_row
+                    inner join customers
+                        on customer_uid = lplpibr_customer_uid
+                    group by jt_name, d_menu_date, lplpibr_customer_uid
+                    order by d_menu_date, customer_uid, jt_name;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class delivery_weekdays(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select distinct menu_date, weekday(menu_date)
+                    from menu
+                    where menu_date > now();
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "delivery weekdays selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
+class favourite_food(Resource):
+    
+    def post(self, action):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            if action == 'get':
+
+                query = """
+                        SELECT favorites 
+                        FROM customers 
+                        WHERE customer_uid = \'""" + data['customer_uid'] + """\';
+                        """
+                items = execute(query, 'get', conn)
+
+                if items['code'] != 280:
+                    items['message'] = 'Check sql query'
                 return items
             
-            freq = items['result'][0]['num_issues']
-
-            start_delivery_date = vals['start_delivery_date']
-            end_day = datetime.strftime(datetime.now(utc),"%Y-%m-%d")
-            
-            query = """
-                    SELECT COUNT(delivery_day) AS skip_count FROM 
-                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
-                        WHERE sel_purchase_id = '"""+vals['purchase_uid']+"""'
-                        GROUP BY sel_menu_date) AS GB   #tells us which was last option customer selected
-                        INNER JOIN M4ME.meals_selected S
-                        ON S.sel_purchase_id = GB.sel_purchase_id
-                            AND S.sel_menu_date = GB.sel_menu_date
-                            AND S.selection_time = GB.max_selection_time
-                    WHERE S.sel_menu_date >= '"""+start_delivery_date+"""'
-                        AND S.sel_menu_date <= '"""+end_day+"""'
-                        AND delivery_day = 'SKIP'
-                    ORDER BY S.sel_menu_date;
-                    """
-            print(query)
-            items = execute(query,'get',conn)
-            
-            if items['code'] != 280:
-                items['message'] = 'check sql query for skips'
-                return items
-            
-            skips = items['result'][0]['skip_count']
-            print('skips',skips)
-            start_delivery_date = datetime.strptime(start_delivery_date,'%Y-%m-%d %H-%M-%S').date()
-            end_day = datetime.strptime(end_day,'%Y-%m-%d').date()
-            delivered = (end_day - start_delivery_date).days//7 + 1 - skips
-
-            print(delivered, freq, end_day - start_delivery_date)
-
-            send_emails = []
-            
-            if delivered == freq:
-                # if it's delivery day then just send emails
-                # if it's autopay day then start charging
-                d = datetime.now().date()
-                
-                if day_of_week[:3] in delivery_days:
-                    #shoot email
-                    idx = days_num.index(vals['delivery_day'].lower()[:3])
-                    start_delivery_date = str(next_weekday(d, idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
-                    
-                    send_emails.append(sendAutopayEmails(cust_email, start_delivery_date, vals['purchase_uid']))
-                
-                elif day_of_week[:3] in autoPay_days:
-                    #do autopay
-                    idx = days_num.index(vals['delivery_day'].lower()[:3])
-                    start_delivery_date = str(next_weekday(d, idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
-                    res.append(createNewPurchase(vals['purchase_uid'], start_delivery_date))
+            elif action == 'post':
+                print(data)
+                print("start q1 here")
+                query1 = """
+                        select favorites
+                        from customers
+                        where customer_uid = \'""" + data['customer_uid'] + """\';
+                        """
+                #print(query1)
+                items1 = execute(query1, 'get', conn)
+                print("check 1")
+                print(items1)
+                print("check 2")
+                print(items1["result"][0]["favorites"])
+                favorite = str(data['favorite']).replace("'", '"')
+                print(favorite)
+                if items1["result"][0]["favorites"] == None:
+                    favorite = favorite
                 else:
-                    continue
-
-            elif delivered < freq:
-                print('do nothing')
-                continue
-            
-            else:
-                #------------------########
-                fat_res.append(vals['purchase_uid'])
-                print('fatal error check database')
-        
-        print(res)
-        
-        # email error to prashant once cron job is done
-        pay_er = ''
-        for vals in res:
-            if vals != 'successfull':
-                pay_er += vals + ","
-        pay_er = pay_er[:-1]
-        if len(pay_er) == 0:
-            pay_er = 'No Errors'
-        
-        print(fat_res)
-        print(str(fat_res))
-
-        if len(fat_res) == 0:
-            fat_res = 'No Errors'
-
-        
-        email_er = ''
-        for vals in send_emails:
-            if vals != 'successfull':
-                email_er += vals + ","
-        email_er = email_er[:-1]
-        if len(email_er) == 0:
-            email_er = 'No Errors'
-
-        
-        # send email
-        msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=['parva.shah808@gmail.com'])
-        #pmarathay@gmail.com
-        print('MESSAGE----', msg)
-        print('message complete')
-       
-        msg.body =  "Hi Prashant,\n\n"\
-                    "This email contains errors if ANY after running cron job for emails and autopay in MTYD\n\n"\
-                    "Ids where error occured: "+ pay_er +"\n\n"\
-                    "Ids where FATAL error occured: "+ str(fat_res)+ "\n\n"\
-                    "IDs where while sending email error occured: "+ email_er + "\n\n"\
-                    "Check with backend guys if you run into any problems or have any questions.\n"\
-                    "Thx - MTYD Team"
-        
-        print('msg-bd----', msg.body)
-        mail.send(msg)
-        disconnect(conn)
-        
-
-
-class adminInfo(Resource):
-
-    def refund_calculator(self, info_res,  conn):
-        print("in refund calculator")
-        # Getting the original start and end date for requesting purchase
-        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
-        # check for SKIP. Let consider the simple case. The customer can change their purchases if and only if their purchase
-        # still active.
-        week_remaining = int(info_res['payment_frequency'])
-
-        end_delivery_date = start_delivery_date + timedelta(days=(week_remaining) * 7)
-        skip_query = """SELECT COUNT(delivery_day) AS skip_count FROM
-                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
-                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
-                                GROUP BY sel_menu_date) AS GB
-                                INNER JOIN meals_selected S
-                                ON S.sel_purchase_id = GB.sel_purchase_id
-                                    AND S.sel_menu_date = GB.sel_menu_date
-                                    AND S.selection_time = GB.max_selection_time
-                        WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
-                            AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
-                            AND delivery_day = 'SKIP'
-                        ORDER BY S.sel_menu_date;
-                    """
-        skip_res = simple_get_execute(skip_query, "SKIP QUERY", conn)
-        if skip_res[1] != 200:
-            return skip_res
-        skip = int(skip_res[0].get('skip_count')) if skip_res[0].get('skip_count') else 0
-        if datetime.now().date() > start_delivery_date.date():
-            delivered = (datetime.now().date() - start_delivery_date.date()).days//7 + 1 - skip
-            week_remaining -= delivered
-        elif (datetime.now().date() > end_delivery_date.date()):
-            print("There is something wrong with the query to get info for the requested purchase.")
-            response = {'message': "Internal Server Error."}
-            return response, 500
-        print("start here")
-        print(info_res)
-        item_price = json.loads(info_res['items'])[0].get('price')
-        print("price is")
-        print(item_price)
-        customer_paid = float(item_price)
-        print("paid amount is")
-        print(customer_paid)
-        print("end here")
-        # get the price of the new item.
-        items_query = """
-                        SELECT * FROM subscription_items
-                        WHERE item_name = '""" + info_res['item_name'] + """'
+                    favorite=items1["result"][0]["favorites"]+ "," + favorite
+                print("check 3")
+                #favorite=items1["result"][0]["favorites"]+ "," + favorite
+                print(favorite)
+                query = """
+                        UPDATE customers 
+                        SET favorites = \'""" + favorite + """\'
+                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
                         """
-        items_res = simple_get_execute(items_query, "GET Subscription_items QUERY", conn)
-        if items_res[1] != 200:
-            return items_res
-        price = {}
-        for item in items_res[0]['result']:
-            price[item['num_issues']] = item['item_price']
-        
-        print("price######", price)
-        refund = 0
-        if info_res['num_issues'] == 4: # 4 week prepaid
-            print("matching 4 week pre-pay")
-            if week_remaining == 0:
-                refund = 0
-            elif week_remaining == 1:
-                refund = customer_paid - float(price[2]) - float(price[1])
-            elif week_remaining == 2:
-                refund = customer_paid - float(price[2])
-            elif week_remaining == 3:
-                refund = customer_paid - float(price[2])
-            elif week_remaining == 4:
-                refund = customer_paid
-        elif info_res['num_issues'] == 2:
-            print("matching 2 week Pre-pay")
-            print("r0")
-            if week_remaining == 0:
-                refund = 0
-                print("r1")
-            elif week_remaining == 1:
-                print("in price", price)
-                refund = customer_paid - float(price[1])
-                print("r2")
-            elif week_remaining == 2:
-                refund = customer_paid
-                print("r3")
-        elif info_res['num_issues'] == 1:
-            print("matching weekly")
-            if week_remaining == 0:
-                refund = 0
-            elif week_remaining == 1:
-                refund = customer_paid
-        return {"week_remaining": week_remaining, "refund_amount": refund}
+                print(query)
+                items = execute(query, 'post', conn)
 
-    
-    
-    def get(self):
-        
-        conn  = connect()
+                if items['code'] != 281:
+                    items['message'] = 'Check sql query'
+                return items
+            elif action == 'update':
+                print(data)
+                favorite = str(data['favorite']).replace("'", '"')
+                print(favorite)
+                query = """
+                        UPDATE customers 
+                        SET favorites = \'""" + favorite + """\'
+                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
+                        """
+                print(query)
+                items = execute(query, 'post', conn)
 
-        query = """
-                SELECT * FROM M4ME.lplp;
-                """
-        items = execute(query, 'get', conn)
+                if items['code'] != 281:
+                    items['message'] = 'Check sql query'
+                return items
+            else:
+                return 'choose correct option'
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
-        if items['code'] == '281':
-            items['message'] = "error check your query"
+
+
+class lplp_specific(Resource):
+    def get(self, p_uid):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select * from lplp
+                    where pay_purchase_uid = \'""" + p_uid + """\';
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "infomation selected"
+                items['code'] = 200
+                #return items
             return items
-
-        #return items
-
-        query_freq = """
-                    SELECT item_uid, num_issues FROM M4ME.subscription_items;
-                    """
-        items_freq = execute(query_freq, 'get', conn)
-
-        if items_freq['code'] == '281':
-            items_freq['message'] = "error check your query"
-            return items_freq
-        
-        uid_freq = items_freq["result"]
-        uid_freq_dict = {}
-        for item in uid_freq:
-            uid_freq_dict[item["item_uid"]] = item["num_issues"]
-        
-        
-
-
-        ans = []
-        for vals in items['result']:
-            
-            item_uid = json.loads(vals["items"])[0]["item_uid"]
-            vals["freq"] = uid_freq_dict[item_uid]
-
-            if vals["purchase_status"] == "ACTIVE":
-                purchaseID = vals["purchase_uid"]
-                
-                info_query = """
-                        SELECT pur.*, pay.*, sub.*
-                        FROM purchases pur, payments pay, subscription_items sub
-                        WHERE pur.purchase_uid = pay.pay_purchase_uid
-                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
-                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
-                            AND pur.purchase_uid = '""" + purchaseID + """'
-                            AND pur.purchase_status='ACTIVE';  
-                        """
-                print("info_query", info_query)
-                info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-                print(info_res)
-                if info_res[1] != 200:
-                    return {"message": "Internal Server Error"}, 500
-                # Calculate refund
-                print("1.9")
-                refund_info = self.refund_calculator(info_res[0]['result'][0], conn)
-                vals["refund_amount"] = refund_info['refund_amount']
-                
-            else:
-                vals["refund_amount"] = -1
-            
-
-            ans.append(vals)
-        
-        return ans
-
-class test_cal(Resource):
-    def get(self, purchaseID):
-        
-        conn = connect()
-        info_query = """
-                        SELECT pur.*, pay.*, sub.*
-                        FROM purchases pur, payments pay, subscription_items sub
-                        WHERE pur.purchase_uid = pay.pay_purchase_uid
-                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
-                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
-                            AND pur.purchase_uid = '""" + purchaseID + """'
-                            AND pur.purchase_status='ACTIVE';  
-                        """
-        print("info_query", info_query)
-        info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-        print(info_res)
-        if info_res[1] != 200:
-            return {"message": "Internal Server Error"}, 500
-        # Calculate refund
-        print("1.9")
-        refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
-
-        return refund_info
-
-
-
-    def new_refund_calculator(self, info_res,  conn):
-
-
-        print("in refund calculator")
-        
-        # checking skips new
-
-        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
-        week_remaining = int(info_res['payment_frequency'])
-        
-        all_deliveries = """
-                    SELECT COUNT(delivery_day) AS delivery_count FROM
-                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
-                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
-                                GROUP BY sel_menu_date) AS GB
-                                INNER JOIN meals_selected S
-                                ON S.sel_purchase_id = GB.sel_purchase_id
-                                    AND S.sel_menu_date = GB.sel_menu_date
-                                    AND S.selection_time = GB.max_selection_time
-                    WHERE 
-                        S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H:%M:%S") + """'
-                        AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """'
-                        AND delivery_day != 'SKIP'
-                    ORDER BY S.sel_menu_date;
-                    """
-        print(all_deliveries)
-        delivered_num = execute(all_deliveries, "get", conn)
-        print(delivered_num)
-        if delivered_num['code'] != 280:
-            return delivered_num
-        delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
-        print("delivered_num :", delivered_num)
-
-
-        # get number of meals from item name
-        num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
-        print("meals :",num_meals)
-        # get number of days
-        num_days = int(json.loads(info_res['items'])[0].get('qty'))
-        
-        print("days :", num_days)
-        # get remaining days
-        remaining_delivery_days = num_days - delivered_num 
-        print("days reamin :",remaining_delivery_days)
-
-        return remaining_delivery_days
-        # if weeks remaining are 0 return 
-        if remaining_delivery_days == 0:
-            {"week_remaining": 0, "refund_amount": 0}
-
-
-        # if remaining days are negative then it means there is some error 
-        if remaining_delivery_days < 0:
-            print("There is something wrong with the query to get info for the requested purchase.")
-            response = {'message': "Internal Server Error."}
-            return response, 500
-        
-        discount_query = """
-                        SELECT * FROM M4ME.discounts;
-                        """
-        discount = execute(discount_query, 'get', conn)
-
-        if discount['code'] != 280:
-            return discount
-        
-        
-        # get discount combinations in a dictionary
-        discount_dict = {}
-        for val in discount['result']:
-            discount_dict[(val['num_deliveries'],val['num_meals'])] = float(val['total_discount'])
-        
-        customer_paid = 12*num_meals*num_days*(1-discount_dict[(num_days,num_meals)])
-
-        customer_used_amount = 12*num_meals*delivered_num *(1-discount_dict[(delivered_num ,num_meals)])
-
-        refund_amount = customer_paid - customer_used_amount
-
-        return {"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
-
-
-
-
-### End of code by Parva ################################################################################
-
-
-
-
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
 # Define API routes
@@ -8991,7 +10384,7 @@ api.add_resource(Meals_Selection, '/api/v2/meals_selection')
 #  * The "Meals_Selection" accepts POST request with appropriate parameters      #
 #  Please read the documentation for these parameters and its formats.           #
 
-api.add_resource(Change_Purchase, '/api/v2/change_purchase')
+#api.add_resource(Change_Purchase, '/api/v2/change_purchase')
 # *The "Change_Purchase" accepts POST request with required JSON format. Please  #
 # read the documentation to get the required format for that JSON object.        #
 
@@ -9059,6 +10452,9 @@ api.add_resource(Ingredients_Need, '/api/v2/ingredients_need')
 
 #**********************************************************************************#
 
+
+api.add_resource(AllMenus, '/api/v2/allMenus')
+
 api.add_resource(Edit_Menu, '/api/v2/Edit_Menu')
 
 api.add_resource(Edit_Meal, '/api/v2/Edit_Meal')
@@ -9107,7 +10503,7 @@ api.add_resource(get_total_revenue, '/api/v2/get_total_revenue')
 
 api.add_resource(get_delivery_info, '/api/v2/get_delivery_info/<string:purchase_id>') 
 
-api.add_resource(update_guid_notification, '/api/v2/update_guid_notification/<string:role>')
+api.add_resource(update_guid_notification, '/api/v2/update_guid_notification/<string:role>,<string:action>')
 
 # api.add_resource(Categorical_Options, '/api/v2/Categorical_Options/<string:long>,<string:lat>') #NEED TO FIX, put it later, do we need it?
 
@@ -9155,11 +10551,13 @@ api.add_resource(pid_history, '/api/v2/pid_history/<string:pid>')
 
 api.add_resource(UpdatePassword, '/api/v2/UpdatePassword')
 
-api.add_resource(AppleLogin, '/api/v2/AppleLogin', '/')
+#api.add_resource(AppleLogin, '/api/v2/AppleLogin', '/')
+
+api.add_resource(AppleLogin, '/api/v2/apple_login', '/')
 
 api.add_resource(Get_Upcoming_Menu_Date, '/api/v2/upcoming_menu_dates' )
 
-api.add_resource(Change_Purchase_ID, '/api/v2/change_purchase_id')
+#api.add_resource(Change_Purchase_ID, '/api/v2/change_purchase_id')
 
 api.add_resource(Update_Delivery_Info_Address, '/api/v2/Update_Delivery_Info_Address')
 
@@ -9233,6 +10631,38 @@ api.add_resource(test_cal, '/api/v2/test_cal/<string:purchaseID>')
 
 
 api.add_resource(check_stripe_id, '/api/v2/check_stripe_id/<string:id>')
+api.add_resource(get_Zones_specific, '/api/v2/get_Zones_specific/<string:lat>,<string:llong>') #use categoricalOptions instead
+
+api.add_resource(find_next_sat, '/api/v2/find_next_sat')
+
+api.add_resource(payment_info_history_fixed, '/api/v2/payment_info_history_fixed/<string:p_uid>')
+
+api.add_resource(Get_Latest_Purchases_Payments_with_Refund, '/api/v2/Get_Latest_Purchases_Payments_with_Refund')
+
+api.add_resource(add_surprise, '/api/v2/add_surprise/<string:p_uid>')
+
+api.add_resource(discount_percentage, '/api/v2/discount_percentage/<string:n_delivery>')
+
+api.add_resource(change_purchase, '/api/v2/change_purchase/<string:purchaseID>')
+
+api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
+
+api.add_resource(createAccount2, '/api/v2/createAccount2')
+
+api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
+
+api.add_resource(orders_by_customers, '/api/v2/orders_by_customers')
+
+api.add_resource(delivery_weekdays, '/api/v2/delivery_weekdays')
+
+api.add_resource(favourite_food, '/api/v2/favourite_food/<string:action>')
+
+#api.add_resource(Paypal_Payment_key_checker, '/api/v2/Paypal_Payment_key_checker')
+
+api.add_resource(Copy_Menu, '/api/v2/Copy_Menu')
+
+api.add_resource(lplp_specific, '/api/v2/lplp_specific/<string:p_uid>')
+
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
