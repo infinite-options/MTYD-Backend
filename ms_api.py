@@ -9596,7 +9596,7 @@ class cancel_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+                stripe.api_key = stripe_secret_test_key
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
