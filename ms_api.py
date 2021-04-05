@@ -8761,7 +8761,7 @@ class payment_info_history_fixed (Resource): #edit to take in purchase_uid
             disconnect(conn)
             print('process completed')
 
-
+#if one is changed to skip, add extra surprise. if skip is changed to surprise, delete newest surprise
 class add_surprise (Resource):
     def post(self, p_uid):
         try:
@@ -9306,6 +9306,9 @@ class change_purchase(Resource):
                 print("during stripe: stripe 1")
                 print(process_id)
                 #print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
+                if process_id[:2] == "pi":
+                    process_id = stripe.PaymentIntent.retrieve(process_id).get("charges").get("data")[0].get("id")
+                    #print(refunded_info.get("charges").get("data")[0].get("id"))
                 refunded_info = stripe.Charge.retrieve(process_id)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
@@ -9516,10 +9519,11 @@ class change_purchase(Resource):
         print("delivery_fee :", delivery_fee)
         if delivery_fee is None:
             delivery_fee = 0
-
-        customer_paid = (float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)) * 1+ float(taxes)
+        #tax rate is base price only
+        #driver tip and delivery fee are both percentage
+        customer_paid = (float(price)*int(num_days)*(1-old_discount/100)) * 1 + float(taxes) + float(serviceFee) + float(driver_tip) + float(delivery_fee)
         print("4.6")
-        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)) * 1+ float(taxes)))
+        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100)) * 1 + float(taxes) + float(serviceFee) + float(driver_tip) + float(delivery_fee)))
 
         print("here 4.7")
         #print(d_query["result"][0]["item_price"])
@@ -9542,11 +9546,11 @@ class change_purchase(Resource):
                                 where itm_business_uid = "200-000002"
                                 and si.num_items = '""" + strmeal + """' 
                                 and num_deliveries = '""" + d_num + """';
-                              """
+                                """
             d2_query = execute(delivery_query2, 'get', conn)
             print("here 6")
             new_discount = d2_query["result"][0]["delivery_discount"]
-            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * 1+ float(taxes)
+            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * 1+ float(taxes) + float(driver_tip)/delivered_num + float(delivery_fee)/delivered_num
         print("here 7")
         print(customer_used_amount)
         refund_amount = (float(customer_paid) - float(customer_used_amount))
@@ -9592,7 +9596,7 @@ class cancel_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = stripe_secret_test_key
+                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
@@ -9846,7 +9850,7 @@ def couponsLogic(id, email, amount_due):
         print(min_amt, min_amt_cp)
         if min_amt_cp != '':
             coupon_query = """UPDATE coupons SET num_used = num_used + 1
-                              WHERE coupon_id =  """ + min_amt_cp + ";"
+                                WHERE coupon_id =  """ + min_amt_cp + ";"
             res = execute(coupon_query, 'post', conn2)
         else:
             min_amt = 0
@@ -10184,7 +10188,7 @@ class checkAutoPay(Resource):
         #pmarathay@gmail.com
         print('MESSAGE----', msg)
         print('message complete')
-       
+        
         msg.body =  "Hi Prashant,\n\n"\
                     "This email contains errors if ANY after running cron job for emails and autopay in MTYD\n\n"\
                     "Ids where error occured: "+ pay_er +"\n\n"\
@@ -10544,7 +10548,7 @@ class createAccount2(Resource):
                             SELECT user_access_token, user_refresh_token, mobile_access_token, mobile_refresh_token 
                             FROM M4ME.customers
                             WHERE customer_uid = \'''' + cust_id + '''\';
-                       '''
+                        '''
                 it = execute(query, 'get', conn)
                 print('it-------', it)
 
