@@ -1560,10 +1560,21 @@ class Reset_Password(Resource):
             if query_result[1]!= 201:
                 return query_result
             # send an email to client
-            print("1") 
-            msg = Message("Email Verification", sender='support@mealsfor.me', recipients=[email])
+            print("mail 1") 
+            msg = Message("Email Verification", sender='support@mealsfor.me', recipients=[email, 'support@mealsfor.me'])
             msg.body = "Your temporary password is {}. Please use it to reset your password".format(pass_temp)
+            print("mail 2")
+            # msg2 = Message("Email Verification", sender='support@mealsfor.me', recipients='support@mealsfor.me')
+            # supportmessage = str(email) + " has requested a temporary password, and it is {}."
+            # #print(supportmessage)
+            # msg2.body = supportmessage.format(pass_temp)
+            print("ready to send")
             mail.send(msg)
+            # print("sending 2")
+            # print(msg2.body)
+            # print("actual sending 2")
+            # mail.send(msg2)
+            print("both sent")
             response['message'] = "A temporary password has been sent"
             return response, 200
         except:
