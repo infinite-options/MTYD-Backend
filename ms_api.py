@@ -3006,6 +3006,24 @@ class Meals (Resource):
         finally:
             disconnect(conn)
 
+    # delete meal endpoint
+    # pass in parameter through the url i.e /api/v2/meals?meal_uid=840-010042
+    def delete(self):
+        try:
+            conn = connect()
+            meal_uid = request.args['meal_uid']
+            query = """
+                    DELETE FROM meals WHERE meal_uid = '""" + meal_uid + """';
+                    """
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            print(response)
+            if response[1] != 201:
+                return response
+            return response[0], 202
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
 class create_update_meals(Resource):
@@ -10852,6 +10870,8 @@ class orders_by_customers(Resource):
                             jt_name,
                             customer_first_name as First_Name,
                             customer_last_name as Last_Name,
+                            customer_uid,
+                            lplpibr_purchase_id,
                             sum(jt_qty) as Qty
                     FROM fcs_items_by_row
                     inner join customers
