@@ -8570,7 +8570,7 @@ class change_purchase(Resource):
             # Also, using POST to protect sensitive information.
             data = request.get_json(force=True)
             customer_email = data['customer_email']
-            password = data.get('password')
+            #password = data.get('password')
             refresh_token = data.get('refresh_token')
             cc_num = str(data['cc_num'])
             cc_exp_date = data['cc_exp_date']
@@ -8584,26 +8584,26 @@ class change_purchase(Resource):
             print(items)
             print("1")
             #Check user's identity
-            cus_query = """
-                        SELECT password_hashed,
-                                user_refresh_token, customer_phone_num
-                        FROM customers
-                        WHERE customer_email = '""" + customer_email + """';
-                        """
-            cus_res = simple_get_execute(cus_query, "Update_Purchase - Check Login", conn)
-            if cus_res[1] != 200:
-                return cus_res
-            customer_phone_num = cus_res[0]['result'][0]['customer_phone_num']
-            if not password and not refresh_token:
-                raise BadRequest("Request failed, please try again later.")
-            elif password:
-                if password != cus_res[0]['result'][0]['password_hashed']:
-                    response['message'] = 'Wrong password'
-                    return response, 401
-            elif refresh_token:
-                if refresh_token != cus_res[0]['result'][0]['mobile_refresh_token']:
-                    response['message'] = 'Token Invalid'
-                    return response, 401
+            # cus_query = """
+            #             SELECT password_hashed,
+            #                     user_refresh_token, customer_phone_num
+            #             FROM customers
+            #             WHERE customer_email = '""" + customer_email + """';
+            #             """
+            # cus_res = simple_get_execute(cus_query, "Update_Purchase - Check Login", conn)
+            # if cus_res[1] != 200:
+            #     return cus_res
+            # customer_phone_num = cus_res[0]['result'][0]['customer_phone_num']
+            # if not password and not refresh_token:
+            #     raise BadRequest("Request failed, please try again later.")
+            # elif password:
+            #     if password != cus_res[0]['result'][0]['password_hashed']:
+            #         response['message'] = 'Wrong password'
+            #         return response, 401
+            # elif refresh_token:
+            #     if refresh_token != cus_res[0]['result'][0]['mobile_refresh_token']:
+            #         response['message'] = 'Token Invalid'
+            #         return response, 401
             print("1.5")
             # query info for requesting purchase
             # Get info of requesting purchase_id
@@ -8702,13 +8702,16 @@ class change_purchase(Resource):
                 card_dict = {"number": cc_num, "exp_month": int(month), "exp_year": int(year), "cvc": cc_cvv}
                 print("continue here 1.6")
                 try:
+                    print("start card error")
                     card_token = stripe.Token.create(card=card_dict)
+                    print("card error 1")
                     charge_id = stripe.Charge.create(
                         amount=int(amount_will_charge * 100),
                         currency="usd",
                         source=card_token,
                         description="Charge for changing Meal Plan",
                     )
+                    print("card error 2")
                 except stripe.error.CardError as e:
                     # Since it's a decline, stripe.error.CardError will be caught
                     response['message'] = e.error.message
@@ -9212,7 +9215,8 @@ class cancel_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = stripe_secret_test_key
+                #stripe.api_key = stripe_secret_test_key
+                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
