@@ -8700,7 +8700,7 @@ class change_purchase(Resource):
 
 
             #calc error happens here
-            customer_used_amount = (int(num_days)*price*(1-discount/100))*1+float(info_res[0]['result'][0]["taxes"]) + float(info_res[0]['result'][0]["service_fee"]) + float(info_res[0]['result'][0]["driver_tip"]) + float(info_res[0]['result'][0]["delivery_fee"])
+            customer_used_amount = (int(num_days)*price*(1-discount/100))*(1+9.25/100) + float(info_res[0]['result'][0]["service_fee"]) + float(info_res[0]['result'][0]["driver_tip"]) + float(info_res[0]['result'][0]["delivery_fee"])
             #info_res[0]['result'][0]["taxes"]
             #info_res[0]['result'][0]["service_fee"]
             #info_res[0]['result'][0]["driver_tip"]
@@ -9171,9 +9171,9 @@ class change_purchase(Resource):
             delivery_fee = 0
         #tax rate is base price only
         #driver tip and delivery fee are both percentage
-        customer_paid = (float(price)*int(num_days)*(1-old_discount/100)) * 1 + float(taxes) + float(serviceFee) + float(driver_tip) + float(delivery_fee)
+        customer_paid = (float(price)*int(num_days)*(1-old_discount/100)) * (1+9.25/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)
         print("4.6")
-        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100)) * 1 + float(taxes) + float(serviceFee) + float(driver_tip) + float(delivery_fee)))
+        print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100)) * (1+9.25/100)  + float(serviceFee) + float(driver_tip) + float(delivery_fee)))
 
         print("here 4.7")
         #print(d_query["result"][0]["item_price"])
@@ -9200,7 +9200,7 @@ class change_purchase(Resource):
             d2_query = execute(delivery_query2, 'get', conn)
             print("here 6")
             new_discount = d2_query["result"][0]["delivery_discount"]
-            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * 1+ float(taxes) + float(driver_tip)/delivered_num + float(delivery_fee)/delivered_num
+            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * (1+9.25/100)  + float(driver_tip)/delivered_num + float(delivery_fee)/delivered_num
         print("here 7")
         print(customer_used_amount)
         refund_amount = (float(customer_paid) - float(customer_used_amount))
