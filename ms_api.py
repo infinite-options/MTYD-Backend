@@ -1,4 +1,4 @@
-    #pip3 install shapely
+#pip3 install shapely
 from flask import Flask, request, render_template, url_for, redirect
 from flask_restful import Resource, Api
 from flask_mail import Mail, Message  # used for email
@@ -223,6 +223,11 @@ def simple_get_execute(query, name_to_show, conn):
 
 def simple_post_execute(queries, names, conn):
     response = {}
+    print("in simple_post_execute")
+    print("queries: ", queries)
+    print("names: ", names)
+    print("conn: ", conn)
+    print(len(queries), len(names))
     if len(queries) != len(names):
         return "Error. Queries and Names should have the same length."
     for i in range(len(queries)):
@@ -248,9 +253,12 @@ def destructure (d, *keys):
 def helper_upload_meal_img(file, key):
     bucket = 'mtyd'
     print("photo 1")
+    print("file: ", file)
+    print(allowed_file(file.filename))
     if file and allowed_file(file.filename):
         filename = 'https://s3-us-west-1.amazonaws.com/' \
                     + str(bucket) + '/' + str(key)
+        print("filename: ", filename)
         print("photo 2")
         upload_file = s3.put_object(
                             Bucket=bucket,
@@ -2604,8 +2612,10 @@ class create_update_meals(Resource):
             meal_name = request.form.get('meal_name') if request.form.get('meal_name') is not None else 'NULL'
             meal_desc = request.form.get('meal_desc') if request.form.get('meal_desc') is not None else 'NULL'
             meal_hint = request.form.get('meal_hint') if request.form.get('meal_hint') is not None else 'NULL'
+            
             meal_photo_url = request.files.get('meal_photo_url') if request.files.get('meal_photo_url') is not None else 'NULL'
             #meal_photo_url = request.form.get('meal_photo_url') if request.form.get('meal_photo_url') is not None else 'NULL'
+            
             meal_calories = request.form.get('meal_calories') if request.form.get('meal_calories') is not None else 'NULL'
             meal_protein = request.form.get('meal_protein') if request.form.get('meal_protein') is not None else 'NULL'
             meal_carbs = request.form.get('meal_carbs') if request.form.get('meal_carbs') is not None else 'NULL'
@@ -2621,8 +2631,10 @@ class create_update_meals(Resource):
             meal_uid = meal_uid[0]['result']
             print("1")
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print("TimeStamp_test: ", TimeStamp_test)
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
-            print(key)
+            print("key: ", key)
+            print("meal_photo_url: ", meal_photo_url)
             meal_photo = helper_upload_meal_img(meal_photo_url, key)
             print("2")
             print(meal_uid)
@@ -2649,6 +2661,8 @@ class create_update_meals(Resource):
             # response = execute(query, 'post', conn)
             print("3")
             #meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            print(response)
+            print(response[1])
             if response[1] != 201:
                 return response
             response[0]['meal_uid'] = meal_uid
@@ -2685,8 +2699,9 @@ class create_update_meals(Resource):
             meal_fat = request.form.get('meal_fat') if request.form.get('meal_fat') is not None else 'NULL'
             meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
-            meal_uid = request.form.get('meal_sat') 
-            #meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
+            #meal_uid = request.form.get('meal_sat') 
+            meal_uid = "840-010046"
+            meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
             print("1")
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
@@ -2718,11 +2733,17 @@ class create_update_meals(Resource):
             # response = execute(query, 'post', conn)
             print("3")
             #meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            print(response)
+            print(response[1])
             if response[1] != 201:
                 return response
+            print("4")    
             response[0]['meal_uid'] = meal_uid
-            lists=get_all_s3_keys(mtyd)
-            return response, lists
+            print("5")
+            # Ask Welkin why we have these statements.  Commented out 040721
+            # ists=get_all_s3_keys(mtyd)
+            # lists=get_all_s3_keys('mtyd')
+            # return response, lists
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
