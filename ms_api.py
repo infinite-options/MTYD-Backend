@@ -8577,7 +8577,17 @@ class change_purchase(Resource):
         # Calculate refund
         print("1.9")
         refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
-
+        print(info_res[0]['result'][0]["taxes"])
+        print(info_res[0]['result'][0]["delivery_fee"])
+        print(info_res[0]['result'][0]["service_fee"])
+        print(info_res[0]['result'][0]["driver_tip"])
+        print(refund_info)
+        refund_info["taxes"]=info_res[0]['result'][0]["taxes"]
+        refund_info["delivery_fee"]=info_res[0]['result'][0]["delivery_fee"]
+        refund_info["service_fee"]=info_res[0]['result'][0]["service_fee"]
+        refund_info["driver_tip"]=info_res[0]['result'][0]["driver_tip"]
+        refund_info["base_amount"]=info_res[0]['result'][0]["subtotal"]
+        refund_info["discount"]=info_res[0]['result'][0]["amount_discount"]
         return refund_info
 
     def post(self, purchaseID):
@@ -8654,8 +8664,8 @@ class change_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                #stripe.api_key = stripe_secret_test_key 
-                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
+                stripe.api_key = stripe_secret_test_key 
+                #stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoJQ5TqpGkl299bo00yD1lTRNK" 
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
@@ -9246,8 +9256,8 @@ class cancel_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                #stripe.api_key = stripe_secret_test_key
-                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+                stripe.api_key = stripe_secret_test_key
+                #stripe.api_key = "sk_test_51HyqrgLMj299bo00yD1lTRNK"
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
