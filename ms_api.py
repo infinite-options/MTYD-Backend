@@ -8606,16 +8606,16 @@ class change_purchase(Resource):
             print(items)
             print("1")
             #Check user's identity
-            # cus_query = """
-            #             SELECT password_hashed,
-            #                     user_refresh_token, customer_phone_num
-            #             FROM customers
-            #             WHERE customer_email = '""" + customer_email + """';
-            #             """
-            # cus_res = simple_get_execute(cus_query, "Update_Purchase - Check Login", conn)
-            # if cus_res[1] != 200:
-            #     return cus_res
-            # customer_phone_num = cus_res[0]['result'][0]['customer_phone_num']
+            cus_query = """
+                        SELECT password_hashed,
+                                user_refresh_token, customer_phone_num
+                        FROM customers
+                        WHERE customer_email = '""" + customer_email + """';
+                        """
+            cus_res = simple_get_execute(cus_query, "Update_Purchase - Check Login", conn)
+            if cus_res[1] != 200:
+                return cus_res
+            customer_phone_num = cus_res[0]['result'][0]['customer_phone_num']
             # if not password and not refresh_token:
             #     raise BadRequest("Request failed, please try again later.")
             # elif password:
