@@ -8693,11 +8693,21 @@ class change_purchase(Resource):
             d_query = simple_get_execute(delivery_query, 'get', conn)
             print("2")
             print(d_query[0]["result"][0]["item_price"])
-            price = int(d_query[0]["result"][0]["item_price"])
+            price = float(d_query[0]["result"][0]["item_price"])
             print(price)
             discount = int(d_query[0]["result"][0]["delivery_discount"])
             print("3")
-            customer_used_amount = int(num_days)*price*(1-discount/100)
+
+
+            #calc error happens here
+            customer_used_amount = (int(num_days)*price*(1-discount/100))*1+float(info_res[0]['result'][0]["taxes"]) + float(info_res[0]['result'][0]["service_fee"]) + float(info_res[0]['result'][0]["driver_tip"]) + float(info_res[0]['result'][0]["delivery_fee"])
+            #info_res[0]['result'][0]["taxes"]
+            #info_res[0]['result'][0]["service_fee"]
+            #info_res[0]['result'][0]["driver_tip"]
+            #info_res[0]['result'][0]["delivery_fee"]
+            #(float(price)*int(num_days)*(1-old_discount/100)) * 1 + float(taxes) + float(serviceFee) + float(driver_tip) + float(delivery_fee)
+
+
             print(refund_info["refund_amount"])
             print("customer_used_amount " + str(customer_used_amount))
             print("refund_info " + str(refund_info["refund_amount"]))
@@ -8716,7 +8726,7 @@ class change_purchase(Resource):
                 print("continue here 1")
                 if res[1] != 200:
                     return {"message": "Cannot collect credit card info"}, 500
-
+                print(res)
                 [cc_num, cc_cvv, cc_exp_date, cc_zip] = destructure(res[0]['result'][0], "cc_num",  "cc_cvv", "cc_exp_date", "cc_zip")
 
                 month = cc_exp_date.split("-")[1]
@@ -8725,9 +8735,7 @@ class change_purchase(Resource):
                 card_dict = {"number": cc_num, "exp_month": int(month), "exp_year": int(year), "cvc": cc_cvv}
                 print("continue here 1.6")
                 try:
-                    print("start card error")
                     card_token = stripe.Token.create(card=card_dict)
-                    print("card error 1")
                     charge_id = stripe.Charge.create(
                         amount=int(amount_will_charge * 100),
                         currency="usd",
