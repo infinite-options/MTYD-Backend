@@ -2699,8 +2699,8 @@ class create_update_meals(Resource):
             meal_fat = request.form.get('meal_fat') if request.form.get('meal_fat') is not None else 'NULL'
             meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
-            #meal_uid = request.form.get('meal_sat') 
-            meal_uid = "840-010046"
+            meal_uid = request.form.get('meal_uid') 
+            #meal_uid = "840-010046"
             meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
             print("1")
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -2744,6 +2744,7 @@ class create_update_meals(Resource):
             # ists=get_all_s3_keys(mtyd)
             # lists=get_all_s3_keys('mtyd')
             # return response, lists
+            return response
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -8653,7 +8654,8 @@ class change_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = stripe_secret_test_key #"sk_test_51HyTqpGkl299bo00yD1lTRNK"
+                #stripe.api_key = stripe_secret_test_key 
+                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
@@ -8932,8 +8934,8 @@ class change_purchase(Resource):
             amount_should_refund = round(refund_amount*100,0)
             # print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
             inty=inty-1
-            while len(charge_ids) > 0 and amount_should_refund > 0:
-                # print("amount should refund: ", amount_should_refund)
+            while len(charge_ids) > 0 and amount_should_refund > 0 and charge_ids[inty] is not None:
+                print("amount should refund: ", amount_should_refund)
                 print("stripe3")
                 print(len(charge_ids))
                 #process_id = charge_ids.pop(0)
