@@ -288,6 +288,7 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
 #use below for local testing
 #stripe.api_key = "sk_test_51HyqrgLMju5***Gkl299bo00yD1lTRNK"
+stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
 
 
 
@@ -9398,11 +9399,12 @@ class Stripe_Intent(Resource):
     def post(self):
         response = {}
 
-        #stripe.api_key = stripe_secret_test_key
+        stripe.api_key = stripe_secret_test_key
         note = request.form.get('note')
         print(note, type(note))
         if note == "M4METEST":
-            stripe.api_key = stripe_secret_test_key
+            # stripe.api_key = stripe_secret_test_key
+            stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
             print('TEST')
         else:
             stripe.api_key = stripe_secret_live_key
@@ -9411,7 +9413,14 @@ class Stripe_Intent(Resource):
         if request.form.get('amount') == None:
             raise BadRequest('Request failed. Please provide the amount field.')
         try:
-            amount = int(float(request.form.get('amount')) * 100)
+            # print(request.form.get('amount'))
+            # x = int(round(float(request.form.get('amount'))) * 100)
+            # print("x: ", x)
+            # x = round(float(request.form.get('amount')) * 100)
+            # print("x: ", x)
+            # NEED round TO PREVENT STRIPE INTENT ERROR
+            amount = int(round(float(request.form.get('amount')) * 100))
+            print("Stripe Intent amount 2: ", amount)
         except:
             raise BadRequest('Request failed. Unable to convert amount to int')
         print('AMOUNT------', amount)
