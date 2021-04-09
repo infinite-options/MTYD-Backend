@@ -8821,6 +8821,7 @@ class change_purchase(Resource):
                 return {"message": "Internal Server Error."}, 500
             # write the new purchase_id and payment_id into database
                 # write into Payments table
+            print("just before inserting")
             queries = [
                 '''
                 INSERT INTO M4ME.payments
@@ -8841,11 +8842,7 @@ class change_purchase(Resource):
                                         cc_exp_date = "''' + str(cc_exp_date) + '''",
                                         cc_cvv = "''' + str(cc_cvv) + '''",
                                         cc_zip = "''' + str(cc_zip) + '''",
-                                        service_fee = "''' + float(info_res[0]['result'][0]["service_fee"]) + '''"
-                                        delivery_fee = "''' + float(info_res[0]['result'][0]["delivery_fee"]) + '''",
-                                        driver_tip = "''' + float(info_res[0]['result'][0]["driver_tip"]) + '''",
-                                        taxes = "''' + float(info_res[0]['result'][0]["taxes"]) + '''",
-                                        ambassador_code = 0
+                                        ambassador_code = "0"
                                         ;
                 ''',
                 '''
@@ -8871,6 +8868,7 @@ class change_purchase(Resource):
                                         order_instructions = "''' + order_instructions + '''",
                                         purchase_notes = "''' + purchase_notes + '''";'''
             ]
+            print("right after inserting")
             if refunded:  # if refunded is true then write it to refund table
                 res_refund_uid = get_new_id("CALL new_refund_uid", "GET NEW REFUND UID", conn)
                 if res_refund_uid[1] != 200:
