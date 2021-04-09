@@ -1907,7 +1907,7 @@ class Checkout(Resource):
             cc_zip = data['cc_zip']
             charge_id = data['charge_id']
             payment_type = data['payment_type']
-            amb = data['amb'] if data.get('purchase_notes') is not None else '0'
+            amb = data['amb'] if data.get('amb') is not None else '0'
 
             taxes = data['tax']
             tip = data['tip']
@@ -8845,8 +8845,7 @@ class change_purchase(Resource):
                                         service_fee = "''' + float(info_res[0]['result'][0]["service_fee"]) + '''"
                                         delivery_fee = "''' + float(info_res[0]['result'][0]["delivery_fee"]) + '''",
                                         driver_tip = "''' + float(info_res[0]['result'][0]["driver_tip"]) + '''",
-                                        taxes = "''' + float(info_res[0]['result'][0]["taxes"]) + '''",
-                                        ambassador_code = "''' + float(info_res[0]['result'][0]["ambassador_code"]) + '''"
+                                        taxes = "''' + float(info_res[0]['result'][0]["taxes"]) + '''"
                                         ;
                 ''',
                 '''
