@@ -1907,7 +1907,7 @@ class Checkout(Resource):
             cc_zip = data['cc_zip']
             charge_id = data['charge_id']
             payment_type = data['payment_type']
-            amb = data['amb']
+            amb = data['amb'] if data.get('purchase_notes') is not None else '0'
 
             taxes = data['tax']
             tip = data['tip']
