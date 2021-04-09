@@ -1915,11 +1915,10 @@ class Checkout(Resource):
             delivery_fee = data['delivery_fee']
             subtotal = data['subtotal']
 
-            print(data['charge_id'])
-            print(data['payment_type'])
 
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
             print("0")
+            print(data)
             # We should sanitize the variable before writting into database.
             # must pass these check first
             if items == "'[]'":
@@ -8666,8 +8665,8 @@ class change_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = stripe_secret_test_key 
-                #stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoJQ5TqpGkl299bo00yD1lTRNK" 
+                #stripe.api_key = stripe_secret_test_key 
+                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
@@ -8845,7 +8844,8 @@ class change_purchase(Resource):
                                         service_fee = "''' + float(info_res[0]['result'][0]["service_fee"]) + '''"
                                         delivery_fee = "''' + float(info_res[0]['result'][0]["delivery_fee"]) + '''",
                                         driver_tip = "''' + float(info_res[0]['result'][0]["driver_tip"]) + '''",
-                                        taxes = "''' + float(info_res[0]['result'][0]["taxes"]) + '''"
+                                        taxes = "''' + float(info_res[0]['result'][0]["taxes"]) + '''",
+                                        ambassador_code = 0
                                         ;
                 ''',
                 '''
@@ -9267,8 +9267,8 @@ class cancel_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = stripe_secret_test_key
-                #stripe.api_key = "sk_test_51HyqrgLMj299bo00yD1lTRNK"
+                #stripe.api_key = stripe_secret_test_key
+                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
                 print('TEST')
             else:
                 stripe.api_key = stripe_secret_live_key
@@ -9666,7 +9666,8 @@ def createNewPurchase(id, start_delivery_date):
                         cc_cvv = \'''' + cc_cvv + '''\', 
                         cc_zip = \'''' + cc_zip + '''\',
                         charge_id = \'''' + charge_id + '''\',
-                        payment_type = 'STRIPE';
+                        payment_type = 'STRIPE',
+                        ambassador_code = 0;
                     ''',
                     '''
                     INSERT INTO  M4ME.purchases
