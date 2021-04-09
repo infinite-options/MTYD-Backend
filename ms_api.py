@@ -288,8 +288,6 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
 #use below for local testing
 #stripe.api_key = "sk_test_51HyqrgLMju5***Gkl299bo00yD1lTRNK"
-stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
-
 
 
 
@@ -1909,6 +1907,7 @@ class Checkout(Resource):
             cc_zip = data['cc_zip']
             charge_id = data['charge_id']
             payment_type = data['payment_type']
+            amb = data['amb']
 
             taxes = data['tax']
             tip = data['tip']
@@ -2057,7 +2056,8 @@ class Checkout(Resource):
                                 driver_tip = \'''' + tip + '''\',
                                 service_fee = \'''' + service_fee + '''\',
                                 delivery_fee = \'''' + service_fee + '''\',
-                                subtotal = \'''' + subtotal + '''\';
+                                subtotal = \'''' + subtotal + '''\',
+                                ambassador_code = \'''' + amb + '''\';
                             ''',
                             '''
                             INSERT INTO  M4ME.purchases
@@ -8589,6 +8589,7 @@ class change_purchase(Resource):
         refund_info["driver_tip"]=info_res[0]['result'][0]["driver_tip"]
         refund_info["base_amount"]=info_res[0]['result'][0]["subtotal"]
         refund_info["discount"]=info_res[0]['result'][0]["amount_discount"]
+        refund_info["ambassador_code"]=info_res[0]['result'][0]["ambassador_code"]
         return refund_info
 
     def post(self, purchaseID):
@@ -8748,7 +8749,7 @@ class change_purchase(Resource):
                 try:
                     card_token = stripe.Token.create(card=card_dict)
                     charge_id = stripe.Charge.create(
-                        amount=int(amount_will_charge * 100),
+                        amount=int(round(float(amount_will_charge * 100))),
                         currency="usd",
                         source=card_token,
                         description="Charge for changing Meal Plan",
@@ -8840,7 +8841,13 @@ class change_purchase(Resource):
                                         cc_num = "''' + str(cc_num) + '''",
                                         cc_exp_date = "''' + str(cc_exp_date) + '''",
                                         cc_cvv = "''' + str(cc_cvv) + '''",
-                                        cc_zip = "''' + str(cc_zip) + '''";
+                                        cc_zip = "''' + str(cc_zip) + '''",
+                                        service_fee = "''' + float(info_res[0]['result'][0]["service_fee"]) + '''"
+                                        delivery_fee = "''' + float(info_res[0]['result'][0]["delivery_fee"]) + '''",
+                                        driver_tip = "''' + float(info_res[0]['result'][0]["driver_tip"]) + '''",
+                                        taxes = "''' + float(info_res[0]['result'][0]["taxes"]) + '''",
+                                        ambassador_code = "''' + float(info_res[0]['result'][0]["ambassador_code"]) + '''"
+                                        ;
                 ''',
                 '''
                 INSERT INTO  M4ME.purchases
@@ -9180,9 +9187,13 @@ class change_purchase(Resource):
         print("delivery_fee :", delivery_fee)
         if delivery_fee is None:
             delivery_fee = 0
+        ambassador_code = info_res['ambassador_code']
+        print("ambassador_code :", ambassador_code)
+        if ambassador_code is None:
+            ambassador_code = 0
         #tax rate is base price only
         #driver tip and delivery fee are both percentage
-        customer_paid = (float(price)*int(num_days)*(1-old_discount/100)) * (1+9.25/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee)
+        customer_paid = (float(price)*int(num_days)*(1-old_discount/100)) * (1+9.25/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee) + float(ambassador_code)
         print("4.6")
         print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100)) * (1+9.25/100)  + float(serviceFee) + float(driver_tip) + float(delivery_fee)))
 
@@ -9211,7 +9222,7 @@ class change_purchase(Resource):
             d2_query = execute(delivery_query2, 'get', conn)
             print("here 6")
             new_discount = d2_query["result"][0]["delivery_discount"]
-            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * (1+9.25/100)  + float(driver_tip)/delivered_num + float(delivery_fee)/delivered_num
+            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * (1+9.25/100)  + float(driver_tip)/delivered_num + float(delivery_fee)/delivered_num + float(ambassador_code)/delivered_num
         print("here 7")
         print(customer_used_amount)
         refund_amount = (float(customer_paid) - float(customer_used_amount))
@@ -9403,8 +9414,8 @@ class Stripe_Intent(Resource):
         note = request.form.get('note')
         print(note, type(note))
         if note == "M4METEST":
-            # stripe.api_key = stripe_secret_test_key
-            stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+            stripe.api_key = stripe_secret_test_key
+            #stripe.api_key = "sk_test_51Hy00yD1lTRNK"
             print('TEST')
         else:
             stripe.api_key = stripe_secret_live_key
