@@ -8709,6 +8709,15 @@ class change_purchase(Resource):
             discount = int(d_query[0]["result"][0]["delivery_discount"])
             print("3")
 
+            service_fee = (float(info_res[0]['result'][0]["service_fee"]))
+            print("service_fee " + str(service_fee))
+            delivery_fee = (float(info_res[0]['result'][0]["delivery_fee"]))
+            print("delivery_fee " + str(delivery_fee))
+            amount_discount = float(int(num_days)*price*(1-discount/100))
+            print("amount_discount " + str(amount_discount))
+            driver_tip = (float(info_res[0]['result'][0]["driver_tip"]))
+            print("driver_tip " + str(driver_tip))
+
 
             #calc error happens here
             customer_used_amount = (int(num_days)*price*(1-discount/100))*(1+9.25/100) + float(info_res[0]['result'][0]["service_fee"]) + float(info_res[0]['result'][0]["driver_tip"]) + float(info_res[0]['result'][0]["delivery_fee"])
@@ -8821,18 +8830,48 @@ class change_purchase(Resource):
                 return {"message": "Internal Server Error."}, 500
             # write the new purchase_id and payment_id into database
                 # write into Payments table
+            # service_fee = str(float(info_res[0]['result'][0]["service_fee"]))
+            # print("service_fee " + service_fee)
+            # delivery_fee = str(float(info_res[0]['result'][0]["delivery_fee"]))
+            # print("delivery_fee " + delivery_fee)
+            # amount_discount = str(int(num_days)*price*(1-discount/100))
+            # print("amount_discount " + amount_discount)
+            # driver_tip = str(float(info_res[0]['result'][0]["driver_tip"]))
+            # print("driver_tip " + driver_tip)
+
+###########verison 2
+
+                # INSERT INTO M4ME.payments (payment_uid, payment_time_stamp, start_delivery_date, payment_id, pay_purchase_id,
+                #                             amount_due, amount_discount, amount_paid, pay_coupon_id, charge_id, payment_type,
+                #                             info_is_Addon, cc_num, cc_exp_date, cc_cvv, cc_zip, taxes, service_fee, delivery_fee,
+                #                             amount_discount, driver_tip, ambassador_code)
+                # Values( "''' + payment_uid + '''", "''' + getNow() + '''", "''' + start_delivery_date + '''",
+                #         "''' + payment_id + '''", "''' + purchase_id + '''", "''' + purchase_uid + '''",
+                #         "''' + str(round(amount_will_charge,2)) + '''", 0, "''' + str(round(amount_will_charge,2)) + '''",
+                #         NULL, "''' + charge_id + '''", NULL, "FALSE", "''' + str(cc_num) + '''", "''' + str(cc_exp_date) + '''",
+                #         "''' + str(cc_cvv) + '''", "''' + str(cc_zip) + '''", (int(num_days)*price*(1-discount/100))*(9.25/100),
+                #         "''' + service_fee + '''", "''' + delivery_fee + '''", "''' + amount_discount + '''",
+                #         "''' + driver_tip + '''", "0" );
+
+
+
+
+
+############
+            subtotal = str(float(round((int(num_days)*price)*100))/100)
+            taxes = str(float((round((int(num_days)*price*(1-discount/100))*(9.25/100)*100))/100))
+            print("testing taxes " + str(taxes))
             print("just before inserting")
             queries = [
                 '''
                 INSERT INTO M4ME.payments
-                SET payment_uid = "''' + payment_uid + '''",
+                SET                     payment_uid = "''' + payment_uid + '''",
                                         payment_time_stamp = "''' + getNow() + '''",
                                         start_delivery_date = "''' + start_delivery_date + '''",
                                         payment_id = "''' + payment_id + '''",
                                         pay_purchase_id = "''' + purchase_id + '''",
                                         pay_purchase_uid = "''' + purchase_uid + '''",
                                         amount_due = "''' + str(round(amount_will_charge,2)) + '''",
-                                        amount_discount = 0,
                                         amount_paid = "''' + str(round(amount_will_charge,2)) + '''",
                                         pay_coupon_id = NULL,
                                         charge_id = ''' + charge_id + ''',
@@ -8842,6 +8881,12 @@ class change_purchase(Resource):
                                         cc_exp_date = "''' + str(cc_exp_date) + '''",
                                         cc_cvv = "''' + str(cc_cvv) + '''",
                                         cc_zip = "''' + str(cc_zip) + '''",
+                                        service_fee = "''' + str(service_fee) + '''",
+                                        delivery_fee = "''' + str(delivery_fee) + '''",
+                                        amount_discount = "''' + str(amount_discount) + '''",
+                                        driver_tip = "''' + str(driver_tip) + '''",
+                                        taxes = "''' + taxes + '''",
+                                        subtotal = "''' + subtotal + '''",
                                         ambassador_code = "0"
                                         ;
                 ''',
@@ -8885,7 +8930,6 @@ class change_purchase(Resource):
                                         customer_note = "NOT REQUIRED",
                                         admin_note = "CHANGED MEAL PLAN",
                                         refund_amount = "''' + str(abs(amount_will_charge)) + '";'
-                print(query)
                 refund_res = simple_post_execute([query], ["REFUND"], conn)
                 print("refund_res: ", refund_res)
                 if refund_res[1] != 201:
