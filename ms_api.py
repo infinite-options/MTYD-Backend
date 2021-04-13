@@ -10190,6 +10190,139 @@ class test_cal(Resource):
 
         return {"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
 
+
+@app.route('/stripe-key', methods=['GET'])
+def fetch_key():
+    print("IN fetch key")
+    # Send publishable key to client
+    return jsonify({'publicKey': stripe_public_test_key})
+
+class test_Stripe(Resource):
+    """
+    def post(self):
+        response = {}
+
+        #stripe.api_key = stripe_secret_test_key
+        note = request.form.get('note')
+        print(note, type(note))
+        if note == "SFTEST":
+            stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+            print('TEST')
+        else:
+            stripe.api_key = stripe_secret_live_key
+            print('LIVE')
+
+        if request.form.get('amount') == None:
+            raise BadRequest('Request failed. Please provide the amount field.')
+        try:
+            amount = int(float(request.form.get('amount')) * 100)
+        except:
+            raise BadRequest('Request failed. Unable to convert amount to int')
+        print('AMOUNT------', amount)
+        customer = stripe.Customer.create()
+        # get data['paymentMethodId'] from frontend [line 52 and 61 of server.py]
+        payment_intent_data = dict(
+                amount=amount,
+                currency='usd',
+                payment_method='pm_1IfiMoLMju5RPMEvmLLe2JBW',
+                confirmation_method='manual',
+                confirm=True
+            )
+        payment_intent_data['customer'] = customer['id']
+        
+        payment_intent_data['setup_future_usage'] = 'off_session'
+        
+        intent = stripe.PaymentIntent.create(**payment_intent_data)
+        return intent
+        status = intent['status']
+        if status == 'requires_action' or status == 'requires_source_action':
+            # Card requires authentication
+            return jsonify({'requiresAction': True, 'paymentIntentId': intent['id'], 'clientSecret': intent['client_secret']})
+        elif status == 'requires_payment_method' or status == 'requires_source':
+            # Card was not properly authenticated, suggest a new payment method
+            return jsonify({'error': 'Your card was denied, please provide a new payment method'})
+        elif status == 'succeeded':
+            # Payment is complete, authentication not required
+            # To cancel the payment after capture you will need to issue a Refund (https://stripe.com/docs/api/refunds)
+            print("💰 Payment received!")
+            return jsonify({'clientSecret': intent['client_secret']})
+
+    """
+
+    def post(self, action):
+
+        if action == 'get_public_key':
+            return jsonify({'publicKey': stripe_public_test_key})
+        
+        elif action == 'process_payment':
+            """
+            {
+                'items': [{'id': 'photo-subscription'}],
+                 'currency': 'usd',
+                  'paymentMethodId': 'pm_1IfiSRLMju5RPMEvh0GfkZa6', -- data['paymentMethodId']
+                   'isSavingCard': True}
+            """
+            #data = json.loads(request.data)
+            data = request.get_json(force=True)
+            print('result',data,data['paymentMethodId'])
+            stripe.api_key = stripe_secret_test_key
+            try:
+                if "paymentIntentId" not in data:
+                    #order_amount = calculate_order_amount(data['items'])
+                    payment_intent_data = dict(
+                        amount=1500,
+                        currency=data['currency'],
+                        payment_method=data['paymentMethodId'],
+                        confirmation_method='manual',
+                        confirm=True
+                    )
+                    print('before saving')
+                    if data['isSavingCard']:
+                        # Create a Customer to store the PaymentMethod for reuse
+                        customer = stripe.Customer.create()
+                        payment_intent_data['customer'] = customer['id']
+                        
+                        # setup_future_usage saves the card and tells Stripe how you plan to use it later
+                        # set to 'off_session' if you plan on charging the saved card when the customer is not present
+                        payment_intent_data['setup_future_usage'] = 'off_session'
+                        print("done saving")
+                    # Create a new PaymentIntent for the order
+                    print("in intent")
+                    intent = stripe.PaymentIntent.create(**payment_intent_data)
+                    print("intent----", intent)
+                else:
+                    print("IN ELSE")
+                    # Confirm the PaymentIntent to collect the money
+                    intent = stripe.PaymentIntent.confirm(data['paymentIntentId'])
+                return generate_response(intent)
+            except Exception as e:
+                print("in execption")
+                return "failed"
+        
+        else:
+            return "Choose correct option"
+
+
+    def generate_response(intent):
+        print("IN GENERASTE")
+        status = intent['status']
+        if status == 'requires_action' or status == 'requires_source_action':
+            # Card requires authentication
+            return jsonify({'requiresAction': True, 'paymentIntentId': intent['id'], 'clientSecret': intent['client_secret']})
+        elif status == 'requires_payment_method' or status == 'requires_source':
+            # Card was not properly authenticated, suggest a new payment method
+            return jsonify({'error': 'Your card was denied, please provide a new payment method'})
+        elif status == 'succeeded':
+            # Payment is complete, authentication not required
+            # To cancel the payment after capture you will need to issue a Refund (https://stripe.com/docs/api/refunds)
+            print("💰 Payment received!")
+            return jsonify({'clientSecret': intent['client_secret']})
+
+
+
+
+
+
 ### End of code by Parva ################################################################################
 
 
