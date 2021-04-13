@@ -11198,6 +11198,8 @@ api.add_resource(adminInfo, '/api/v2/adminInfo')
 
 api.add_resource(test_cal, '/api/v2/test_cal/<string:purchaseID>')
 
+api.add_resource(test_Stripe, '/api/v2/test_Stripe/<string:action>')
+
 
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
