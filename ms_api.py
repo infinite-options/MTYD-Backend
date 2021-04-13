@@ -867,6 +867,28 @@ class createAccount(Resource):
         finally:
             disconnect(conn)
 
+# delete account endpoint
+class deleteAccount(Resource):
+    # delete account endpoint
+    # pass in parameter through the url i.e /api/v2/deleteAccount?customer_uid=100-000260
+    def delete(self):
+        try:
+            conn = connect()
+            customer_uid = request.args['customer_uid']
+            query = """
+                    DELETE FROM customers WHERE customer_uid = '""" + customer_uid + """';
+                    """
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            print(response)
+            if response[1] != 201:
+                return response
+            return response[0], 202
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
 class email_verification(Resource):
     def post(self):
 
@@ -10945,6 +10967,9 @@ api.add_resource(Get_Tags_With_GUID_iOS, '/api/v2/Get_Tags_With_GUID_iOS/<string
 api.add_resource(update_all_items, '/api/v2/update_all_items/<string:uid>')
 
 api.add_resource(createAccount, '/api/v2/createAccount')
+
+# delete account endpoint
+api.add_resource(deleteAccount, '/api/v2/deleteAccount')
 
 api.add_resource(email_verification, '/api/v2/email_verification')
 
