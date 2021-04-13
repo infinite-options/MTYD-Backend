@@ -10195,7 +10195,7 @@ class test_cal(Resource):
 def fetch_key():
     print("IN fetch key")
     # Send publishable key to client
-    return jsonify({'publicKey': stripe_public_test_key})
+    return {'publicKey': stripe_public_test_key}
 
 class test_Stripe(Resource):
     """
@@ -10252,7 +10252,7 @@ class test_Stripe(Resource):
     def post(self, action):
 
         if action == 'get_public_key':
-            return jsonify({'publicKey': stripe_public_test_key})
+            return {'publicKey': stripe_public_test_key}
         
         elif action == 'process_payment':
             """
@@ -10308,15 +10308,15 @@ class test_Stripe(Resource):
         status = intent['status']
         if status == 'requires_action' or status == 'requires_source_action':
             # Card requires authentication
-            return jsonify({'requiresAction': True, 'paymentIntentId': intent['id'], 'clientSecret': intent['client_secret']})
+            return {'requiresAction': True, 'paymentIntentId': intent['id'], 'clientSecret': intent['client_secret']}
         elif status == 'requires_payment_method' or status == 'requires_source':
             # Card was not properly authenticated, suggest a new payment method
-            return jsonify({'error': 'Your card was denied, please provide a new payment method'})
+            return {'error': 'Your card was denied, please provide a new payment method'}
         elif status == 'succeeded':
             # Payment is complete, authentication not required
             # To cancel the payment after capture you will need to issue a Refund (https://stripe.com/docs/api/refunds)
             print("💰 Payment received!")
-            return jsonify({'clientSecret': intent['client_secret']})
+            return {'clientSecret': intent['client_secret']}
 
 
 
