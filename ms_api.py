@@ -1,5 +1,5 @@
 #pip3 install shapely
-from flask import Flask, request, render_template, url_for, redirect
+from flask import Flask, request, render_template, url_for, redirect, jsonify, send_from_directory
 from flask_restful import Resource, Api
 from flask_mail import Mail, Message  # used for email
 # used for serializer email and error handling
@@ -289,7 +289,8 @@ stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 #use below for local testing
 #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
 
-
+STRIPE_PUBLISHABLE_KEY=stripe_public_test_key
+STRIPE_SECRET_KEY=stripe_secret_test_key
 
 def get_all_s3_keys(bucket):
     """Get a list of all keys in an S3 bucket."""
@@ -308,6 +309,96 @@ def get_all_s3_keys(bucket):
             break
     print(keys)
     return keys
+
+
+# -----------------------------------------
+#  STRIPE FUNCTIONS
+
+# @app.route('/', methods=['GET'])
+# def get_example():
+#     print("in /")
+#     # Display checkout page
+#     return render_template('index.html')
+
+
+def calculate_order_amount(items):
+    # Replace this constant with a calculation of the order's amount
+    # Calculate the order total on the server to prevent
+    # people from directly manipulating the amount on the client    
+    print("in calculate_order_amount")
+    print("items: ", items)
+    return 1500
+
+
+@app.route('/stripe-key', methods=['GET'])
+def fetch_key():
+    # Send publishable key to client
+    print("in python server stripe-key")
+    # print("publicKey: ", os.getenv('STRIPE_PUBLISHABLE_KEY'))
+    # return jsonify({'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY')})
+    print("publicKey: ", STRIPE_PUBLISHABLE_KEY)
+    return jsonify({'publicKey': STRIPE_PUBLISHABLE_KEY})
+
+
+@app.route('/pay', methods=['POST'])
+def pay():
+    print("in pay")
+    data = json.loads(request.data)
+
+    print("data: ", data)
+    # data:  {'items': [{'id': 'photo-subscription'}], 'currency': 'usd', 'paymentMethodId': 'pm_1IfI3VLMju5RPMEvXS77sYHq', 'isSavingCard': False}
+    try:
+        if "paymentIntentId" not in data:
+            order_amount = calculate_order_amount(data['items'])
+            payment_intent_data = dict(
+                amount=order_amount,
+                currency=data['currency'],
+                payment_method=data['paymentMethodId'],
+                confirmation_method='manual',
+                confirm=True
+            )
+
+            if data['isSavingCard']:
+                # Create a Customer to store the PaymentMethod for reuse
+                customer = stripe.Customer.create()
+                print("Customer: ", customer)
+                payment_intent_data['customer'] = customer['id']
+                
+                # setup_future_usage saves the card and tells Stripe how you plan to use it later
+                # set to 'off_session' if you plan on charging the saved card when the customer is not present
+                payment_intent_data['setup_future_usage'] = 'off_session'
+
+            # Create a new PaymentIntent for the order
+            intent = stripe.PaymentIntent.create(**payment_intent_data)
+        else:
+            # Confirm the PaymentIntent to collect the money
+            intent = stripe.PaymentIntent.confirm(data['paymentIntentId'])
+        return generate_response(intent)
+    except Exception as e:
+        return jsonify(error=str(e)), 403
+
+
+def generate_response(intent):
+    print("generate_response")
+    status = intent['status']
+    if status == 'requires_action' or status == 'requires_source_action':
+        # Card requires authentication
+        return jsonify({'requiresAction': True, 'paymentIntentId': intent['id'], 'clientSecret': intent['client_secret']})
+    elif status == 'requires_payment_method' or status == 'requires_source':
+        # Card was not properly authenticated, suggest a new payment method
+        return jsonify({'error': 'Your card was denied, please provide a new payment method'})
+    elif status == 'succeeded':
+        # Payment is complete, authentication not required
+        # To cancel the payment after capture you will need to issue a Refund (https://stripe.com/docs/api/refunds)
+        print("💰 Payment received!")
+        return jsonify({'clientSecret': intent['client_secret']})
+
+
+#  END STRIPE FUNCTIONS
+# -----------------------------------------
+
+
+
 
 
 
