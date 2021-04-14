@@ -345,7 +345,7 @@ def pay():
     print("in pay")
     data = json.loads(request.data)
 
-    print("data: ", data)
+    # print("data: ", data)
     # data:  {'items': [{'id': 'photo-subscription'}], 'currency': 'usd', 'paymentMethodId': 'pm_1IfI3VLMju5RPMEvXS77sYHq', 'isSavingCard': False}
     try:
         if "paymentIntentId" not in data:
@@ -361,7 +361,7 @@ def pay():
             if data['isSavingCard']:
                 # Create a Customer to store the PaymentMethod for reuse
                 customer = stripe.Customer.create()
-                print("Customer: ", customer)
+                # print("Customer: ", customer)
                 payment_intent_data['customer'] = customer['id']
                 
                 # setup_future_usage saves the card and tells Stripe how you plan to use it later
