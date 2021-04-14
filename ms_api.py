@@ -42,7 +42,7 @@ RDS_USER = 'admin'
 RDS_DB = 'M4ME'
 
 app = Flask(__name__)
-# cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
+cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
 # Set this to false when deploying to live application
 app.config['DEBUG'] = True
 # Adding for email testing
@@ -330,7 +330,7 @@ def calculate_order_amount(items):
     return 1500
 
 
-@app.route('/stripe-key', methods=['GET'])
+@app.route('/api/stripe-key', methods=['GET'])
 def fetch_key():
     # Send publishable key to client
     print("in python server stripe-key")
@@ -340,7 +340,7 @@ def fetch_key():
     return jsonify({'publicKey': STRIPE_PUBLISHABLE_KEY})
 
 
-@app.route('/pay', methods=['POST'])
+@app.route('/api/pay', methods=['POST'])
 def pay():
     print("in pay")
     data = json.loads(request.data)
