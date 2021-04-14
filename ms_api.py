@@ -314,6 +314,9 @@ def get_all_s3_keys(bucket):
 # -----------------------------------------
 #  STRIPE FUNCTIONS
 
+stripe.api_key = STRIPE_SECRET_KEY
+stripe.api_version = None
+
 # @app.route('/', methods=['GET'])
 # def get_example():
 #     print("in /")
