@@ -42,7 +42,7 @@ RDS_USER = 'admin'
 RDS_DB = 'M4ME'
 
 app = Flask(__name__)
-cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
+# cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
 # Set this to false when deploying to live application
 app.config['DEBUG'] = True
 # Adding for email testing
