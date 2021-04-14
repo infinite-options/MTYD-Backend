@@ -325,24 +325,24 @@ def calculate_order_amount(items):
     # Replace this constant with a calculation of the order's amount
     # Calculate the order total on the server to prevent
     # people from directly manipulating the amount on the client    
-    print("in calculate_order_amount")
-    print("items: ", items)
+    # print("in calculate_order_amount")
+    # print("items: ", items)
     return 1500
 
 
 @app.route('/api/stripe-key', methods=['GET'])
 def fetch_key():
     # Send publishable key to client
-    print("in python server stripe-key")
+    # print("in python server stripe-key")
     # print("publicKey: ", os.getenv('STRIPE_PUBLISHABLE_KEY'))
     # return jsonify({'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY')})
-    print("publicKey: ", STRIPE_PUBLISHABLE_KEY)
+    # print("publicKey: ", STRIPE_PUBLISHABLE_KEY)
     return jsonify({'publicKey': STRIPE_PUBLISHABLE_KEY})
 
 
 @app.route('/api/pay', methods=['POST'])
 def pay():
-    print("in pay")
+    # print("in pay")
     data = json.loads(request.data)
 
     # print("data: ", data)
@@ -379,7 +379,7 @@ def pay():
 
 
 def generate_response(intent):
-    print("generate_response")
+    # print("generate_response")
     status = intent['status']
     if status == 'requires_action' or status == 'requires_source_action':
         # Card requires authentication
@@ -390,7 +390,7 @@ def generate_response(intent):
     elif status == 'succeeded':
         # Payment is complete, authentication not required
         # To cancel the payment after capture you will need to issue a Refund (https://stripe.com/docs/api/refunds)
-        print("💰 Payment received!")
+        # print("💰 Payment received!")
         return jsonify({'clientSecret': intent['client_secret']})
 
 
