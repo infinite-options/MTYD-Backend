@@ -382,7 +382,8 @@ def pay():
 
             if data['isSavingCard']:
                 # Create a Customer to store the PaymentMethod for reuse
-                customer = stripe.Customer.create()
+                # customer = stripe.Customer.create()
+                customer = stripe.Customer.create(id="100-000125")
                 # print("Customer: ", customer)
                 payment_intent_data['customer'] = customer['id']
                 
