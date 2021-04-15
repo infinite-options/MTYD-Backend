@@ -426,7 +426,7 @@ def pay():
 
 
                     try:
-                        stripe.Customer.retrieve("100-000140")
+                        stripe.Customer.retrieve(data['customerUid'])
                     except:
                         # return str(2100)
                         customer = stripe.Customer.create(id=data['customerUid'])
