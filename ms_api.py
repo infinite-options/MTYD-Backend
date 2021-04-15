@@ -10315,12 +10315,75 @@ class test_Stripe(Resource):
         elif status == 'succeeded':
             # Payment is complete, authentication not required
             # To cancel the payment after capture you will need to issue a Refund (https://stripe.com/docs/api/refunds)
-            print("💰 Payment received!")
+            print("Payment received!")
             return {'clientSecret': intent['client_secret']}
 
 
 
 
+class predict_autopay_day(Resource):
+
+    def get(self, id):
+
+        try:
+            conn = connect()
+            query = """
+                    select * from
+                    (select * 
+                    from M4ME.purchases, M4ME.payments
+                    where purchase_status = 'ACTIVE' AND purchase_uid = pay_purchase_uid) as gg
+                    left join (SELECT S.sel_purchase_id, S.sel_menu_date, S.meal_selection, S.delivery_day FROM
+                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
+                        GROUP BY sel_purchase_id,sel_menu_date) AS GB
+                        INNER JOIN M4ME.meals_selected S
+                        ON S.sel_purchase_id = GB.sel_purchase_id
+                            AND S.sel_menu_date = GB.sel_menu_date
+                            AND S.selection_time = GB.max_selection_time
+                    ) as gh
+                    on gh.sel_purchase_id = gg.purchase_id
+                    WHERE gg.purchase_id = '""" + id + """'
+
+                    """
+            items = execute(query, 'get', conn)
+            number_of_delivery = json.loads(items['result'][0]['items'])
+            number_of_delivery = int(number_of_delivery[0]['qty'])
+            
+            delivery_day = {}
+            for vals in items['result']:
+                if vals['sel_menu_date']:
+                    del_date = vals['sel_menu_date'].replace('-',':')
+                    delivery_day[del_date] = vals['delivery_day']
+                
+                
+            delivery = items['result'][0]['start_delivery_date']
+
+            start_delivery_date = delivery.replace('-',':')
+            
+            query_dates = """
+                            SELECT DISTINCT(menu_date)
+                            FROM M4ME.menu
+                            WHERE menu_date >= '""" + start_delivery_date + """'
+                            ORDER BY menu_date
+                          """
+            items_dates = execute(query_dates, 'get', conn)
+
+            ct = 0
+            for vals in items_dates['result']:
+                days = vals['menu_date'].replace("-",":")
+                if days in delivery_day:
+                    if delivery_day[days] == 'SKIP':
+                        continue
+                ct += 1
+                if ct == number_of_delivery:
+                    return vals
+
+            
+            return 'not enough menu dates'
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
 ### End of code by Parva ################################################################################
@@ -11199,6 +11262,9 @@ api.add_resource(adminInfo, '/api/v2/adminInfo')
 api.add_resource(test_cal, '/api/v2/test_cal/<string:purchaseID>')
 
 api.add_resource(test_Stripe, '/api/v2/test_Stripe/<string:action>')
+
+api.add_resource(predict_autopay_day, '/api/v2/predict_autopay_day/<string:id>')
+
 
 
 # Run on below IP address and port
