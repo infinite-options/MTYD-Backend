@@ -417,6 +417,130 @@ def generate_response(intent):
 
 
 #  END STRIPE FUNCTIONS
+
+#  ADDITIONAL STRIPE FUNCTIONS FOR ADDITIONAL CHARGES
+
+# USE CUSTOMER ID TO RETURN PAYMENT METHOD IDs
+
+            # stripe.PaymentMethod.list(
+            # customer="{{CUSTOMER_ID}}",
+            # type="card",
+            # )
+    
+# USE CUSTOMER ID, PAYMENT METHOD ID, AMOUNT AND CURRENCY TO RETURN PAYMENT INTENT
+#       SET off_session = TRUE             ==> Card Holder not present when making charge
+#       SET PaymentIntent.confirm = TRUE   ==> Causes CONFIRM to happen immediately
+
+            # try:
+            # stripe.PaymentIntent.create(
+            #     amount=1099,
+            #     currency='usd',
+            #     customer='{{CUSTOMER_ID}}',
+            #     payment_method='{{PAYMENT_METHOD_ID}}',
+            #     off_session=True,
+            #     confirm=True,
+            # )
+            # except stripe.error.CardError as e:
+            # err = e.error
+            # # Error code will be authentication_required if authentication is needed
+            # print("Code is: %s" % err.code)
+            # payment_intent_id = err.payment_intent['id']
+            # payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+
+# NEED RECOVERY FLOW IF PAYMENT IS DENIED
+
+
+#  STRATEGY:
+#  1.  MAKE AN ENDPOINT THAT I CAN CALL - PASS IN CUSTOMER UID, RETURN PAYMENT IDS
+#  2.  MAKEN ANOTHER ENDPOINT - PASS IN CUSTOMER UID AND PAYMENT ID AND SEE IF CARD IS CHARGED
+
+
+
+@app.route('/api/charge-stripe-list', methods=['GET'])
+def charge_stripe_list():
+
+        STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
+        stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+        stripe.api_version = None
+
+        return(stripe.PaymentMethod.list(
+        customer="cus_JIs895uFwsFmKH",
+        type="card",
+        ))
+
+
+@app.route('/api/charge-card-off-session', methods=['POST'])
+def create_off_session_payment():
+    data = json.loads(request.data)
+
+    STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
+    stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+    stripe.api_version = None
+
+    try:
+        # You need to attach the PaymentMethod to a Customer in order to reuse
+        # Since we are using test cards, create a new Customer here
+        # You would do this in your payment flow that saves cards
+        # customer = stripe.Customer.create(
+        #     payment_method=data['paymentMethod']
+        # )
+
+        # List the customer's payment methods to find one to charge
+        # payment_methods = stripe.PaymentMethod.list(
+        #     customer = "cus_JIs895uFwsFmKH",
+        #     payment = "pm_1IgGOSLMju5RPMEvW6ofgVl8",
+        #     # customer=customer['id'],
+        #     type='card'
+        # )
+
+        # Create and confirm a PaymentIntent with the
+        # order amount, currency, Customer and PaymentMethod IDs
+        # If authentication is required or the card is declined, Stripe
+        # will throw an error
+        intent = stripe.PaymentIntent.create(
+            amount=1700,
+            currency='usd',
+            # payment_method=payment_methods['data'][0]['id'],
+            # customer=customer['id'],
+            payment_method = "pm_1IgGOSLMju5RPMEvW6ofgVl8",
+            customer = "cus_JIs895uFwsFmKH",
+            confirm=True,
+            off_session=True
+        )
+
+        return jsonify({
+            'succeeded': True, 
+            'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY'), 
+            'clientSecret': intent.client_secret
+        })
+    except stripe.error.CardError as e:
+        err = e.error
+        if err.code == 'authentication_required':
+            # Bring the customer back on-session to authenticate the purchase
+            # You can do this by sending an email or app notification to let them know
+            # the off-session purchase failed
+            # Use the PM ID and client_secret to authenticate the purchase
+            # without asking your customers to re-enter their details
+            return jsonify({
+                'error': 'authentication_required', 
+                'paymentMethod': err.payment_method.id, 
+                'amount': calculate_order_amount(), 
+                'card': err.payment_method.card, 
+                'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY'), 
+                'clientSecret': err.payment_intent.client_secret
+            })
+        elif err.code:
+            # The card was declined for other reasons (e.g. insufficient funds)
+            # Bring the customer back on-session to ask them for a new payment method
+            return jsonify({
+                'error': err.code, 
+                'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY'), 
+                'clientSecret': err.payment_intent.client_secret
+            })
+
+
+
+
 # -----------------------------------------
 
 
