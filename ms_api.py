@@ -243,11 +243,11 @@ def simple_get_execute(query, name_to_show, conn):
         search = re.search(r'#(.*?):', query)
         query_number = "    " + search.group(1) + "     " if search is not None else "UNKNOWN QUERY NUMBER"
         string = " Cannot run the query for " + name_to_show + "."
-        # print("\n")
-        # print("*" * (len(string) + 10))
-        # print(string.center(len(string) + 10, "*"))
-        # print(query_number.center(len(string) + 10, "*"))
-        # print("*" * (len(string) + 10), "\n")
+        print("\n")
+        print("*" * (len(string) + 10))
+        print(string.center(len(string) + 10, "*"))
+        print(query_number.center(len(string) + 10, "*"))
+        print("*" * (len(string) + 10), "\n")
         response['message'] = 'Internal Server Error.'
         return response, 500
     elif not res['result']:
@@ -272,9 +272,9 @@ def simple_post_execute(queries, names, conn):
         res = execute(queries[i], 'post', conn)
         if res['code'] != 281:
             string = " Cannot Insert into the " + names[i] + " table. "
-            # print("*" * (len(string) + 10))
-            # print(string.center(len(string) + 10, "*"))
-            # print("*" * (len(string) + 10))
+            print("*" * (len(string) + 10))
+            print(string.center(len(string) + 10, "*"))
+            print("*" * (len(string) + 10))
             response['message'] = "Internal Server Error."
             return response, 500
     response['message'] = "Successful."
@@ -8600,13 +8600,16 @@ class change_purchase(Resource):
             temp_key = ""
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
-            if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = stripe_secret_test_key 
-                #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-                print('TEST')
-            else:
-                stripe.api_key = stripe_secret_live_key
-                print('LIVE')
+            
+
+            stripe.api_key = get_stripe_key.get_key(info_res[0]['result'][0]["delivery_instructions"])
+            # if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
+            #     stripe.api_key = stripe_secret_test_key 
+            #     #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+            #     print('TEST')
+            # else:
+            #     stripe.api_key = stripe_secret_live_key
+            #     print('LIVE')
 
 
 
@@ -9244,13 +9247,16 @@ class cancel_purchase(Resource):
             temp_key = ""
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
-            if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-                stripe.api_key = stripe_secret_test_key
-                #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-                print('TEST')
-            else:
-                stripe.api_key = stripe_secret_live_key
-                print('LIVE')
+            stripe.api_key = get_stripe_key.get_key(info_res[0]['result'][0]["delivery_instructions"])
+
+
+            # if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
+            #     stripe.api_key = stripe_secret_test_key
+            #     #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+            #     print('TEST')
+            # else:
+            #     stripe.api_key = stripe_secret_live_key
+            #     print('LIVE')
             print("try here 0")
             #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
             refund_info = change_purchase().new_refund_calculator(info_res[0]['result'][0], conn)
@@ -10732,7 +10738,32 @@ class lplp_specific(Resource):
         finally:
             disconnect(conn)
 
+class customer_lists(Resource):
+    def get_list(self, c_uid, card_type):
+        try:
+            STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
+            stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+            stripe.api_version = None
 
+            return(stripe.PaymentMethod.list(
+            customer=c_uid,
+            type=card_type,
+            ))
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+
+class get_stripe_key(Resource):
+    def get_key(self, notes)
+            if notes == "M4METEST":
+                print('TEST')
+                return stripe_secret_test_key 
+                # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+                
+            else:
+                print('LIVE')
+                return stripe_secret_live_key
+                
 # Define API routes
 # Customer APIs
 
