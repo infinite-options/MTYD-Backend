@@ -352,17 +352,25 @@ def calculate_order_amount(items):
     return 2100
 
 
-@app.route('/api/stripe-key', methods=['GET'])
-def fetch_key():
-    # Send publishable key to client
-    # print("in python server stripe-key")
-    # print("publicKey: ", os.getenv('STRIPE_PUBLISHABLE_KEY'))
-    # return jsonify({'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY')})
-    # print("publicKey: ", STRIPE_PUBLISHABLE_KEY)
-    return jsonify({'publicKey': STRIPE_PUBLISHABLE_KEY})
+# REPLACED B CLASS stripe_key BELOW
+# @app.route('/api/stripe-key', methods=['GET'])
+# def fetch_key():
+#     # Send publishable key to client
+#     # print("in python server stripe-key")
+#     # print("publicKey: ", os.getenv('STRIPE_PUBLISHABLE_KEY'))
+#     # return jsonify({'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY')})
+#     # print("publicKey: ", STRIPE_PUBLISHABLE_KEY)
+#     return jsonify({'publicKey': STRIPE_PUBLISHABLE_KEY})
+
+class stripe_key(Resource):
+    def get(self, desc):          
+        if desc == 'M4METEST':
+            return {'publicKey': stripe_public_test_key} 
+        else:             
+            return {'publicKey': stripe_public_live_key} 
 
 
-@app.route('/api/pay', methods=['POST'])
+@app.route('/api/v2/pay', methods=['POST'])
 def pay():
     # print("in pay")
     data = json.loads(request.data)
@@ -457,7 +465,7 @@ def generate_response(intent):
 
 
 
-@app.route('/api/charge-stripe-list', methods=['GET'])
+@app.route('/api/v2/charge-stripe-list', methods=['GET'])
 def charge_stripe_list():
 
         STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
@@ -466,12 +474,12 @@ def charge_stripe_list():
 
         return str(stripe.PaymentMethod.list(
         # customer = "cus_JIs895uFwsFmKH",
-        customer = "100-000125",
+        customer = "100-000140",
         type="card",
         ))
 
 
-@app.route('/api/charge-card-off-session', methods=['POST'])
+@app.route('/api/v2/charge-card-off-session', methods=['POST'])
 def create_off_session_payment():
     data = json.loads(request.data)
 
@@ -500,13 +508,13 @@ def create_off_session_payment():
         # If authentication is required or the card is declined, Stripe
         # will throw an error
         intent = stripe.PaymentIntent.create(
-            amount=1700,
+            amount=2700,
             currency='usd',
             # payment_method=payment_methods['data'][0]['id'],
             # customer=customer['id'],
-            payment_method = "pm_1IgGOSLMju5RPMEvW6ofgVl8",
+            payment_method = "pm_1IgaFQLMju5RPMEvmyq385vW",
             # customer = "cus_JIs895uFwsFmKH",
-            customer = "100-000125",
+            customer = "100-000140",
             confirm=True,
             off_session=True
         )
@@ -11049,6 +11057,8 @@ api.add_resource(discount_percentage, '/api/v2/discount_percentage/<string:n_del
 api.add_resource(change_purchase, '/api/v2/change_purchase/<string:purchaseID>')
 
 api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
+
+api.add_resource(stripe_key, '/api/v2/stripe_key/<string:desc>')
 
 api.add_resource(createAccount2, '/api/v2/createAccount2')
 
