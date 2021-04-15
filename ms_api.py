@@ -464,8 +464,9 @@ def charge_stripe_list():
         stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
         stripe.api_version = None
 
-        return(stripe.PaymentMethod.list(
-        customer="cus_JIs895uFwsFmKH",
+        return str(stripe.PaymentMethod.list(
+        # customer = "cus_JIs895uFwsFmKH",
+        customer = "100-000125",
         type="card",
         ))
 
@@ -504,14 +505,15 @@ def create_off_session_payment():
             # payment_method=payment_methods['data'][0]['id'],
             # customer=customer['id'],
             payment_method = "pm_1IgGOSLMju5RPMEvW6ofgVl8",
-            customer = "cus_JIs895uFwsFmKH",
+            # customer = "cus_JIs895uFwsFmKH",
+            customer = "100-000125",
             confirm=True,
             off_session=True
         )
 
         return jsonify({
             'succeeded': True, 
-            'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY'), 
+            'publicKey': 'STRIPE_PUBLISHABLE_KEY', 
             'clientSecret': intent.client_secret
         })
     except stripe.error.CardError as e:
@@ -527,7 +529,7 @@ def create_off_session_payment():
                 'paymentMethod': err.payment_method.id, 
                 'amount': calculate_order_amount(), 
                 'card': err.payment_method.card, 
-                'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY'), 
+                'publicKey': 'STRIPE_PUBLISHABLE_KEY', 
                 'clientSecret': err.payment_intent.client_secret
             })
         elif err.code:
@@ -535,7 +537,7 @@ def create_off_session_payment():
             # Bring the customer back on-session to ask them for a new payment method
             return jsonify({
                 'error': err.code, 
-                'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY'), 
+                'publicKey': 'STRIPE_PUBLISHABLE_KEY', 
                 'clientSecret': err.payment_intent.client_secret
             })
 
