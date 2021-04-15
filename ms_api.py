@@ -349,7 +349,7 @@ def calculate_order_amount(items):
     # people from directly manipulating the amount on the client    
     # print("in calculate_order_amount")
     # print("items: ", items)
-    return 1500
+    return 2100
 
 
 @app.route('/api/stripe-key', methods=['GET'])
@@ -371,7 +371,7 @@ def pay():
     # data:  {'items': [{'id': 'photo-subscription'}], 'currency': 'usd', 'paymentMethodId': 'pm_1IfI3VLMju5RPMEvXS77sYHq', 'isSavingCard': False}
     try:
         if "paymentIntentId" not in data:
-            order_amount = calculate_order_amount(data['items'])
+            order_amount = calculate_order_amount(data['selectedPlan'])
             payment_intent_data = dict(
                 amount=order_amount,
                 currency=data['currency'],
@@ -383,7 +383,7 @@ def pay():
             if data['isSavingCard']:
                 # Create a Customer to store the PaymentMethod for reuse
                 # customer = stripe.Customer.create()
-                customer = stripe.Customer.create(id="100-000125")
+                customer = stripe.Customer.create(id=data['customerUid'])
                 # print("Customer: ", customer)
                 payment_intent_data['customer'] = customer['id']
                 
@@ -513,7 +513,7 @@ def create_off_session_payment():
 
         return jsonify({
             'succeeded': True, 
-            'publicKey': 'STRIPE_PUBLISHABLE_KEY', 
+            'publicKey': STRIPE_PUBLISHABLE_KEY, 
             'clientSecret': intent.client_secret
         })
     except stripe.error.CardError as e:
@@ -529,7 +529,7 @@ def create_off_session_payment():
                 'paymentMethod': err.payment_method.id, 
                 'amount': calculate_order_amount(), 
                 'card': err.payment_method.card, 
-                'publicKey': 'STRIPE_PUBLISHABLE_KEY', 
+                'publicKey': STRIPE_PUBLISHABLE_KEY, 
                 'clientSecret': err.payment_intent.client_secret
             })
         elif err.code:
@@ -537,7 +537,7 @@ def create_off_session_payment():
             # Bring the customer back on-session to ask them for a new payment method
             return jsonify({
                 'error': err.code, 
-                'publicKey': 'STRIPE_PUBLISHABLE_KEY', 
+                'publicKey': STRIPE_PUBLISHABLE_KEY, 
                 'clientSecret': err.payment_intent.client_secret
             })
 
