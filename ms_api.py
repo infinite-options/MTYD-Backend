@@ -370,6 +370,31 @@ class stripe_key(Resource):
             return {'publicKey': stripe_public_live_key} 
 
 
+
+@app.route('/api/v2/customer', methods=['GET'])
+def stripe_customer():
+    stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+    # Send publishable key to client
+    # print("in python server stripe-key")
+    # print("publicKey: ", os.getenv('STRIPE_PUBLISHABLE_KEY'))
+    # return jsonify({'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY')})
+    # print("publicKey: ", STRIPE_PUBLISHABLE_KEY)
+    #return stripe.Customer.retrieve("100-020140")
+
+
+    try:
+        return stripe.Customer.retrieve("100-000140")
+    except:
+        return str(2100)
+
+    # if "No such customer" in stripe.Customer.retrieve("100-020140"):
+    #     print ("Found!")
+    # else:
+    #     print ("Not found!")
+    # return
+
+
+
 @app.route('/api/v2/pay', methods=['POST'])
 def pay():
     # print("in pay")
@@ -388,16 +413,29 @@ def pay():
                 confirm=True
             )
 
+
+
+
+
+
             if data['isSavingCard']:
                 # Create a Customer to store the PaymentMethod for reuse
                 # customer = stripe.Customer.create()
-                customer = stripe.Customer.create(id=data['customerUid'])
-                # print("Customer: ", customer)
-                payment_intent_data['customer'] = customer['id']
-                
-                # setup_future_usage saves the card and tells Stripe how you plan to use it later
-                # set to 'off_session' if you plan on charging the saved card when the customer is not present
-                payment_intent_data['setup_future_usage'] = 'off_session'
+                # if stripe.Customer.retrieve(id=data['customerUid')== False:
+                    # false
+
+
+                    try:
+                        stripe.Customer.retrieve("100-000140")
+                    except:
+                        # return str(2100)
+                        customer = stripe.Customer.create(id=data['customerUid'])
+                        # print("Customer: ", customer)
+                        payment_intent_data['customer'] = customer['id']
+                    
+                        # setup_future_usage saves the card and tells Stripe how you plan to use it later
+                        # set to 'off_session' if you plan on charging the saved card when the customer is not present
+                        payment_intent_data['setup_future_usage'] = 'off_session'
 
             # Create a new PaymentIntent for the order
             intent = stripe.PaymentIntent.create(**payment_intent_data)
