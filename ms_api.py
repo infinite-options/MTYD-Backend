@@ -1,3 +1,9 @@
+
+# M4ME BACKEND PYTHON FILE
+# mealsfor.me
+# https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev/api/v2/<enter_endpoint_details>
+
+
 #pip3 install shapely
 from flask import Flask, request, render_template, url_for, redirect, jsonify, send_from_directory
 from flask_restful import Resource, Api
@@ -33,6 +39,14 @@ from shapely.geometry.polygon import Polygon
 import os
 s3 = boto3.client('s3')
 
+
+app = Flask(__name__)
+cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
+# Set this to false when deploying to live application
+app.config['DEBUG'] = True
+
+
+# DATABASE INFO
 # RDS for AWS SQL 5.7
 # RDS_HOST = 'pm-mysqldb.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
 # RDS for AWS SQL 8.0
@@ -40,12 +54,32 @@ RDS_HOST = 'io-mysqldb8.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
 RDS_PORT = 3306
 RDS_USER = 'admin'
 RDS_DB = 'M4ME'
+RDS_PW="prashant"
+# RDS_PW = os.environ.get('RDS_PW')
 
-app = Flask(__name__)
-cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
-# Set this to false when deploying to live application
-app.config['DEBUG'] = True
-# Adding for email testing
+
+
+# STRIPE AND PAYPAL KEYS
+paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
+paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
+
+paypal_client_test_key = os.environ.get('paypal_client_test_key')
+paypal_client_live_key = os.environ.get('paypal_client_live_key')
+
+stripe_public_test_key = os.environ.get('stripe_public_test_key')
+stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
+
+stripe_public_live_key = os.environ.get('stripe_public_live_key')
+stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
+
+#stripe.api_key = stripe_secret_test_key
+
+#use below for local testing
+#stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+
+
+
+# EMAIL INFO
 #app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_SERVER'] = 'smtp.mydomain.com'
 app.config['MAIL_PORT'] = 465
@@ -53,14 +87,11 @@ app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = 'support@mealsfor.me'
 app.config['MAIL_PASSWORD'] = 'SupportM4Me'
 app.config['MAIL_DEFAULT_SENDER'] = 'support@mealsfor.me'
-
 # app.config['MAIL_USERNAME'] = os.environ.get('SUPPORT_EMAIL')
 # app.config['MAIL_PASSWORD'] = os.environ.get('SUPPORT_PASSWORD')
 # app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('SUPPORT_EMAIL')
 
-RDS_PW = os.environ.get('RDS_PW')
 
-RDS_PW="prashant"
 
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
@@ -73,11 +104,16 @@ s = URLSafeTimedSerializer('thisisaverysecretkey')
 # API
 api = Api(app)
 
+
+
 # convert to UTC time zone when testing in local time zone
 utc = pytz.utc
 def getToday(): return datetime.strftime(datetime.now(utc), "%Y-%m-%d")
 def getNow(): return datetime.strftime(datetime.now(utc),"%Y-%m-%d %H:%M:%S")
 
+
+
+# CONNECT AND DISCONNECT TO MYSQL DATABASE ON AWS RDS (API v2)
 # Connect to MySQL database (API v2)
 def connect():
     global RDS_PW
@@ -101,7 +137,6 @@ def connect():
         print("Could not connect to RDS. (API v2)")
         raise Exception("RDS Connection failed. (API v2)")
 
-
 # Disconnect from MySQL database (API v2)
 def disconnect(conn):
     try:
@@ -110,7 +145,6 @@ def disconnect(conn):
     except:
         print("Could not properly disconnect from MySQL database. (API v2)")
         raise Exception("Failure disconnecting from MySQL database. (API v2)")
-
 
 
 
@@ -140,6 +174,7 @@ def serializeResponse(response):
         return response
     except:
         raise Exception("Bad query JSON")
+
 
 
 # Execute an SQL command (API v2)
@@ -176,6 +211,9 @@ def execute(sql, cmd, conn, skipSerialization=False):
         # response['sql'] = sql
         return response
 
+
+
+# RUN STORED PROCEDURES
 def get_new_paymentID(conn):
     newPaymentQuery = execute("CALL new_payment_uid", 'get', conn)
     if newPaymentQuery['code'] == 280:
@@ -205,11 +243,11 @@ def simple_get_execute(query, name_to_show, conn):
         search = re.search(r'#(.*?):', query)
         query_number = "    " + search.group(1) + "     " if search is not None else "UNKNOWN QUERY NUMBER"
         string = " Cannot run the query for " + name_to_show + "."
-        print("\n")
-        print("*" * (len(string) + 10))
-        print(string.center(len(string) + 10, "*"))
-        print(query_number.center(len(string) + 10, "*"))
-        print("*" * (len(string) + 10), "\n")
+        # print("\n")
+        # print("*" * (len(string) + 10))
+        # print(string.center(len(string) + 10, "*"))
+        # print(query_number.center(len(string) + 10, "*"))
+        # print("*" * (len(string) + 10), "\n")
         response['message'] = 'Internal Server Error.'
         return response, 500
     elif not res['result']:
@@ -223,20 +261,20 @@ def simple_get_execute(query, name_to_show, conn):
 
 def simple_post_execute(queries, names, conn):
     response = {}
-    print("in simple_post_execute")
-    print("queries: ", queries)
-    print("names: ", names)
-    print("conn: ", conn)
-    print(len(queries), len(names))
+    # print("in simple_post_execute")
+    # print("queries: ", queries)
+    # print("names: ", names)
+    # print("conn: ", conn)
+    # print(len(queries), len(names))
     if len(queries) != len(names):
         return "Error. Queries and Names should have the same length."
     for i in range(len(queries)):
         res = execute(queries[i], 'post', conn)
         if res['code'] != 281:
             string = " Cannot Insert into the " + names[i] + " table. "
-            print("*" * (len(string) + 10))
-            print(string.center(len(string) + 10, "*"))
-            print("*" * (len(string) + 10))
+            # print("*" * (len(string) + 10))
+            # print(string.center(len(string) + 10, "*"))
+            # print("*" * (len(string) + 10))
             response['message'] = "Internal Server Error."
             return response, 500
     response['message'] = "Successful."
@@ -252,14 +290,14 @@ def destructure (d, *keys):
 
 def helper_upload_meal_img(file, key):
     bucket = 'mtyd'
-    print("photo 1")
-    print("file: ", file)
-    print(allowed_file(file.filename))
+    # print("photo 1")
+    # print("file: ", file)
+    # print(allowed_file(file.filename))
     if file and allowed_file(file.filename):
         filename = 'https://s3-us-west-1.amazonaws.com/' \
                     + str(bucket) + '/' + str(key)
-        print("filename: ", filename)
-        print("photo 2")
+        # print("filename: ", filename)
+        # print("photo 2")
         upload_file = s3.put_object(
                             Bucket=bucket,
                             Body=file,
@@ -270,27 +308,6 @@ def helper_upload_meal_img(file, key):
         return filename
     return None
 
-
-
-paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
-paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
-
-paypal_client_test_key = os.environ.get('paypal_client_test_key')
-paypal_client_live_key = os.environ.get('paypal_client_live_key')
-
-stripe_public_test_key = os.environ.get('stripe_public_test_key')
-stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
-
-stripe_public_live_key = os.environ.get('stripe_public_live_key')
-stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
-
-#stripe.api_key = stripe_secret_test_key
-
-#use below for local testing
-#stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-
-STRIPE_PUBLISHABLE_KEY=stripe_public_test_key
-STRIPE_SECRET_KEY=stripe_secret_test_key
 
 def get_all_s3_keys(bucket):
     """Get a list of all keys in an S3 bucket."""
@@ -311,10 +328,12 @@ def get_all_s3_keys(bucket):
     return keys
 
 
+
 # -----------------------------------------
 #  STRIPE FUNCTIONS
 
-stripe.api_key = STRIPE_SECRET_KEY
+STRIPE_PUBLISHABLE_KEY=stripe_public_test_key
+stripe.api_key = stripe_secret_test_key
 stripe.api_version = None
 
 # @app.route('/', methods=['GET'])
@@ -400,330 +419,6 @@ def generate_response(intent):
 #  END STRIPE FUNCTIONS
 # -----------------------------------------
 
-
-
-
-
-
-#print("Key: ", paypal_secret_test_key)
-
-# def helper_upload_meal_img(file, key):
-#     bucket = 'servingfresh'
-#     print("1")
-#     #if file and allowed_file(file.filename):
-#     filename = 'https://s3-us-west-1.amazonaws.com/' \
-#                 + str(bucket) + '/' + str(key)
-#     print(filename)
-#     upload_file = s3.put_object(
-#                         Bucket=bucket,
-#                         Body=file,
-#                         Key=key,
-#                         ACL='public-read',
-#                         ContentType='image/jpeg'
-#                     )
-#     return filename
-#     return None
-
-
-
-# class SignUp(Resource):
-#     def post(self):
-#         response = {}
-#         items = []
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-#             print(data)
-#             email = data['email']
-#             firstName = data['first_name']
-#             lastName = data['last_name']
-#             phone = data['phone_number']
-#             address = data['address']
-#             unit = data['unit'] if data.get('unit') is not None else 'NULL'
-#             social_id = data['social_id'] if data.get('social_id') is not None else 'NULL'
-#             city = data['city']
-#             state = data['state']
-#             zip_code = data['zip_code']
-#             latitude = data['latitude']
-#             longitude = data['longitude']
-#             referral = data['referral_source']
-#             role = data['role']
-#             cust_id = data['cust_id'] if data.get('cust_id') is not None else 'NULL'
-
-#             if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False:
-#                 social_signup = False
-#             else:str
-#                 social_signup = True
-
-#             print(social_signup)
-#             get_user_id_query = "CALL new_customer_uid();"
-#             NewUserIDresponse = execute(get_user_id_query, 'get', conn)
-
-#             if NewUserIDresponse['code'] == 490:
-#                 string = " Cannot get new User id. "
-#                 print("*" * (len(string) + 10))
-#                 print(string.center(len(string) + 10, "*"))
-#                 print("*" * (len(string) + 10))
-#                 response['message'] = "Internal Server Error."
-#                 return response, 500
-#             NewUserID = NewUserIDresponse['result'][0]['new_id']
-
-#             if social_signup == False:
-
-#                 salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
-
-#                 password = sha512((data['password'] + salt).encode()).hexdigest()
-#                 print('password------', password)
-#                 algorithm = "SHA512"
-#                 mobile_access_token = 'NULL'
-#                 mobile_refresh_token = 'NULL'
-#                 user_access_token = 'NULL'
-#                 user_refresh_token = 'NULL'
-#                 user_social_signup = 'NULL'
-#             else:
-
-#                 mobile_access_token = data['mobile_access_token']
-#                 mobile_refresh_token = data['mobile_refresh_token']
-#                 user_access_token = data['user_access_token']
-#                 user_refresh_token = data['user_refresh_token']
-#                 salt = 'NULL'
-#                 password = 'NULL'
-#                 algorithm = 'NULL'
-#                 user_social_signup = data['social']
-
-#                 print('ELSE- OUT')
-
-#             if cust_id != 'NULL' and cust_id:
-
-#                 NewUserID = cust_id
-
-#                 query = '''
-#                             SELECT user_access_token, user_refresh_token, mobile_access_token, mobile_refresh_token 
-#                             FROM M4ME.customers
-#                             WHERE customer_uid = \'''' + cust_id + '''\';
-#                        '''
-#                 it = execute(query, 'get', conn)
-#                 print('it-------', it)
-
-#                 if it['result'][0]['user_access_token'] != 'FALSE':
-#                     user_access_token = it['result'][0]['user_access_token']
-
-#                 if it['result'][0]['user_refresh_token'] != 'FALSE':
-#                     user_refresh_token = it['result'][0]['user_refresh_token']
-
-#                 if it['result'][0]['mobile_access_token'] != 'FALSE':
-#                     mobile_access_token = it['result'][0]['mobile_access_token']
-
-#                 if it['result'][0]['mobile_refresh_token'] != 'FALSE':
-#                     mobile_refresh_token = it['result'][0]['mobile_refresh_token']
-
-#                 customer_insert_query =  ['''
-#                                     UPDATE M4ME.customers 
-#                                     SET 
-#                                     customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
-#                                     customer_first_name = \'''' + firstName + '''\',
-#                                     customer_last_name = \'''' + lastName + '''\',
-#                                     customer_phone_num = \'''' + phone + '''\',
-#                                     customer_address = \'''' + address + '''\',
-#                                     customer_unit = \'''' + unit + '''\',
-#                                     customer_city = \'''' + city + '''\',
-#                                     customer_state = \'''' + state + '''\',
-#                                     customer_zip = \'''' + zip_code + '''\',
-#                                     customer_lat = \'''' + latitude + '''\',
-#                                     customer_long = \'''' + longitude + '''\',
-#                                     password_salt = \'''' + salt + '''\',
-#                                     password_hashed = \'''' + password + '''\',
-#                                     password_algorithm = \'''' + algorithm + '''\',
-#                                     referral_source = \'''' + referral + '''\',
-#                                     role = \'''' + role + '''\',
-#                                     user_social_media = \'''' + user_social_signup + '''\',
-#                                     social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
-#                                     WHERE customer_uid = \'''' + cust_id + '''\';
-#                                     ''']
-
-
-#             else:
-
-#                 # check if there is a same customer_id existing
-#                 query = """
-#                         SELECT customer_email FROM M4ME.customers
-#                         WHERE customer_email = \'""" + email + "\';"
-#                 print('email---------')
-#                 items = execute(query, 'get', conn)
-#                 if items['result']:
-
-#                     items['result'] = ""
-#                     items['code'] = 409
-#                     items['message'] = "Email address has already been taken."
-
-#                     return items
-
-#                 if items['code'] == 480:
-
-#                     items['result'] = ""
-#                     items['code'] = 480
-#                     items['message'] = "Internal Server Error."
-#                     return items
-
-
-#                 # write everything to database
-#                 customer_insert_query = ["""
-#                                         INSERT INTO M4ME.customers 
-#                                         (
-#                                             customer_uid,
-#                                             customer_created_at,
-#                                             customer_first_name,
-#                                             customer_last_name,
-#                                             customer_phone_num,
-#                                             customer_email,
-#                                             customer_address,
-#                                             customer_unit,
-#                                             customer_city,
-#                                             customer_state,
-#                                             customer_zip,
-#                                             customer_lat,
-#                                             customer_long,
-#                                             password_salt,
-#                                             password_hashed,
-#                                             password_algorithm,
-#                                             referral_source,
-#                                             role,
-#                                             user_social_media,
-#                                             user_access_token,
-#                                             social_timestamp,
-#                                             user_refresh_token,
-#                                             mobile_access_token,
-#                                             mobile_refresh_token,
-#                                             social_id
-#                                         )
-#                                         VALUES
-#                                         (
-                                        
-#                                             \'""" + NewUserID + """\',
-#                                             \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-#                                             \'""" + firstName + """\',
-#                                             \'""" + lastName + """\',
-#                                             \'""" + phone + """\',
-#                                             \'""" + email + """\',
-#                                             \'""" + address + """\',
-#                                             \'""" + unit + """\',
-#                                             \'""" + city + """\',
-#                                             \'""" + state + """\',
-#                                             \'""" + zip_code + """\',
-#                                             \'""" + latitude + """\',
-#                                             \'""" + longitude + """\',
-#                                             \'""" + salt + """\',
-#                                             \'""" + password + """\',
-#                                             \'""" + algorithm + """\',
-#                                             \'""" + referral + """\',
-#                                             \'""" + role + """\',
-#                                             \'""" + user_social_signup + """\',
-#                                             \'""" + user_access_token + """\',
-#                                             DATE_ADD(now() , INTERVAL 14 DAY),
-#                                             \'""" + user_refresh_token + """\',
-#                                             \'""" + mobile_access_token + """\',
-#                                             \'""" + mobile_refresh_token + """\',
-#                                             \'""" + social_id + """\');"""]
-#             #print(customer_insert_query[0])
-#             items = execute(customer_insert_query[0], 'post', conn)
-#             print(items)
-#             if items['code'] != 281:
-#                 items['result'] = ""
-#                 items['code'] = 480
-#                 items['message'] = "Error while inserting values in database"
-
-#                 return items
-
-
-#             items['result'] = {
-#                 'first_name': firstName,
-#                 'last_name': lastName,
-#                 'customer_uid': NewUserID,
-#                 'access_token': user_access_token,
-#                 'refresh_token': user_refresh_token,
-#                 'access_token': mobile_access_token,
-#                 'refresh_token': mobile_refresh_token,
-#                 'social_id': social_id
-
-
-#             }
-#             items['message'] = 'Signup successful'
-#             items['code'] = 200
-
-#             # Twilio sms service
-
-#             #resp = url_for('sms_service', phone_num='+17327818408', _external=True)
-#             #resp = sms_service('+1'+phone, firstName)
-#             #print("resp --------", resp)
-
-
-
-#             print('sss-----', social_signup)
-
-#             if social_signup == False:
-#                 token = s.dumps(email)
-#                 msg = Message("Email Verification", sender='ptydtesting@gmail.com', recipients=[email])
-
-#                 print('MESSAGE----', msg)
-#                 print('message complete')
-#                 link = url_for('confirm', token=token, hashed=password, _external=True)
-#                 print('link---', link)
-#                 msg.body = "Click on the link {} to verify your email address.".format(link)
-#                 print('msg-bd----', msg.body)
-#                 mail.send(msg)
-
-
-
-#             return items
-#         except:
-#             print("Error happened while Sign Up")
-#             if "NewUserID" in locals():
-#                 execute("""DELETE FROM customers WHERE customer_uid = '""" + NewUserID + """';""", 'post', conn)
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-
-# # confirmation page
-# @app.route('/api/v2/confirm', methods=['GET'])
-# def confirm():
-#     try:
-#         token = request.args['token']
-#         hashed = request.args['hashed']
-#         print("hased: ", hashed)
-#         email = s.loads(token)  # max_age = 86400 = 1 day
-
-#         # marking email confirmed in database, then...
-#         conn = connect()
-#         query = """UPDATE customers SET email_verified = 1 WHERE customer_email = \'""" + email + """\';"""
-#         update = execute(query, 'post', conn)
-#         if update.get('code') == 281:
-#             # redirect to login page
-#             # only for testing on localhost
-#             #return redirect('http://localhost:3000/login?email={}&hashed={}'.format(email, hashed))
-#             return redirect('https://mealtoyourdoor.netlify.app/?email={}&hashed={}'.format(email, hashed))
-#         else:
-#             print("Error happened while confirming an email address.")
-#             error = "Confirm error."
-#             err_code = 401  # Verification code is incorrect
-#             return error, err_code
-#     except (SignatureExpired, BadTimeSignature) as err:
-#         status = 403  # forbidden
-#         return str(err), status
-#     finally:
-#         disconnect(conn)
-
-# def sms_service(phone, name):
-#     print(phone)
-
-#     message = client.messages \
-#                     .create(
-#                          body="Hi " +name+ " thanks for signing up with Serving Fresh",
-#                          from_='+18659786905',
-#                          to=phone
-#                      )
-#     print(message.sid)
-
-#     return "Sent"
 
 
 class createAccount(Resource):
