@@ -10802,7 +10802,7 @@ class customer_lists(Resource):
 
 
 class get_stripe_key(Resource):
-    def get_key(self, notes)
+    def get_key(self, notes):
             if notes == "M4METEST":
                 print('TEST')
                 return stripe_secret_test_key 
