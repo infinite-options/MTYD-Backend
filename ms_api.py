@@ -343,14 +343,125 @@ stripe.api_version = None
 #     return render_template('index.html')
 
 
+# def calculate_order_amount(items):
+#     # Replace this constant with a calculation of the order's amount
+#     # Calculate the order total on the server to prevent
+#     # people from directly manipulating the amount on the client    
+#     # print("in calculate_order_amount")
+#     # print("items: ", items)
+#     return 2100
+
 def calculate_order_amount(items):
-    # Replace this constant with a calculation of the order's amount
-    # Calculate the order total on the server to prevent
-    # people from directly manipulating the amount on the client    
-    # print("in calculate_order_amount")
-    # print("items: ", items)
+    try:
+        conn = connect()
+        item_uid = data['item_uid']
+        frequency = data['num_issues']
+        query2 = '''
+                    SELECT item_price  
+                    FROM M4ME.subscription_items
+                    WHERE item_uid  = \'''' + item_uid + '''\';
+                '''
+        itm_price = execute(query2, 'get', conn)
+        # print(itm_price)
+        query3 = '''
+                    select delivery_discount 
+                    from discounts
+                    where num_deliveries = \'''' + frequency + '''\';
+                '''
+        itm_discounts = execute(query3, 'get', conn)
+        meal_price = round(itm_price * frequency * (1 - itm_discounts) * 100 )
+        return meal_price
+    except:
+        print(101010)
     return 2100
 
+
+class order_amount_calculation(Resource):
+    def post(self):
+        # Replace this constant with a calculation of the order's amount
+        # Calculate the order total on the server to prevent
+        # people from directly manipulating the amount on the client    
+        # print("in calculate_order_amount")
+        # print("items: ", items)
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print(data)
+            item_uid = data['item_uid']
+            print(item_uid)
+            frequency = data['num_issues']
+            customer_uid = data['customer_uid']
+            print("before amb")
+            ambassador = data['ambassador'] if data['ambassador'] is not None else None
+            print("first query")
+            query = '''
+                        SELECT customer_lat, customer_long 
+                        FROM M4ME.customers
+                        WHERE customer_uid = \'''' + customer_uid + '''\';
+                    '''
+            it = execute(query, 'get', conn)
+            print("before cat")
+            print(it)
+            print(it["result"][0]["customer_long"])
+            print(it["result"][0]["customer_lat"])
+            zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
+            print(zones["result"][0]["tax_rate"])
+            tax = zones["result"][0]["tax_rate"]
+            service = zones["result"][0]['service_fee']
+            delivery = zones["result"][0]['delivery_fee']
+            tip = data['tip']
+            query2 = '''
+                        SELECT item_price  
+                        FROM M4ME.subscription_items
+                        WHERE item_uid  = \'''' + item_uid + '''\';
+                    '''
+            itm_price = execute(query2, 'get', conn)
+            # print(itm_price)
+            query3 = '''
+                        select delivery_discount 
+                        from discounts
+                        where num_deliveries = \'''' + frequency + '''\';
+                    '''
+            itm_discounts = execute(query3, 'get', conn)
+            print(itm_discounts)
+            print("before if")
+            print(len(ambassador))
+            if len(ambassador)!=0:
+                print("not here")
+                query4 = '''
+                            select * 
+                            from coupons 
+                            where email_id = \'''' + amabssador + '''\';
+                        '''
+                itm_ambassador = execute(query4, 'get', conn)
+                print(itm_ambassador)
+                delivery = abs(delivery-itm_ambassador['discount_shipping'])
+                if delivery<=0:
+                    delivery = 0
+                charge = ((itm_price["result"][0]["item_price"]*frequency)*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador['discount_amount'])
+                if charge <=0:
+                    charge = 0
+                order_price = charge*(1+tax/100)+service+delivery+tip
+                return order_price
+            else:
+                print("here")
+                charge = (itm_price["result"][0]["item_price"]*int(frequency))
+                print(charge)
+                discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
+                print(discount)
+                print(tax)
+                print(service)
+                print(delivery)
+                print(tip)
+                order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
+                print(order_price)
+                orderprice = round(order_price*100)
+                print(orderprice)
+                orderprice=float(orderprice/100)
+                return orderprice
+        except:
+            print(101010)
+        return 2100
 
 # REPLACED B CLASS stripe_key BELOW
 # @app.route('/api/stripe-key', methods=['GET'])
@@ -363,6 +474,7 @@ def calculate_order_amount(items):
 #     return jsonify({'publicKey': STRIPE_PUBLISHABLE_KEY})
 
 class stripe_key(Resource):
+    
     def get(self, desc):          
         if desc == 'M4METEST':
             return {'publicKey': stripe_public_test_key} 
@@ -370,28 +482,32 @@ class stripe_key(Resource):
             return {'publicKey': stripe_public_live_key} 
 
 
-
+# FOR TESTING PURPOSES ONLY
 @app.route('/api/v2/customer', methods=['GET'])
 def stripe_customer():
     stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
-    # Send publishable key to client
-    # print("in python server stripe-key")
-    # print("publicKey: ", os.getenv('STRIPE_PUBLISHABLE_KEY'))
-    # return jsonify({'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY')})
-    # print("publicKey: ", STRIPE_PUBLISHABLE_KEY)
-    #return stripe.Customer.retrieve("100-020140")
 
-
+    key=get_stripe_key.get_key('M4METEST')
     try:
         return stripe.Customer.retrieve("100-000140")
     except:
         return str(2100)
 
-    # if "No such customer" in stripe.Customer.retrieve("100-020140"):
-    #     print ("Found!")
-    # else:
-    #     print ("Not found!")
-    # return
+# FOR TESTING PURPOSES ONLY
+@app.route('/api/v2/testurl', methods=['GET'])
+def test_url():
+
+    print(request.path)
+
+
+# You can use request.path in templates to control which divs are rendered:
+
+# {% url 'detail' 1 as details %}
+# {% if request.path == details %}
+#     <div>Details</div>
+# {% else %}
+#     <div>Else</div>
+# {% endif %}
 
 
 
@@ -413,29 +529,18 @@ def pay():
                 confirm=True
             )
 
-
-
-
-
-
             if data['isSavingCard']:
                 # Create a Customer to store the PaymentMethod for reuse
-                # customer = stripe.Customer.create()
-                # if stripe.Customer.retrieve(id=data['customerUid')== False:
-                    # false
-
-
-                    try:
-                        stripe.Customer.retrieve(data['customerUid'])
-                    except:
-                        # return str(2100)
-                        customer = stripe.Customer.create(id=data['customerUid'])
-                        # print("Customer: ", customer)
-                        payment_intent_data['customer'] = customer['id']
-                    
-                        # setup_future_usage saves the card and tells Stripe how you plan to use it later
-                        # set to 'off_session' if you plan on charging the saved card when the customer is not present
-                        payment_intent_data['setup_future_usage'] = 'off_session'
+                try:
+                    stripe.Customer.retrieve(data['customerUid'])
+                except:
+                    customer = stripe.Customer.create(id=data['customerUid'])
+                    # print("Customer: ", customer)
+                    payment_intent_data['customer'] = customer['id']
+                
+                    # setup_future_usage saves the card and tells Stripe how you plan to use it later
+                    # set to 'off_session' if you plan on charging the saved card when the customer is not present
+                    payment_intent_data['setup_future_usage'] = 'off_session'
 
             # Create a new PaymentIntent for the order
             intent = stripe.PaymentIntent.create(**payment_intent_data)
@@ -588,6 +693,33 @@ def create_off_session_payment():
             })
 
 
+
+
+class customer_lists(Resource):
+    def get_list(self, c_uid, card_type):
+        try:
+            STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
+            stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+            stripe.api_version = None
+
+            return(stripe.PaymentMethod.list(
+            customer=c_uid,
+            type=card_type,
+            ))
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+
+class get_stripe_key(Resource):
+    def get_key(self, notes):
+            if notes == "M4METEST":
+                print('TEST')
+                return stripe_secret_test_key 
+                # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+                
+            else:
+                print('LIVE')
+                return stripe_secret_live_key
 
 
 # -----------------------------------------
@@ -10786,31 +10918,7 @@ class lplp_specific(Resource):
         finally:
             disconnect(conn)
 
-class customer_lists(Resource):
-    def get_list(self, c_uid, card_type):
-        try:
-            STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
-            stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
-            stripe.api_version = None
 
-            return(stripe.PaymentMethod.list(
-            customer=c_uid,
-            type=card_type,
-            ))
-        except:
-            raise BadRequest('Request failed, please try again later.')
-
-
-class get_stripe_key(Resource):
-    def get_key(self, notes):
-            if notes == "M4METEST":
-                print('TEST')
-                return stripe_secret_test_key 
-                # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-                
-            else:
-                print('LIVE')
-                return stripe_secret_live_key
                 
 # Define API routes
 # Customer APIs
