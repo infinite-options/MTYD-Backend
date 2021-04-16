@@ -342,14 +342,92 @@ stripe.api_version = None
 #     # Display checkout page
 #     return render_template('index.html')
 
-
-def calculate_order_amount(items):
-    # Replace this constant with a calculation of the order's amount
-    # Calculate the order total on the server to prevent
-    # people from directly manipulating the amount on the client    
-    # print("in calculate_order_amount")
-    # print("items: ", items)
-    return 2100
+class order_amount_calculation(Resource):
+    def post(self):
+        # Replace this constant with a calculation of the order's amount
+        # Calculate the order total on the server to prevent
+        # people from directly manipulating the amount on the client    
+        # print("in calculate_order_amount")
+        # print("items: ", items)
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print(data)
+            item_uid = data['item_uid']
+            print(item_uid)
+            frequency = data['num_issues']
+            customer_uid = data['customer_uid']
+            print("before amb")
+            ambassador = data['ambassador'] if data['ambassador'] is not None else None
+            print("first query")
+            query = '''
+                        SELECT customer_lat, customer_long 
+                        FROM M4ME.customers
+                        WHERE customer_uid = \'''' + customer_uid + '''\';
+                    '''
+            it = execute(query, 'get', conn)
+            print("before cat")
+            print(it)
+            print(it["result"][0]["customer_long"])
+            print(it["result"][0]["customer_lat"])
+            zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
+            print(zones["result"][0]["tax_rate"])
+            tax = zones["result"][0]["tax_rate"]
+            service = zones["result"][0]['service_fee']
+            delivery = zones["result"][0]['delivery_fee']
+            tip = data['tip']
+            query2 = '''
+                        SELECT item_price  
+                        FROM M4ME.subscription_items
+                        WHERE item_uid  = \'''' + item_uid + '''\';
+                    '''
+            itm_price = execute(query2, 'get', conn)
+            # print(itm_price)
+            query3 = '''
+                        select delivery_discount 
+                        from discounts
+                        where num_deliveries = \'''' + frequency + '''\';
+                    '''
+            itm_discounts = execute(query3, 'get', conn)
+            print(itm_discounts)
+            print("before if")
+            print(len(ambassador))
+            if len(ambassador)!=0:
+                print("not here")
+                query4 = '''
+                            select * 
+                            from coupons 
+                            where email_id = \'''' + amabssador + '''\';
+                        '''
+                itm_ambassador = execute(query4, 'get', conn)
+                print(itm_ambassador)
+                delivery = abs(delivery-itm_ambassador['discount_shipping'])
+                if delivery<=0:
+                    delivery = 0
+                charge = ((itm_price["result"][0]["item_price"]*frequency)*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador['discount_amount'])
+                if charge <=0:
+                    charge = 0
+                order_price = charge*(1+tax/100)+service+delivery+tip
+                return order_price
+            else:
+                print("here")
+                charge = (itm_price["result"][0]["item_price"]*int(frequency))
+                print(charge)
+                discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
+                print(discount)
+                print(tax)
+                print(service)
+                print(delivery)
+                print(tip)
+                order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
+                print(order_price)
+                orderprice = round(order_price*100)
+                print(orderprice)
+                orderprice=float(orderprice/100)
+                return orderprice
+        except:
+            print("Error")
+        return 2100
 
 
 # REPLACED B CLASS stripe_key BELOW
@@ -8611,15 +8689,16 @@ class change_purchase(Resource):
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             
-
-            stripe.api_key = get_stripe_key.get_key(info_res[0]['result'][0]["delivery_instructions"])
-            # if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
-            #     stripe.api_key = stripe_secret_test_key 
-            #     #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-            #     print('TEST')
-            # else:
-            #     stripe.api_key = stripe_secret_live_key
-            #     print('LIVE')
+            # print("before function")
+            # stripe.api_key = get_stripe_key.get_key(info_res[0]['result'][0]["delivery_instructions"])
+            # print("after function")
+            if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
+                # stripe.api_key = stripe_secret_test_key 
+                stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
+                print('TEST')
+            else:
+                stripe.api_key = stripe_secret_live_key
+                print('LIVE')
 
 
 
@@ -8967,6 +9046,7 @@ class change_purchase(Resource):
                 if process_id[:2] == "pi":
                     process_id = stripe.PaymentIntent.retrieve(process_id).get("charges").get("data")[0].get("id")
                     #print(refunded_info.get("charges").get("data")[0].get("id"))
+                print("before retrieve")
                 refunded_info = stripe.Charge.retrieve(process_id)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
@@ -10764,11 +10844,11 @@ class customer_lists(Resource):
 
 
 class get_stripe_key(Resource):
-    def get_key(self, notes)
+    def get_key(self, notes):
             if notes == "M4METEST":
                 print('TEST')
-                return stripe_secret_test_key 
-                # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+                #return stripe_secret_test_key 
+                return "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
                 
             else:
                 print('LIVE')
@@ -11116,7 +11196,7 @@ api.add_resource(test_cal, '/api/v2/test_cal/<string:purchaseID>')
 
 api.add_resource(predict_autopay_day, '/api/v2/predict_autopay_day/<string:id>')
 
-
+api.add_resource(order_amount_calculation, '/api/v2/order_amount_calculation')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
