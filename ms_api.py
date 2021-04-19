@@ -8690,7 +8690,7 @@ class change_purchase(Resource):
                 temp_key = stripe.api_key
             
             # print("before function")
-            # stripe.api_key = get_stripe_key.get_key(info_res[0]['result'][0]["delivery_instructions"])
+            # stripe.api_key = get_stripe_key().get_key(info_res[0]['result'][0]["delivery_instructions"])
             # print("after function")
             if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
                 # stripe.api_key = stripe_secret_test_key 
@@ -9337,7 +9337,7 @@ class cancel_purchase(Resource):
             temp_key = ""
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
-            stripe.api_key = get_stripe_key.get_key(info_res[0]['result'][0]["delivery_instructions"])
+            stripe.api_key = get_stripe_key().get_key(info_res[0]['result'][0]["delivery_instructions"])
 
 
             # if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
@@ -10744,8 +10744,8 @@ class favourite_food(Resource):
                 return items
             
             elif action == 'post':
-                print(data)
-                print("start q1 here")
+                #print(data)
+                #print("start q1 here")
                 query1 = """
                         select favorites
                         from customers
@@ -10753,40 +10753,40 @@ class favourite_food(Resource):
                         """
                 #print(query1)
                 items1 = execute(query1, 'get', conn)
-                print("check 1")
-                print(items1)
-                print("check 2")
-                print(items1["result"][0]["favorites"])
+                #print("check 1")
+                #print(items1)
+                #print("check 2")
+                #print(items1["result"][0]["favorites"])
                 favorite = str(data['favorite']).replace("'", '"')
-                print(favorite)
+                #print(favorite)
                 if items1["result"][0]["favorites"] == None:
                     favorite = favorite
                 else:
                     favorite=items1["result"][0]["favorites"]+ "," + favorite
-                print("check 3")
+                #print("check 3")
                 #favorite=items1["result"][0]["favorites"]+ "," + favorite
-                print(favorite)
+                #print(favorite)
                 query = """
                         UPDATE customers 
                         SET favorites = \'""" + favorite + """\'
                         WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
                         """
-                print(query)
+                #print(query)
                 items = execute(query, 'post', conn)
 
                 if items['code'] != 281:
                     items['message'] = 'Check sql query'
                 return items
             elif action == 'update':
-                print(data)
+                #print(data)
                 favorite = str(data['favorite']).replace("'", '"')
-                print(favorite)
+                #print(favorite)
                 query = """
                         UPDATE customers 
                         SET favorites = \'""" + favorite + """\'
                         WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
                         """
-                print(query)
+                #print(query)
                 items = execute(query, 'post', conn)
 
                 if items['code'] != 281:
