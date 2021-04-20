@@ -352,26 +352,26 @@ class order_amount_calculation(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print(data)
+            # print(data)
             item_uid = data['item_uid']
-            print(item_uid)
+            # print(item_uid)
             frequency = data['num_issues']
             customer_uid = data['customer_uid']
-            print("before amb")
+            # print("before amb")
             ambassador = data['ambassador'] if data['ambassador'] is not None else None
-            print("first query")
+            # print("first query")
             query = '''
                         SELECT customer_lat, customer_long 
                         FROM M4ME.customers
                         WHERE customer_uid = \'''' + customer_uid + '''\';
                     '''
             it = execute(query, 'get', conn)
-            print("before cat")
-            print(it)
-            print(it["result"][0]["customer_long"])
-            print(it["result"][0]["customer_lat"])
+            # print("before cat")
+            # print(it)
+            # print(it["result"][0]["customer_long"])
+            # print(it["result"][0]["customer_lat"])
             zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
-            print(zones["result"][0]["tax_rate"])
+            # print(zones["result"][0]["tax_rate"])
             tax = zones["result"][0]["tax_rate"]
             service = zones["result"][0]['service_fee']
             delivery = zones["result"][0]['delivery_fee']
@@ -389,18 +389,18 @@ class order_amount_calculation(Resource):
                         where num_deliveries = \'''' + frequency + '''\';
                     '''
             itm_discounts = execute(query3, 'get', conn)
-            print(itm_discounts)
-            print("before if")
-            print(len(ambassador))
+            # print(itm_discounts)
+            # print("before if")
+            # print(len(ambassador))
             if len(ambassador)!=0:
-                print("not here")
+                # print("not here")
                 query4 = '''
                             select * 
                             from coupons 
                             where email_id = \'''' + amabssador + '''\';
                         '''
                 itm_ambassador = execute(query4, 'get', conn)
-                print(itm_ambassador)
+                # print(itm_ambassador)
                 delivery = abs(delivery-itm_ambassador['discount_shipping'])
                 if delivery<=0:
                     delivery = 0
@@ -410,19 +410,19 @@ class order_amount_calculation(Resource):
                 order_price = charge*(1+tax/100)+service+delivery+tip
                 return order_price
             else:
-                print("here")
+                # print("here")
                 charge = (itm_price["result"][0]["item_price"]*int(frequency))
-                print(charge)
+                # print(charge)
                 discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
-                print(discount)
-                print(tax)
-                print(service)
-                print(delivery)
-                print(tip)
+                # print(discount)
+                # print(tax)
+                # print(service)
+                # print(delivery)
+                # print(tip)
                 order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
-                print(order_price)
+                # print(order_price)
                 orderprice = round(order_price*100)
-                print(orderprice)
+                # print(orderprice)
                 orderprice=float(orderprice/100)
                 return orderprice
         except:
@@ -440,26 +440,26 @@ class order_amount_calculation(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print(data)
+            # print(data)
             item_uid = data['item_uid']
-            print(item_uid)
+            # print(item_uid)
             frequency = data['num_issues']
             customer_uid = data['customer_uid']
-            print("before amb")
+            # print("before amb")
             ambassador = data['ambassador'] if data['ambassador'] is not None else None
-            print("first query")
+            # print("first query")
             query = '''
                         SELECT customer_lat, customer_long 
                         FROM M4ME.customers
                         WHERE customer_uid = \'''' + customer_uid + '''\';
                     '''
             it = execute(query, 'get', conn)
-            print("before cat")
-            print(it)
-            print(it["result"][0]["customer_long"])
-            print(it["result"][0]["customer_lat"])
+            # print("before cat")
+            # print(it)
+            # print(it["result"][0]["customer_long"])
+            # print(it["result"][0]["customer_lat"])
             zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
-            print(zones["result"][0]["tax_rate"])
+            # print(zones["result"][0]["tax_rate"])
             tax = zones["result"][0]["tax_rate"]
             service = zones["result"][0]['service_fee']
             delivery = zones["result"][0]['delivery_fee']
@@ -477,18 +477,18 @@ class order_amount_calculation(Resource):
                         where num_deliveries = \'''' + frequency + '''\';
                     '''
             itm_discounts = execute(query3, 'get', conn)
-            print(itm_discounts)
-            print("before if")
-            print(len(ambassador))
+            # print(itm_discounts)
+            # print("before if")
+            # print(len(ambassador))
             if len(ambassador)!=0:
-                print("not here")
+                # print("not here")
                 query4 = '''
                             select * 
                             from coupons 
                             where email_id = \'''' + amabssador + '''\';
                         '''
                 itm_ambassador = execute(query4, 'get', conn)
-                print(itm_ambassador)
+                # print(itm_ambassador)
                 delivery = abs(delivery-itm_ambassador['discount_shipping'])
                 if delivery<=0:
                     delivery = 0
@@ -498,19 +498,19 @@ class order_amount_calculation(Resource):
                 order_price = charge*(1+tax/100)+service+delivery+tip
                 return order_price
             else:
-                print("here")
+                # print("here")
                 charge = (itm_price["result"][0]["item_price"]*int(frequency))
-                print(charge)
+                # print(charge)
                 discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
-                print(discount)
-                print(tax)
-                print(service)
-                print(delivery)
-                print(tip)
+                # print(discount)
+                # print(tax)
+                # print(service)
+                # print(delivery)
+                # print(tip)
                 order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
-                print(order_price)
+                # print(order_price)
                 orderprice = round(order_price*100)
-                print(orderprice)
+                # print(orderprice)
                 orderprice=float(orderprice/100)
                 return orderprice
         except:
@@ -787,7 +787,7 @@ class createAccount(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print(data)
+            # print(data)
             email = data['email']
             firstName = data['first_name']
             lastName = data['last_name']
@@ -809,7 +809,7 @@ class createAccount(Resource):
             else:
                 social_signup = True
 
-            print(social_signup)
+            # print(social_signup)
             get_user_id_query = "CALL new_customer_uid();"
             NewUserIDresponse = execute(get_user_id_query, 'get', conn)
 
@@ -900,7 +900,7 @@ class createAccount(Resource):
 
                 # check if there is a same customer_id existing
                 query = """
-                        SELECT customer_email FROM M4ME.customers
+                        SELECT customer_email, role, customer_uid FROM M4ME.customers
                         WHERE customer_email = \'""" + email + "\';"
                 print('email---------')
                 items = execute(query, 'get', conn)
@@ -1044,7 +1044,7 @@ class email_verification(Resource):
             conn = connect()
 
             data = request.get_json(force=True)
-            print(data)
+            # print(data)
             email = data['email']
             query = """
                     SELECT password_hashed
@@ -1052,7 +1052,7 @@ class email_verification(Resource):
                     WHERE customer_email = \'""" + email + """\'
                     """
             items = execute(query, 'get', conn)
-            print(items)
+            # print(items)
             if not items['result']:
 
                 items['message'] = "Customer email doesn't exists"
@@ -1064,9 +1064,9 @@ class email_verification(Resource):
                 return items
 
             token = s.dumps(email)
-            print(token)
+            # print(token)
             password = items['result'][0]['password_hashed']
-            print(password)
+            # print(password)
             # msg = Message("Test email", sender='support@mealsfor.me', recipients=["pmarathay@gmail.com"]) 
             # msg.body = "Hi !\n\n"\
             # "We are excited to send you your Summary report for delivery date. Please find the report in the attachment. \n"\
@@ -1079,9 +1079,9 @@ class email_verification(Resource):
 
             print('MESSAGE----', msg)
             print('message complete')
-            print("1")
+            # print("1")
             link = url_for('confirm', token=token, hashed=password, _external=True)
-            print("2")
+            # print("2")
             print('link---', link)
             msg.body = "Click on the link {} to verify your email address.".format(link)
             print('msg-bd----', msg.body)
@@ -9193,7 +9193,7 @@ class change_purchase(Resource):
                     process_id = stripe.PaymentIntent.retrieve(process_id).get("charges").get("data")[0].get("id")
                     #print(refunded_info.get("charges").get("data")[0].get("id"))
                 print("before retrieve")
-                refunded_info = stripe.Charge.retrieve(process_id)
+                refunded_info = stripe.Charge.retrieve(process_id,)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
                 print(refunded_info.get('amount_refunded'))
