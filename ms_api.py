@@ -906,7 +906,7 @@ class createAccount(Resource):
                 items = execute(query, 'get', conn)
                 if items['result']:
 
-                    items['result'] = ""
+                    #items['result'] = ""
                     items['code'] = 409
                     items['message'] = "Email address has already been taken."
 
