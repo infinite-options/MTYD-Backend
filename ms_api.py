@@ -8821,6 +8821,8 @@ class change_purchase(Resource):
                         """
             info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
             print(info_res)
+            customer_lat = info_res[0]['result'][0]["delivery_latitude"]
+            customer_long = info_res[0]['result'][0]["delivery_longitude"]
             if info_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
             # Calculate refund
@@ -8891,10 +8893,18 @@ class change_purchase(Resource):
             print("amount_discount " + str(amount_discount))
             driver_tip = (float(info_res[0]['result'][0]["driver_tip"]))
             print("driver_tip " + str(driver_tip))
+            if len(customer_long)!=0 and len(customer_lat)!=0: 
+                zones = categoricalOptions().get(customer_long, customer_lat)
+            # print(zones["result"][0]["tax_rate"])
+                tax = zones["result"][0]["tax_rate"]
+            else:
+                tax = 9.25
 
-
-            #calc error happens here
-            customer_used_amount = (int(num_days)*price*(1-discount/100))*(1+9.25/100) + float(info_res[0]['result'][0]["service_fee"]) + float(info_res[0]['result'][0]["driver_tip"]) + float(info_res[0]['result'][0]["delivery_fee"])
+            #print("calc error happens here")
+            customer_used_amount = (int(num_days)*price*(1-discount/100))*(1+tax/100) + float(info_res[0]['result'][0]["service_fee"]) + float(info_res[0]['result'][0]["driver_tip"]) + float(info_res[0]['result'][0]["delivery_fee"])
+            #print(customer_used_amount)
+            customer_used_amount = float(int(round(customer_used_amount*100))/100)
+            #rint(customer_used_amount)
             #info_res[0]['result'][0]["taxes"]
             #info_res[0]['result'][0]["service_fee"]
             #info_res[0]['result'][0]["driver_tip"]
@@ -8951,6 +8961,7 @@ class change_purchase(Resource):
 
                 ###
                 if refund_info['refunded_id'] is not None:
+                    print("refund info is " + str(refund_info['refunded_id'][0]))
                     refunded = True
                 else:
                     return {"message": "REFUND PROCESS ERROR."}, 500
@@ -8987,7 +8998,7 @@ class change_purchase(Resource):
             delivery_city = info_res.get("delivery_city")
             delivery_state = info_res.get("delivery_state")
             delivery_zip = info_res.get("delivery_zip")
-            delivery_instructions = info_res.get("delivery_instructions") if info_res.get('delivery_instruction') else "NULL"
+            delivery_instructions = info_res.get("delivery_instructions") if info_res.get('delivery_instructions') else "NULL"
             delivery_longitude = info_res.get("delivery_longitude")
             delivery_latitude = info_res.get("delivery_latitude")
             order_instructions = info_res.get("order_instructions") if info_res.get("order_instructions") else "NULL"
@@ -9033,7 +9044,7 @@ class change_purchase(Resource):
 
 ############
             subtotal = str(float(round((int(num_days)*price)*100))/100)
-            taxes = str(float((round((int(num_days)*price*(1-discount/100))*(9.25/100)*100))/100))
+            taxes = str(float((round((int(num_days)*price*(1-discount/100))*(tax/100)*100))/100))
             print("testing taxes " + str(taxes))
             print("just before inserting")
             queries = [
@@ -9122,7 +9133,16 @@ class change_purchase(Resource):
                 response[0]['purchase_id'] = purchase_uid
                 query = '''UPDATE M4ME.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
                 simple_post_execute([query], ["UPDATE OLD PURCHASES"], conn)
-
+                print("bfore setting charge " + str(refund_info['refunded_id'][0]))
+                refunded_id_1 = str(refund_info['refunded_id'][0])
+                query_test = '''
+                                update payments
+                                set charge_id = "''' + refunded_id_1 + '''"
+                                where payment_uid = "''' + payment_uid + '''";
+                            '''
+                resN1 = simple_post_execute(query_test, "update_charge_id", conn)
+                print("after setting charge")
+                print(resN1)
                 return response
 
             else:
@@ -9187,12 +9207,14 @@ class change_purchase(Resource):
                 # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
                 #retrieve info from stripe for specific charge_id:
                 print("during stripe: stripe 1")
+                print(stripe.PaymentIntent.retrieve("pi_1IjDpmLMju5RPMEv95tJVSX0",))
                 print(process_id)
-                #print(stripe.Charge.retrieve("ch_1IO5g8LMju5RPMEvOeH4k6a3",))
                 if process_id[:2] == "pi":
                     process_id = stripe.PaymentIntent.retrieve(process_id).get("charges").get("data")[0].get("id")
                     #print(refunded_info.get("charges").get("data")[0].get("id"))
-                print("before retrieve")
+                print("before retrieve 1")
+                #refunded_info = stripe.Charge.retrieve("ch_1IfUBGLMju5RPMEveNCUVxn9",)
+                #print("before retrieve 2")
                 refunded_info = stripe.Charge.retrieve(process_id,)
                 print("stripe 2")
                 print(refunded_info.get("amount"))
@@ -9243,6 +9265,7 @@ class change_purchase(Resource):
                             response['message'] = e.error.message
                             return response, 400
                     refund_id.append(refund_res.get('id'))
+                    #print("refund id is " + refund_id)
             return refund_id
 
 
@@ -9257,7 +9280,7 @@ class change_purchase(Resource):
 
         
         print("in refund calculator")
-        
+        print(info_res)
         # checking skips new
 
         start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
@@ -9385,8 +9408,10 @@ class change_purchase(Resource):
         print(d_query)
         old_discount = d_query["result"][0]["delivery_discount"]
         #old_price = d_query["result"][0]["item_price"]
-
-
+        # latitude = info_res['latitude']
+        # longitude = info_res['longitude']
+        # zones = categoricalOptions().get(longitude, latitude)
+        # tax_rate = zones["result"][0]["tax_rate"]
         serviceFee = info_res['service_fee']
         print("serviceFee :", serviceFee)
         if serviceFee is None:
@@ -9411,6 +9436,7 @@ class change_purchase(Resource):
         #driver tip and delivery fee are both percentage
         customer_paid = (float(price)*int(num_days)*(1-old_discount/100)) * (1+9.25/100) + float(serviceFee) + float(driver_tip) + float(delivery_fee) + float(ambassador_code)
         print("4.6")
+        customer_paid = float(int(round(customer_paid*100))/100)
         print("customer paid " + str((float(price)*int(num_days)*(1-old_discount/100)) * (1+9.25/100)  + float(serviceFee) + float(driver_tip) + float(delivery_fee)))
 
         print("here 4.7")
@@ -9438,8 +9464,9 @@ class change_purchase(Resource):
             d2_query = execute(delivery_query2, 'get', conn)
             print("here 6")
             new_discount = d2_query["result"][0]["delivery_discount"]
-            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * (1+9.25/100)  + float(driver_tip)/delivered_num + float(delivery_fee)/delivered_num + float(ambassador_code)/delivered_num
+            customer_used_amount = (delivered_num*new_price*(1-new_discount/100)) * (1+9.25/100)  + float(driver_tip)/delivered_num + float(delivery_fee)/delivered_num + float(serviceFee)
         print("here 7")
+        customer_used_amount = float(int(round(customer_used_amount*100))/100)
         print(customer_used_amount)
         refund_amount = (float(customer_paid) - float(customer_used_amount))
         #print(refund_amount)
@@ -9514,6 +9541,7 @@ class cancel_purchase(Resource):
                 print("2.36")
                 print(refund_info)
                 refund_info['refunded_id'] = change_purchase().stripe_refund(refund_info, conn)
+                print(refund_info['refunded_id'])
                 print("2.4")
                 if refund_info['refunded_id'] is not None:
                     refunded = True
@@ -9549,7 +9577,7 @@ class cancel_purchase(Resource):
             print(new_refund)
             #print(refund_info["refunded_id"][0])
             refund_id = str(refund_info["refunded_id"][0])
-            #print(refund_id)
+            print(refund_id)
             print("3.65")
             print("start input")
             print(new_paymentId)
