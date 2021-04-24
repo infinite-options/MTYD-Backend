@@ -8916,42 +8916,79 @@ class change_purchase(Resource):
             print("customer_used_amount " + str(customer_used_amount))
             print("refund_info " + str(refund_info["refund_amount"]))
             amount_will_charge = customer_used_amount - refund_info["refund_amount"]
+            amount_will_charge = float(int(round(amount_will_charge*100))/100)
             print("amount will charge " + str(amount_will_charge))
             # Process stripe
             print("start here 1")
             print(amount_will_charge)
             if amount_will_charge > 0:
+                process_id_for_charge = info_res[0]['result'][0]["charge_id"]
+                print(process_id_for_charge)
+                if process_id_for_charge[:2] == "pi":
+                    process_id_for_charge = stripe.PaymentIntent.retrieve(process_id_for_charge).get("charges").get("data")[0].get("id")
+                print(process_id_for_charge)
+                charge_infos = stripe.Charge.retrieve(process_id_for_charge,)
+                paymentmeth = charge_infos.get("payment_method")
+                #print(stripe.PaymentMethod.retrieve(paymentmeth))
+                print(paymentmeth)
+                #print(info_res)
+                cust_uid = info_res[0]['result'][0]["pur_customer_uid"]
+                print("cust id here " + cust_uid)
+                print("probelm here")
+                intent = stripe.PaymentIntent.create(
+                    amount=int(amount_will_charge*100),
+                    currency="usd",
+                    # Verify your integration in this guide by including this parameter
+                    # metadata={'integration_check': 'accept_a_payment'},
+                    # customer="cus_JKUnLFjlbjW2PG",
+                    customer=cust_uid,
+                    # customer='{{CUSTOMER_ID}}',
+                    # payment_method="pm_1IhpoELMju5RPMEvq6B92VsG",
+                    # payment_method='{{PAYMENT_METHOD_ID}}',
+                    payment_method=paymentmeth,
+                    off_session=True,
+                    confirm=True,
+                )
+                print("problem ends")
+                charge_id = intent.charges.data[0].id
+                print(charge_id)
+
+
+                ##### original code
                 #charge with stripe
                 #wrap credit_card info
-                query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date
-                                FROM M4ME.payments
-                                WHERE pay_purchase_uid = "''' + purchaseID + '";'
-                res = simple_get_execute(query, "GET CREDIT CARD INFO FOR CHANGING MEAL PLAN", conn)
-                print("continue here 1")
-                if res[1] != 200:
-                    return {"message": "Cannot collect credit card info"}, 500
-                print(res)
-                [cc_num, cc_cvv, cc_exp_date, cc_zip] = destructure(res[0]['result'][0], "cc_num",  "cc_cvv", "cc_exp_date", "cc_zip")
+                # query = '''SELECT cc_num, cc_cvv, cc_zip, cc_exp_date
+                #                 FROM M4ME.payments
+                #                 WHERE pay_purchase_uid = "''' + purchaseID + '";'
+                # res = simple_get_execute(query, "GET CREDIT CARD INFO FOR CHANGING MEAL PLAN", conn)
+                # print("continue here 1")
+                # if res[1] != 200:
+                #     return {"message": "Cannot collect credit card info"}, 500
+                # print(res)
+                # [cc_num, cc_cvv, cc_exp_date, cc_zip] = destructure(res[0]['result'][0], "cc_num",  "cc_cvv", "cc_exp_date", "cc_zip")
 
-                month = cc_exp_date.split("-")[1]
-                year  = cc_exp_date.split("-")[0]
-                print("continue here 1.5")
-                card_dict = {"number": cc_num, "exp_month": int(month), "exp_year": int(year), "cvc": cc_cvv}
-                print("continue here 1.6")
-                try:
-                    card_token = stripe.Token.create(card=card_dict)
-                    charge_id = stripe.Charge.create(
-                        amount=int(round(float(amount_will_charge * 100))),
-                        currency="usd",
-                        source=card_token,
-                        description="Charge for changing Meal Plan",
-                    )
-                    print("card error 2")
-                except stripe.error.CardError as e:
-                    # Since it's a decline, stripe.error.CardError will be caught
-                    response['message'] = e.error.message
-                    return response, 400
-                print("continue here 2")
+                # month = cc_exp_date.split("-")[1]
+                # year  = cc_exp_date.split("-")[0]
+                # print("continue here 1.5")
+                # card_dict = {"number": cc_num, "exp_month": int(month), "exp_year": int(year), "cvc": cc_cvv}
+                # print("continue here 1.6")
+                # try:
+                #     card_token = stripe.Token.create(card=card_dict)
+                #     charge_id = stripe.Charge.create(
+                #         amount=int(round(float(amount_will_charge * 100))),
+                #         currency="usd",
+                #         source=card_token,
+                #         description="Charge for changing Meal Plan",
+                #     )
+                #     print("card error 2")
+                # except stripe.error.CardError as e:
+                #     # Since it's a decline, stripe.error.CardError will be caught
+                #     response['message'] = e.error.message
+                #     return response, 400
+                # print("continue here 2")
+
+
+
             elif amount_will_charge < 0:
                 # establishing more info for refund_info before we feed it in stripe_refund
                 refund_info['refund_amount'] = abs(amount_will_charge)
@@ -8983,7 +9020,7 @@ class change_purchase(Resource):
             start_delivery_date = (thurs + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
             print("start here 5")
             #print(stop)
-            charge_id = "'" + charge_id.id + "'" if charge_id else "NULL"
+            charge_id = "'" + charge_id + "'" if charge_id else "NULL"
             info_res = info_res[0]['result'][0]
 
             payment_id = info_res.get("payment_id")
@@ -9100,6 +9137,7 @@ class change_purchase(Resource):
             ]
             print("right after inserting")
             if refunded:  # if refunded is true then write it to refund table
+                print("refund here")
                 res_refund_uid = get_new_id("CALL new_refund_uid", "GET NEW REFUND UID", conn)
                 if res_refund_uid[1] != 200:
                     return {"message": "Error happened when requesting new refund_uid"}, 500
@@ -9120,29 +9158,31 @@ class change_purchase(Resource):
                 if refund_res[1] != 201:
                     return {"message": "Error happened while writting into refund table"}, 500
             response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
-
+            print("before temp key")
 
             if temp_key is not None:
                 stripe.api_key = temp_key
 
-
+            print("after temp key")
+            print(response[1])
             if response[1] == 201:
                 if refunded:
                     response[0]['refund_uid'] = refund_uid
                 response[0]['payment_id'] = payment_uid
                 response[0]['purchase_id'] = purchase_uid
                 query = '''UPDATE M4ME.purchases SET purchase_status = "CANCELLED" WHERE purchase_uid = "''' + purchaseID + '";'
+                print(query)
                 simple_post_execute([query], ["UPDATE OLD PURCHASES"], conn)
-                print("bfore setting charge " + str(refund_info['refunded_id'][0]))
-                refunded_id_1 = str(refund_info['refunded_id'][0])
-                query_test = '''
-                                update payments
-                                set charge_id = "''' + refunded_id_1 + '''"
-                                where payment_uid = "''' + payment_uid + '''";
-                            '''
-                resN1 = simple_post_execute(query_test, "update_charge_id", conn)
-                print("after setting charge")
-                print(resN1)
+                # print("bfore setting charge " + str(refund_info['refunded_id'][0]))
+                # refunded_id_1 = str(refund_info['refunded_id'][0])
+                # query_test = '''
+                #                 update payments
+                #                 set charge_id = "''' + refunded_id_1 + '''"
+                #                 where payment_uid = "''' + payment_uid + '''";
+                #             '''
+                # resN1 = simple_post_execute(query_test, "update_charge_id", conn)
+                # print("after setting charge")
+                # print(resN1)
                 return response
 
             else:
