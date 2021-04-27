@@ -8863,20 +8863,20 @@ class change_purchase(Resource):
             num_days = data["items"][0]["qty"]
             
             print("days :", num_days)
-
             # price = (json.loads(info_res['items'])[0].get('price'))
 
             # print("price :", price)
             ####################
 
-
+            #print("before delivery_query")
             delivery_query= """
                             select item_price, delivery_discount from subscription_items si
                             join discounts
                             where itm_business_uid = "200-000002"
                             and si.num_items = '""" + num_meals + """' 
-                            and num_deliveries = '""" + num_days + """';
-                        """
+                            and num_deliveries = """ + num_days + """;
+                            """
+            #print("after delivery_query")
             d_query = simple_get_execute(delivery_query, 'get', conn)
             print("2")
             print(d_query[0]["result"][0]["item_price"])
@@ -8922,12 +8922,29 @@ class change_purchase(Resource):
             print("start here 1")
             print(amount_will_charge)
             if amount_will_charge > 0:
+                ppid = info_res[0]['result'][0]["pay_purchase_id"]
                 process_id_for_charge = info_res[0]['result'][0]["charge_id"]
-                print(process_id_for_charge)
+                print(ppid)
+                find_charge_id= """
+                                    select charge_id from payments
+                                    where pay_purchase_id = '""" + ppid + """';
+                                """
+                fci_query = simple_get_execute(find_charge_id, 'get', conn)
+                #print(fci_query[0]["result"])
+                i =0
+                print(len(fci_query[0]["result"]))
+                while i < len(fci_query[0]["result"]):
+                    if fci_query[0]["result"][i] is not None:
+                        temp_charge_id=fci_query[0]["result"][i]
+                        break
+                    i=i+1
+                print(temp_charge_id["charge_id"])
+                process_id_for_charge = temp_charge_id["charge_id"]
                 if process_id_for_charge[:2] == "pi":
                     process_id_for_charge = stripe.PaymentIntent.retrieve(process_id_for_charge).get("charges").get("data")[0].get("id")
                 print(process_id_for_charge)
                 charge_infos = stripe.Charge.retrieve(process_id_for_charge,)
+                #print(charge_infos)
                 paymentmeth = charge_infos.get("payment_method")
                 #print(stripe.PaymentMethod.retrieve(paymentmeth))
                 print(paymentmeth)
@@ -8935,6 +8952,7 @@ class change_purchase(Resource):
                 cust_uid = info_res[0]['result'][0]["pur_customer_uid"]
                 print("cust id here " + cust_uid)
                 print("probelm here")
+                #print(stripe.Source.retrieve(paymentmeth))
                 intent = stripe.PaymentIntent.create(
                     amount=int(amount_will_charge*100),
                     currency="usd",
@@ -9348,7 +9366,7 @@ class change_purchase(Resource):
         delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
         print("delivered_num :", delivered_num)
 
-
+        print(json.loads(info_res['items'])[0].get('price'))
         # get number of meals from item name
         num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
         print("meals :",num_meals)
