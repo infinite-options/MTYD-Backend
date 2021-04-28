@@ -11073,6 +11073,142 @@ class get_stripe_key(Resource):
                 print('LIVE')
                 return stripe_secret_live_key
                 
+
+
+class update_pay_pur_mobile(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            start_delivery_date = data['start_delivery_date']
+            purchaseId = data['purchaseId']
+            amount_due = data['amount_due']
+            amount_discount = data['amount_discount']
+            amount_paid = data['amount_paid']
+            coupon_id = data['coupon_id']
+            charge_id = data['charge_id']
+            payment_type = data['payment_type']
+            cc_num = data['cc_num']
+            cc_exp_date = data['cc_exp_date']
+            cc_cvv = data['cc_cvv']
+            cc_zip = data['cc_zip']
+            taxes = data['taxes']
+            tip = data['tip']
+            service_fee = data['service_fee']
+            delivery_fee = data['delivery_fee']
+            subtotal = data['subtotal']
+            amb = data['amb']
+            customer_uid = data['customer_uid']
+            delivery_first_name = data['delivery_first_name']
+            delivery_last_name = data['delivery_last_name']
+            delivery_email = data['delivery_email']
+            delivery_phone = data['delivery_phone']
+            delivery_address = data['delivery_address']
+            delivery_unit = data['delivery_unit']
+            delivery_city = data['delivery_city']
+            delivery_state = data['delivery_state']
+            delivery_zip = data['delivery_zip']
+            delivery_instructions = data['delivery_instructions']
+            delivery_longitude = data['delivery_longitude']
+            delivery_latitude = data['delivery_latitude']
+            items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
+            order_instructions = data['order_instructions']
+            purchase_notes = data['purchase_notes']
+            print("before new purchase_uid")
+            purchase_uid = get_new_purchaseID(conn)
+            print("before new payment uid")
+            paymentId = get_new_paymentID(conn)
+            print("before status")
+            change_status = """
+                    update purchases
+                    set purchase_status = "CANCELLED"
+                    where purchase_id = \'""" + purchaseId + """\'
+                    and purchase_status = "ACTIVE";
+                    """
+            status = execute(change_status, 'post', conn)
+            print(status)
+            print("before queries")
+            queries1 = '''
+                        INSERT INTO M4ME.payments
+                        SET payment_uid = \'''' + paymentId + '''\',
+                            payment_time_stamp = \'''' + getNow() + '''\',
+                            start_delivery_date = \'''' + start_delivery_date + '''\',
+                            payment_id = \'''' + paymentId + '''\',
+                            pay_purchase_id = \'''' + purchaseId + '''\',
+                            pay_purchase_uid = \'''' + purchase_uid + '''\',
+                            amount_due = \'''' + amount_due + '''\',
+                            amount_discount = \'''' + amount_discount + '''\',
+                            amount_paid = \'''' + amount_paid + '''\',
+                            charge_id = \'''' + charge_id + '''\',
+                            payment_type = \'''' + payment_type + '''\',
+                            info_is_Addon = 'FALSE',
+                            cc_num = \'''' + cc_num  + '''\',
+                            cc_exp_date = \'''' + cc_exp_date + '''\', 
+                            cc_cvv = \'''' + cc_cvv + '''\', 
+                            cc_zip = \'''' + cc_zip + '''\',
+                            taxes = \'''' + taxes + '''\',
+                            driver_tip = \'''' + tip + '''\',
+                            service_fee = \'''' + service_fee + '''\',
+                            delivery_fee = \'''' + delivery_fee + '''\',
+                            subtotal = \'''' + subtotal + '''\',
+                            ambassador_code = \'''' + amb + '''\'
+                            ;
+                        '''
+            response1 = execute(queries1, "post", conn)
+            print(response1)
+            queries2= '''
+                        INSERT INTO  M4ME.purchases
+                        SET purchase_uid = \'''' + purchase_uid + '''\',
+                            purchase_date = \'''' + getNow() + '''\',
+                            purchase_id = \'''' + purchaseId + '''\',
+                            purchase_status = 'ACTIVE',
+                            pur_customer_uid = \'''' + customer_uid + '''\',
+                            delivery_first_name = \'''' + delivery_first_name + '''\',
+                            delivery_last_name = \'''' + delivery_last_name + '''\',
+                            delivery_email = \'''' + delivery_email + '''\',
+                            delivery_phone_num = \'''' + delivery_phone + '''\',
+                            delivery_address = \'''' + delivery_address + '''\',
+                            delivery_unit = \'''' + delivery_unit + '''\',
+                            delivery_city = \'''' + delivery_city + '''\',
+                            delivery_state = \'''' + delivery_state + '''\',
+                            delivery_zip = \'''' + delivery_zip + '''\',
+                            delivery_instructions = \'''' + delivery_instructions + '''\',
+                            delivery_longitude = \'''' + delivery_longitude + '''\',
+                            delivery_latitude = \'''' + delivery_latitude + '''\',
+                            items = ''' + items + ''',
+                            order_instructions = \'''' + order_instructions + '''\',
+                            purchase_notes = \'''' + purchase_notes + '''\'
+                            ;
+                        '''
+
+            response2 = execute(queries2, "post", conn)
+            print(response2)
+            if response1["code"] == 281 and response2["code"]==281:
+                return(response2)
+            else:
+                raise BadRequest('Request failed, please try again later.')
+
+                        
+
+
+                            
+                            
+
+
+
+
+
+                            
+                            
+                            
+                        
+                            
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 # Define API routes
 # Customer APIs
 
@@ -11416,6 +11552,8 @@ api.add_resource(test_cal, '/api/v2/test_cal/<string:purchaseID>')
 api.add_resource(predict_autopay_day, '/api/v2/predict_autopay_day/<string:id>')
 
 api.add_resource(order_amount_calculation, '/api/v2/order_amount_calculation')
+
+api.add_resource(update_pay_pur_mobile, '/api/v2/update_pay_pur_mobile')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
