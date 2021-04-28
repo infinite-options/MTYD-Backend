@@ -8900,9 +8900,17 @@ class change_purchase(Resource):
             else:
                 tax = 9.25
 
-            #print("calc error happens here")
+            print("calc error happens here")
+            
+            test_prices = (int(num_days)*price*(1-discount/100))*(1+tax/100)
+            test_price1 = ((round((int(num_days)*price)*100)/100)*(1-discount/100))*(1+tax/100)
+            test_price2 = (round((int(num_days)*price*(1-discount/100))*100)/100)*(1+tax/100)
+            test_price3 = round((int(num_days)*price*(1-discount/100))*(1+tax/100)*100)/100
             customer_used_amount = (int(num_days)*price*(1-discount/100))*(1+tax/100) + float(info_res[0]['result'][0]["service_fee"]) + float(info_res[0]['result'][0]["driver_tip"]) + float(info_res[0]['result'][0]["delivery_fee"])
-            #print(customer_used_amount)
+            print(test_prices)
+            print(test_price1)
+            print(test_price2)
+            print(test_price3)
             customer_used_amount = float(int(round(customer_used_amount*100))/100)
             #rint(customer_used_amount)
             #info_res[0]['result'][0]["taxes"]
@@ -8916,6 +8924,10 @@ class change_purchase(Resource):
             print("customer_used_amount " + str(customer_used_amount))
             print("refund_info " + str(refund_info["refund_amount"]))
             amount_will_charge = customer_used_amount - refund_info["refund_amount"]
+            print("amount charge history")
+            print(amount_will_charge)
+            print(round(amount_will_charge*100))
+            print(int(round(amount_will_charge*100)))
             amount_will_charge = float(int(round(amount_will_charge*100))/100)
             print("amount will charge " + str(amount_will_charge))
             # Process stripe
@@ -9098,8 +9110,8 @@ class change_purchase(Resource):
 
 
 ############
-            subtotal = str(float(round((int(num_days)*price)*100))/100)
-            taxes = str(float((round((int(num_days)*price*(1-discount/100))*(tax/100)*100))/100))
+            subtotal = str(float(int(round((int(num_days)*price)*100)))/100)
+            taxes = str(float(int((round((int(num_days)*price*(1-discount/100))*(tax/100)*100)))/100))
             print("testing taxes " + str(taxes))
             print("just before inserting")
             queries = [
@@ -9265,7 +9277,7 @@ class change_purchase(Resource):
                 # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
                 #retrieve info from stripe for specific charge_id:
                 print("during stripe: stripe 1")
-                print(stripe.PaymentIntent.retrieve("pi_1IjDpmLMju5RPMEv95tJVSX0",))
+                #print(stripe.PaymentIntent.retrieve("pi_1IjDpmLMju5RPMEv95tJVSX0",))
                 print(process_id)
                 if process_id[:2] == "pi":
                     process_id = stripe.PaymentIntent.retrieve(process_id).get("charges").get("data")[0].get("id")
@@ -9287,6 +9299,8 @@ class change_purchase(Resource):
                     amount_could_refund = round(float(refunded_info['amount'] - refunded_info['amount_refunded']),0)
                     print(amount_could_refund)
                     print(amount_should_refund)
+                    if abs(amount_could_refund-amount_should_refund)<=2:
+                        amount_should_refund = amount_could_refund
                     # print("amount_could_refund: ", amount_could_refund)
                     # print("amount_should_refund: ", amount_should_refund)
                     if amount_should_refund <= amount_could_refund:
@@ -11085,7 +11099,7 @@ class update_pay_pur_mobile(Resource):
             amount_due = data['amount_due']
             amount_discount = data['amount_discount']
             amount_paid = data['amount_paid']
-            coupon_id = data['coupon_id']
+            coupon_id = data['coupon_id'] if data['coupon_id'] is not None else None
             charge_id = data['charge_id']
             payment_type = data['payment_type']
             cc_num = data['cc_num']
@@ -11560,5 +11574,9 @@ api.add_resource(update_pay_pur_mobile, '/api/v2/update_pay_pur_mobile')
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=2000)
     #app.run(host='0.0.0.0', port=2000)
+
+
+
+
 
 
