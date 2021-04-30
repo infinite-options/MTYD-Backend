@@ -10530,6 +10530,19 @@ class predict_autopay_day(Resource):
                             ORDER BY menu_date
                           """
             items_dates = execute(query_dates, 'get', conn)
+            print("before addition")
+            #print(vals["taxes"])
+            # vals["taxes"]=items[0]['result'][0]["taxes"]
+            # vals["delivery_fee"]=items[0]['result'][0]["delivery_fee"]
+            # vals["service_fee"]=items[0]['result'][0]["service_fee"]
+            # vals["driver_tip"]=items[0]['result'][0]["driver_tip"]
+            # vals["base_amount"]=items[0]['result'][0]["subtotal"]
+            # vals["discount"]=items[0]['result'][0]["amount_discount"]
+            # print("after addition")
+            # vals["ambassador_code"]=info_res[0]['result'][0]["ambassador_code"]
+            # return refund_info
+            
+
 
             ct = 0
             for vals in items_dates['result']:
@@ -10539,6 +10552,12 @@ class predict_autopay_day(Resource):
                         continue
                 ct += 1
                 if ct == number_of_delivery:
+                    vals["taxes"]=items['result'][0]["taxes"]
+                    vals["delivery_fee"]=items['result'][0]["delivery_fee"]
+                    vals["service_fee"]=items['result'][0]["service_fee"]
+                    vals["driver_tip"]=items['result'][0]["driver_tip"]
+                    vals["base_amount"]=items['result'][0]["subtotal"]
+                    vals["discount"]=items['result'][0]["amount_discount"]
                     return vals
 
             
