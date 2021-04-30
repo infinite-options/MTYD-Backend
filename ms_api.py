@@ -10558,6 +10558,7 @@ class predict_autopay_day(Resource):
                     vals["driver_tip"]=items['result'][0]["driver_tip"]
                     vals["base_amount"]=items['result'][0]["subtotal"]
                     vals["discount"]=items['result'][0]["amount_discount"]
+                    vals["total"] = vals["base_amount"]-vals["discount"] +vals["taxes"] + vals["delivery_fee"] + vals["service_fee"] + vals["driver_tip"]
                     return vals
 
             
