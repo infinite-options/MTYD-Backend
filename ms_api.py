@@ -11259,6 +11259,60 @@ class update_pay_pur_mobile(Resource):
         finally:
             disconnect(conn)
 
+
+
+
+class next_meal_info(Resource):
+    def get(self, cust_id):
+        try:
+            conn = connect()
+            #data = request.get_json(force=True)
+            print("before query")
+            query = """
+                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
+                        ON lcm.sel_purchase_id = lplp.purchase_id
+                    WHERE pur_customer_uid = '""" + cust_id + """'
+                    and sel_menu_date > now()
+                    group by purchase_id; 
+                    """
+
+            print("after query")
+            items = execute(query, 'get', conn)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Meals selected"
+                items['code'] = 200
+            print(items['result'][0]["purchase_id"])
+            x = 0
+            while x < len(items["result"]):
+                purchase_id = items['result'][x]["purchase_id"]
+                next_date = predict_autopay_day().get(purchase_id)
+                print(next_date)
+                items['result'][x]["menu_date"] = next_date["menu_date"]
+                items['result'][x]["taxes"] = next_date["taxes"]
+                items['result'][x]["delivery_fee"] = next_date["delivery_fee"]
+                items['result'][x]["service_fee"] = next_date["service_fee"]
+                items['result'][x]["driver_tip"] = next_date["driver_tip"]
+                items['result'][x]["base_amount"] = next_date["base_amount"]
+                items['result'][x]["total"] = next_date["total"]
+                x=x+1
+
+
+
+            #print(items)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
 # Define API routes
 # Customer APIs
 
@@ -11604,6 +11658,8 @@ api.add_resource(predict_autopay_day, '/api/v2/predict_autopay_day/<string:id>')
 api.add_resource(order_amount_calculation, '/api/v2/order_amount_calculation')
 
 api.add_resource(update_pay_pur_mobile, '/api/v2/update_pay_pur_mobile')
+
+api.add_resource(next_meal_info, '/api/v2/next_meal_info/<string:cust_id>')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
