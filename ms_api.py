@@ -11275,6 +11275,7 @@ class next_meal_info(Resource):
                         ON lcm.sel_purchase_id = lplp.purchase_id
                     WHERE pur_customer_uid = '""" + cust_id + """'
                     and sel_menu_date > now()
+                    and purchase_status = "ACTIVE"
                     group by purchase_id; 
                     """
 
@@ -11287,7 +11288,7 @@ class next_meal_info(Resource):
             if items['code']== 280:
                 items['message'] = "Meals selected"
                 items['code'] = 200
-            print(items['result'][0]["purchase_id"])
+            print(items['result'])
             x = 0
             while x < len(items["result"]):
                 purchase_id = items['result'][x]["purchase_id"]
@@ -11309,7 +11310,7 @@ class next_meal_info(Resource):
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
-            disconnect(conn)
+            disconnect(conn) 
 
 
 
