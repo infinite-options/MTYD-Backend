@@ -9046,7 +9046,7 @@ class change_purchase(Resource):
                 else:
                     return {"message": "REFUND PROCESS ERROR."}, 500
             
-            elif amount_will_chage = 0:
+            
 
 
 
@@ -11744,7 +11744,7 @@ class future_potential_customer(Resource):
             if items['code'] != 281:
                 items['message'] = 'Check sql query'
             return items
-         except:
+        except:
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn) 
