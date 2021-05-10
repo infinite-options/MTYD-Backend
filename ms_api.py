@@ -11693,19 +11693,28 @@ class try_catch_storage(Resource):
             data = request.get_json(force=True)
             customer_uid = data['customer_uid']
             caught_problems = data['caught_output']
-            source = data['source']
-            new_problem_uid = "CALL new_customer_uid();"
+            functions = data['functions']
+            files = data['files']
+            line_number = data['line_number']
+            types = data['types']
+            print("1")
+            new_problem_uid = "CALL new_try_catch_id();"
             problem_id = execute(new_problem_uid, 'get', conn)
+            #print(problem_id["result"][0]["new_id"])
             query = """
-                    insert into try_catch (problem_id, customer_uid, caught_problems, sources, problem_timestamp)
+                    insert into try_catch (problem_id, customer_uid, caught_problems, problem_timestamp,functions, files, line_number, types)
                     values(
-                        '""" + problem_id + """',
+                        '""" + problem_id["result"][0]["new_id"] + """',
                         '""" + customer_uid + """',
                         '""" + caught_problems + """',
-                        '""" + source + """',
-                        now()
+                        now(),
+                        '""" + functions + """',
+                        '""" + files + """',
+                        '""" + line_number + """',
+                        '""" + types + """'
                     );
                     """
+            print("3")
             items = execute(query, 'post', conn)
 
             if items['code'] != 281:
@@ -11733,7 +11742,7 @@ class future_potential_customer(Resource):
             query = """
                     insert into potential_future_customer (potential_uid, customer_uid, customer_address, latitude, longitude, timestamp)
                     values(
-                        '""" + potential_uid + """',
+                        '""" + potential_uid["result"][0]["new_id"] + """',
                         '""" + customer_uid + """',
                         '""" + customer_address + """',
                         '""" + latitude + """',
