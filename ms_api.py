@@ -11737,10 +11737,12 @@ class future_potential_customer(Resource):
             customer_address = data['customer_address']
             latitude = data['latitude']
             longitude = data['longitude']
-            new_potential_uid = "CALL new_potential_uid();"
+            new_potential_uid = "CALL new_potential_id();"
             potential_uid = execute(new_potential_uid, 'get', conn)
+            #print("1")
+            #print(potential_uid["result"][0]["new_id"])
             query = """
-                    insert into potential_future_customer (potential_uid, customer_uid, customer_address, latitude, longitude, timestamp)
+                    insert into potential_future_customer (potential_uid, customer_uid, customer_address, latitude, longitude, potential_timestamp)
                     values(
                         '""" + potential_uid["result"][0]["new_id"] + """',
                         '""" + customer_uid + """',
@@ -11750,8 +11752,9 @@ class future_potential_customer(Resource):
                         now()
                     );
                     """
+            #print("2")
             items = execute(query, 'post', conn)
-
+            print(items)
             if items['code'] != 281:
                 items['message'] = 'Check sql query'
             return items
