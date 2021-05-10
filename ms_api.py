@@ -11763,6 +11763,40 @@ class future_potential_customer(Resource):
         finally:
             disconnect(conn) 
 
+
+class get_all_surprise_and_skips(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            #data = request.get_json(force=True)
+            print("1")
+            query = """
+                    select customer_uid, selection_time, sel_menu_date, meal_selection from customers
+                    inner join purchases 
+                        on customer_uid = pur_customer_uid
+                    inner join meals_selected
+                        on sel_purchase_id = purchase_id
+                    group by purchase_id 
+                    order by customer_uid, sel_menu_date
+                    """
+            print("2")
+            items = execute(query, 'get', conn)
+            print(len(items["result"]))
+            print(items["result"][0]["meal_selection"])
+            print((items["result"][0]["meal_selection"][9]))
+            
+            x = 0
+            while x<len(items["result"]):
+                if items["result"][x]["meal_selection"][9] != "\"":
+                    items["result"][x]["meal_selection"] = "MEALS SELECTED"
+                x=x+1
+
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn) 
+
 # Define API routes
 # Customer APIs
 
@@ -12114,6 +12148,8 @@ api.add_resource(next_meal_info, '/api/v2/next_meal_info/<string:cust_id>')
 api.add_resource(try_catch_storage, '/api/v2/try_catch_storage')
 
 api.add_resource(future_potential_customer, '/api/v2/future_potential_customer')
+
+api.add_resource(get_all_surprise_and_skips, '/api/v2/get_all_surprise_and_skips')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
