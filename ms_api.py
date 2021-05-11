@@ -11769,7 +11769,7 @@ class get_all_surprise_and_skips(Resource):
         try:
             conn = connect()
             #data = request.get_json(force=True)
-            print("1")
+            # print("1")
             query = """
                     select customer_uid, selection_time, sel_menu_date, meal_selection from customers
                     inner join purchases 
@@ -11779,15 +11779,19 @@ class get_all_surprise_and_skips(Resource):
                     group by purchase_id 
                     order by customer_uid, sel_menu_date
                     """
-            print("2")
+            # print("2")
             items = execute(query, 'get', conn)
-            print(len(items["result"]))
-            print(items["result"][0]["meal_selection"])
-            print((items["result"][0]["meal_selection"][9]))
-            
+            # print(len(items["result"]))
+            # print(items["result"][0]["meal_selection"])
+            # print((items["result"][0]["meal_selection"][9]))
+            # print(items["result"][2]["meal_selection"].find("SURPRISE"))
             x = 0
             while x<len(items["result"]):
-                if items["result"][x]["meal_selection"][9] != "\"":
+                if items["result"][x]["meal_selection"].find("SURPRISE") != -1:
+                    items["result"][x]["meal_selection"] = "SURPRISE"
+                elif items["result"][x]["meal_selection"].find("SKIP") != -1:
+                    items["result"][x]["meal_selection"] = "SKIP"
+                else:
                     items["result"][x]["meal_selection"] = "MEALS SELECTED"
                 x=x+1
 
@@ -11796,6 +11800,51 @@ class get_all_surprise_and_skips(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn) 
+
+
+
+
+class meals_selected_with_billing(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            customer_uid = request.args['customer_uid']
+            purchase_id = request.args['purchase_id']
+            #menu_date = request.args['menu_date']
+            query = """
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
+                        ON lcm.sel_purchase_id = lplp.purchase_id
+                    inner join meals_selected ms
+                        on lcm.sel_purchase_id = ms.sel_purchase_id
+                        and lcm.sel_menu_date = ms.sel_menu_date
+                    WHERE pur_customer_uid = '""" + customer_uid + """'
+                    and purchase_id = '""" + purchase_id + """'
+                    order by ms.sel_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print("before_res")
+            res = predict_autopay_day().get(purchase_id)
+            print(res)
+            items["next_billing"] = res
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Meals selected"
+                items['code'] = 200
+                #return items
+            return items
+
+
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 # Define API routes
 # Customer APIs
@@ -12150,6 +12199,8 @@ api.add_resource(try_catch_storage, '/api/v2/try_catch_storage')
 api.add_resource(future_potential_customer, '/api/v2/future_potential_customer')
 
 api.add_resource(get_all_surprise_and_skips, '/api/v2/get_all_surprise_and_skips')
+
+api.add_resource(meals_selected_with_billing, '/api/v2/meals_selected_with_billing')
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
