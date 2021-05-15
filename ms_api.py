@@ -1764,12 +1764,34 @@ class Meals_Selected(Resource): #(meals_selected_endpoint)
         try:
             conn = connect()
             customer_uid = request.args['customer_uid']
+            '''
             query = """
                     # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
                     SELECT * FROM M4ME.latest_combined_meal lcm
                     LEFT JOIN M4ME.lplp
                         ON lcm.sel_purchase_id = lplp.purchase_uid
                     WHERE pur_customer_uid = '""" + customer_uid + """'; 
+                    """
+            '''
+
+            query = """
+                    # CUSTOMER QUERY 3: MEALS SELECTED INCLUDING DEFAULT SURPRISES
+                    SELECT lplpmdlcm.*,
+                        IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
+                    FROM (
+                    SELECT * FROM M4ME.lplp
+                    JOIN (
+                        SELECT DISTINCT menu_date
+                        FROM menu
+                        WHERE menu_date > now()
+                        ORDER BY menu_date ASC) AS md
+                    LEFT JOIN M4ME.latest_combined_meal lcm
+                    ON lplp.purchase_id = lcm.sel_purchase_id AND
+                            md.menu_date = lcm.sel_menu_date
+                    WHERE pur_customer_uid = '""" + customer_uid + """'
+                            -- AND purchase_status = "ACTIVE"
+                            ) AS lplpmdlcm
+                    ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC;
                     """
 
             
@@ -1798,6 +1820,7 @@ class Meals_Selected_Specific(Resource):
             customer_uid = request.args['customer_uid']
             purchase_id = request.args['purchase_id']
             menu_date = request.args['menu_date']
+            '''
             query = """
                     # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
                     SELECT * FROM M4ME.latest_combined_meal lcm
@@ -1806,6 +1829,29 @@ class Meals_Selected_Specific(Resource):
                     WHERE pur_customer_uid = '""" + customer_uid + """'
                     and purchase_id = '""" + purchase_id + """'
                     and sel_menu_date= '""" + menu_date + """';
+                    """
+            '''
+
+            query = """
+                    # CUSTOMER QUERY 3A: MEALS SELECTED FOR SPECIFIC PURCHASE ID AND MENU DATE INCLUDING DEFAULT SURPRISES 
+					SELECT lplpmdlcm.*,
+						IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
+					FROM (
+					SELECT * FROM M4ME.lplp
+					JOIN (
+						SELECT DISTINCT menu_date
+						FROM menu
+						WHERE menu_date > now()
+						ORDER BY menu_date ASC) AS md
+					LEFT JOIN M4ME.latest_combined_meal lcm
+					ON lplp.purchase_id = lcm.sel_purchase_id AND
+							md.menu_date = lcm.sel_menu_date
+					WHERE pur_customer_uid = '""" + customer_uid + """' 
+							AND purchase_id = '""" + purchase_id + """'
+                            AND menu_date = '""" + menu_date + """'
+							-- AND purchase_status = "ACTIVE"
+							) AS lplpmdlcm
+					ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC; 
                     """
 
             items = execute(query, 'get', conn)
@@ -7959,12 +8005,35 @@ class Meals_Selected_pid(Resource):
         try:
             conn = connect()
             purchase_id = request.args['purchase_id']
+
+            '''
             query = """
                     # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
                     SELECT * FROM M4ME.latest_combined_meal lcm
                     LEFT JOIN M4ME.lplp
                         ON lcm.sel_purchase_id = lplp.purchase_id
-                    WHERE purchase_id = '""" + purchase_id + """'; 
+                    WHERE purchase_id = '""" + purchase_id + """';
+                    """
+            '''
+
+            query = """
+                    # CUSTOMER QUERY 3A: MEALS SELECTED FOR SPECIFIC PURCHASE ID AND MENU DATE INCLUDING DEFAULT SURPRISES 
+					SELECT lplpmdlcm.*,
+						IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
+					FROM (
+					SELECT * FROM M4ME.lplp
+					JOIN (
+						SELECT DISTINCT menu_date
+						FROM menu
+						WHERE menu_date > now()
+						ORDER BY menu_date ASC) AS md
+					LEFT JOIN M4ME.latest_combined_meal lcm
+					ON lplp.purchase_id = lcm.sel_purchase_id AND
+							md.menu_date = lcm.sel_menu_date
+					WHERE purchase_id = '""" + purchase_id + """'
+							-- AND purchase_status = "ACTIVE"
+							) AS lplpmdlcm
+					ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC; 
                     """
 
             
@@ -10527,8 +10596,11 @@ class predict_autopay_day(Resource):
 
                     """
             items = execute(query, 'get', conn)
+            print("items", items)
             number_of_delivery = json.loads(items['result'][0]['items'])
             number_of_delivery = int(number_of_delivery[0]['qty'])
+            print("number_of_delivery", number_of_delivery)
+
             
             delivery_day = {}
             for vals in items['result']:
@@ -10538,8 +10610,10 @@ class predict_autopay_day(Resource):
                 
                 
             delivery = items['result'][0]['start_delivery_date']
+            print(delivery)
 
             start_delivery_date = delivery.replace('-',':')
+            print(start_delivery_date)
             
             query_dates = """
                             SELECT DISTINCT(menu_date)
@@ -10951,15 +11025,17 @@ class brandAmbassador(Resource):
                     WHERE email_id = \'""" + code + """\';
                     """
             items_amb = execute(query_amb, 'get', conn)
+            # print("items_amb", items_amb)
             
             if items_amb['code'] != 280:
                 items_amb['message'] = 'check sql query'
                 return items_amb
             
             if action == 'create_ambassador':
-                
+                # print("Create Ambassador")
+
                 for vals in items_amb['result']:
-                    print(vals)
+                    # print(vals)
                     if vals['coupon_id'] == 'Ambassador':
                         return 'Customer already an Ambassador'
                 
@@ -10992,7 +11068,7 @@ class brandAmbassador(Resource):
                 return items
 
             elif action == 'discount_checker':
-
+                # print("Discount Checker")
                 if not items_amb['result']:
                     return {"message":'No code exists',"code":501,"discount":"","uids":""}
                 
@@ -11023,13 +11099,14 @@ class brandAmbassador(Resource):
                     return {"message":'Please login',"code":504,"discount":"","uids":""}
                 
                 if type_code == 'Ambassador':
-
+                    # print("Ambassador")
                     # check if customer is already a ambassador because ambassador cannot refer himself or get referred
                     query_cust = """
                         SELECT * FROM coupons
                         WHERE email_id = \'""" + info + """\';
                         """
                     items_cust = execute(query_cust, 'get', conn)
+                    # print("items_cust", items_cust)
                     for vals in items_cust['result']:
                         if vals['coupon_id'] == 'Ambassador':
                             return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
@@ -11811,6 +11888,91 @@ class meals_selected_with_billing(Resource):
             customer_uid = request.args['customer_uid']
             purchase_id = request.args['purchase_id']
             #menu_date = request.args['menu_date']
+            
+            '''
+            query = """
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
+                        ON lcm.sel_purchase_id = lplp.purchase_id
+                    inner join meals_selected ms
+                        on lcm.sel_purchase_id = ms.sel_purchase_id
+                        and lcm.sel_menu_date = ms.sel_menu_date
+                    WHERE pur_customer_uid = '""" + customer_uid + """'
+                    and purchase_id = '""" + purchase_id + """'
+                    order by ms.sel_menu_date;
+                    """
+            '''
+
+            '''
+            query = """
+                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
+                        ON lcm.sel_purchase_id = lplp.purchase_id
+                    WHERE pur_customer_uid = '""" + customer_uid + """'
+                    and purchase_id = '""" + purchase_id + """'
+                    and sel_menu_date= '""" + menu_date + """';
+                    """
+            '''
+
+            query = """
+                    # CUSTOMER QUERY 3A: MEALS SELECTED FOR SPECIFIC PURCHASE ID AND MENU DATE INCLUDING DEFAULT SURPRISES 
+					SELECT lplpmdlcm.*,
+						IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
+					FROM (
+					SELECT * FROM M4ME.lplp
+					JOIN (
+						SELECT DISTINCT menu_date
+						FROM menu
+						WHERE menu_date > now()
+						ORDER BY menu_date ASC) AS md
+					LEFT JOIN M4ME.latest_combined_meal lcm
+					ON lplp.purchase_id = lcm.sel_purchase_id AND
+							md.menu_date = lcm.sel_menu_date
+					WHERE pur_customer_uid = '""" + customer_uid + """' 
+							AND purchase_id = '""" + purchase_id + """'
+							-- AND purchase_status = "ACTIVE"
+							) AS lplpmdlcm
+					ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC; 
+                    """
+
+
+            items = execute(query, 'get', conn)
+            print("meals_selected_with billing query done")
+            print(items)
+            print("*****")
+            print("before predict_autopay_day")
+            res = predict_autopay_day().get(purchase_id)
+            print("after_res")
+            print(res)
+            items["next_billing"] = res
+            print("after_res2")
+            # print("items next_billing", items["next_billing"])
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Meals selected"
+                items['code'] = 200
+                #return items
+            return items
+
+
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+class orders_and_meals(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            customer_uid = request.args['customer_uid']
+            purchase_id = request.args['purchase_id']
+            #menu_date = request.args['menu_date']
             query = """
                     SELECT * FROM M4ME.latest_combined_meal lcm
                     LEFT JOIN M4ME.lplp
@@ -11850,7 +12012,7 @@ class meals_selected_with_billing(Resource):
 # Customer APIs
 
 #NEW BASE URL 
-#https://kur4j57ved.execute-api.us-west-1.amazonaws.com/dev
+#https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
 
 #--------------------- Signup/ Login page / Change Password ---------------------#
 #api.add_resource(SignUp, '/api/v2/signup')
@@ -12201,6 +12363,9 @@ api.add_resource(future_potential_customer, '/api/v2/future_potential_customer')
 api.add_resource(get_all_surprise_and_skips, '/api/v2/get_all_surprise_and_skips')
 
 api.add_resource(meals_selected_with_billing, '/api/v2/meals_selected_with_billing')
+
+api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
+
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
