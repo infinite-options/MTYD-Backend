@@ -10598,15 +10598,17 @@ class predict_autopay_day(Resource):
             items = execute(query, 'get', conn)
             print("items", items)
             number_of_delivery = json.loads(items['result'][0]['items'])
+            print("number_of_delivery", number_of_delivery)
             number_of_delivery = int(number_of_delivery[0]['qty'])
             print("number_of_delivery", number_of_delivery)
 
             
             delivery_day = {}
-            for vals in items['result']:
-                if vals['sel_menu_date']:
-                    del_date = vals['sel_menu_date'].replace('-',':')
-                    delivery_day[del_date] = vals['delivery_day']
+            print("items", items)
+            # for vals in items['result']:
+            #     if vals['sel_menu_date']:
+            #         del_date = vals['sel_menu_date'].replace('-',':')
+            #         delivery_day[del_date] = vals['delivery_day']
                 
                 
             delivery = items['result'][0]['start_delivery_date']
@@ -10634,15 +10636,17 @@ class predict_autopay_day(Resource):
             # vals["ambassador_code"]=info_res[0]['result'][0]["ambassador_code"]
             # return refund_info
             
-
+            print(items_dates)
 
             ct = 0
             for vals in items_dates['result']:
                 days = vals['menu_date'].replace("-",":")
+                print(days)
                 if days in delivery_day:
                     if delivery_day[days] == 'SKIP':
                         continue
                 ct += 1
+                print("ct: ", ct)
                 if ct == number_of_delivery:
                     vals["taxes"]=items['result'][0]["taxes"]
                     vals["delivery_fee"]=items['result'][0]["delivery_fee"]
@@ -10662,6 +10666,74 @@ class predict_autopay_day(Resource):
             disconnect(conn)
 
 
+# PRASHANT NEXT BILLING DATE ATTEMPT
+class predict_next_billing_date(Resource):
+
+    def get(self, id):
+
+        try:
+            conn = connect()
+            print("Inside predict class", id)
+
+            # UPDATED SINGLE QUERY
+            query = """
+                # CUSTOMER QUERY 2A: MEALS SELECTED INCLUDING DEFAULT SURPRISES - REDUCED COLUMNS
+                SELECT *
+                FROM ( 
+                    SELECT A.*,
+                        sum(B.delivery) as cum_qty
+                    FROM ( 
+                        SELECT * ,
+                            IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                            json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                        FROM M4ME.lplp
+                        JOIN (
+                            SELECT DISTINCT menu_date
+                            FROM menu
+                            -- WHERE menu_date > now()
+                            ORDER BY menu_date ASC) AS md
+                        LEFT JOIN M4ME.latest_combined_meal lcm
+                        ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                md.menu_date = lcm.sel_menu_date
+                        WHERE pur_customer_uid = '""" + id + """' 
+                                AND purchase_status = "ACTIVE"
+                                AND menu_date >= start_delivery_date)
+                        AS A
+                    JOIN (
+                        SELECT * ,
+                            IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                            json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                        FROM M4ME.lplp
+                        JOIN (
+                            SELECT DISTINCT menu_date
+                            FROM menu
+                            -- WHERE menu_date > now()
+                            ORDER BY menu_date ASC) AS md
+                        LEFT JOIN M4ME.latest_combined_meal lcm
+                        ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                md.menu_date = lcm.sel_menu_date
+                        WHERE pur_customer_uid = '""" + id + """' 
+                                AND purchase_status = "ACTIVE"
+                                AND menu_date >= start_delivery_date)
+                        AS B
+                    ON A.menu_date >= B.menu_date
+                        AND A.purchase_uid = B.purchase_uid
+                    GROUP BY A.menu_date,
+                        A.purchase_uid
+                    ) AS cum_del
+                WHERE cum_del.num_deliveries = cum_del.cum_qty
+                ORDER BY cum_del.purchase_uid;
+            """
+
+            next_billing_date = execute(query, 'get', conn)
+            print("Next Billing Date: ", next_billing_date)
+
+            return next_billing_date
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 ### End of code by Parva ################################################################################
 
@@ -12365,6 +12437,9 @@ api.add_resource(get_all_surprise_and_skips, '/api/v2/get_all_surprise_and_skips
 api.add_resource(meals_selected_with_billing, '/api/v2/meals_selected_with_billing')
 
 api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
+
+api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
+
 
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
