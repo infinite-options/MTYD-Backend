@@ -10675,7 +10675,7 @@ class predict_next_billing_date(Resource):
             conn = connect()
             print("Inside predict class", id)
 
-            # UPDATED SINGLE QUERY
+            # CUSTOMER QUERY 2A: LAST DELIVERY DATE - WITH NEXT DELIVERY DATE CALCULATION
             query = """
                 SELECT *,
                     ADDDATE(menu_date, 1) AS next_billing_date
@@ -10695,7 +10695,7 @@ class predict_next_billing_date(Resource):
                         LEFT JOIN M4ME.latest_combined_meal lcm
                         ON lplp.purchase_id = lcm.sel_purchase_id AND
                                 md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = "100-000125" 
+                        WHERE pur_customer_uid = '""" + id + """' 
                                 AND purchase_status = "ACTIVE"
                                 AND menu_date >= start_delivery_date)
                         AS A
@@ -10712,7 +10712,7 @@ class predict_next_billing_date(Resource):
                         LEFT JOIN M4ME.latest_combined_meal lcm
                         ON lplp.purchase_id = lcm.sel_purchase_id AND
                                 md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = "100-000125" 
+                        WHERE pur_customer_uid = '""" + id + """' 
                                 AND purchase_status = "ACTIVE"
                                 AND menu_date >= start_delivery_date)
                         AS B
