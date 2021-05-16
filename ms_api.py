@@ -10677,8 +10677,8 @@ class predict_next_billing_date(Resource):
 
             # UPDATED SINGLE QUERY
             query = """
-                # CUSTOMER QUERY 2A: MEALS SELECTED INCLUDING DEFAULT SURPRISES - REDUCED COLUMNS
-                SELECT *
+                SELECT *,
+                    ADDDATE(menu_date, 1) AS next_billing_date
                 FROM ( 
                     SELECT A.*,
                         sum(B.delivery) as cum_qty
@@ -10695,7 +10695,7 @@ class predict_next_billing_date(Resource):
                         LEFT JOIN M4ME.latest_combined_meal lcm
                         ON lplp.purchase_id = lcm.sel_purchase_id AND
                                 md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = '""" + id + """' 
+                        WHERE pur_customer_uid = "100-000125" 
                                 AND purchase_status = "ACTIVE"
                                 AND menu_date >= start_delivery_date)
                         AS A
@@ -10712,7 +10712,7 @@ class predict_next_billing_date(Resource):
                         LEFT JOIN M4ME.latest_combined_meal lcm
                         ON lplp.purchase_id = lcm.sel_purchase_id AND
                                 md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = '""" + id + """' 
+                        WHERE pur_customer_uid = "100-000125" 
                                 AND purchase_status = "ACTIVE"
                                 AND menu_date >= start_delivery_date)
                         AS B
