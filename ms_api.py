@@ -8845,13 +8845,22 @@ class change_purchase(Resource):
         refund_info["ambassador_code"]=info_res[0]['result'][0]["ambassador_code"]
         return refund_info
 
+
+
     def post(self, purchaseID):
+        
         try:
             conn = connect()
             #response = {}
             charge_id = None
             refunded = False
             refund_ui = None
+
+            purchaseId = get_new_purchaseID(conn)
+            if purchaseId[1] == 500:
+                print(purchaseId[0])
+                response['message'] = "Internal Server Error."
+                return response, 500
             # For this update_purchase endpoint, we should consider to ask customer provide their identity to make sure the right
             # person is doing what he/she want.
             # Also, using POST to protect sensitive information.
@@ -8864,7 +8873,8 @@ class change_purchase(Resource):
             #cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
-            purchaseID = data['purchase_id']
+            # purchaseID = data['purchase_id']
+            purchaseID = purchaseId
             new_item_id = data['new_item_id']
             #customer_uid = data["customer_id"]
             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
