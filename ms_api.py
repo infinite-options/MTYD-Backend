@@ -182,13 +182,14 @@ def serializeResponse(response):
 # Set conn parameter to connection object
 # OPTIONAL: Set skipSerialization to True to skip default JSON response serialization
 def execute(sql, cmd, conn, skipSerialization=False):
+    print("Start execute ", cmd)
     response = {}
     try:
         with conn.cursor() as cur:
             cur.execute(sql)
             if cmd == 'get':
                 result = cur.fetchall()
-                response['message'] = 'Successfully executed SQL query.'
+                response['message'] = 'Successfully executed get SQL query.'
                 # Return status code of 280 for successful GET request
                 response['code'] = 280
                 if not skipSerialization:
@@ -196,7 +197,7 @@ def execute(sql, cmd, conn, skipSerialization=False):
                 response['result'] = result
             elif cmd == 'post':
                 conn.commit()
-                response['message'] = 'Successfully committed SQL command.'
+                response['message'] = 'Successfully committed post SQL command.'
                 # Return status code of 281 for successful POST request
                 response['code'] = 281
             else:
@@ -237,6 +238,7 @@ def get_new_id(query, name, conn):
     return response, 200
 
 def simple_get_execute(query, name_to_show, conn):
+    print("Start simple_get_execute")
     response = {}
     res = execute(query, 'get', conn)
     if res['code'] != 280:
@@ -260,16 +262,21 @@ def simple_get_execute(query, name_to_show, conn):
         return response, 200
 
 def simple_post_execute(queries, names, conn):
+    print("Start simple_post_execute")
     response = {}
     # print("in simple_post_execute")
     # print("queries: ", queries)
     # print("names: ", names)
     # print("conn: ", conn)
     # print(len(queries), len(names))
+    print("Number of queries: ", queries)
+    print("Names: ", names)
     if len(queries) != len(names):
         return "Error. Queries and Names should have the same length."
     for i in range(len(queries)):
+        print("Start query execution")
         res = execute(queries[i], 'post', conn)
+        print("End query execution")
         if res['code'] != 281:
             string = " Cannot Insert into the " + names[i] + " table. "
             print("*" * (len(string) + 10))
@@ -277,7 +284,7 @@ def simple_post_execute(queries, names, conn):
             print("*" * (len(string) + 10))
             response['message'] = "Internal Server Error."
             return response, 500
-    response['message'] = "Successful."
+    response['message'] = "Simple Post Execute Successful."
     return response, 201
 
 def allowed_file(filename):
@@ -2094,37 +2101,52 @@ class Checkout(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
+            print(data)
+
             customer_uid = data['customer_uid']
             business_uid = data['business_uid'] if data.get('business_uid') is not None else 'NULL'
+            print("Delivery Info")
             delivery_first_name = data['delivery_first_name']
             delivery_last_name = data['delivery_last_name']
             delivery_email = data['delivery_email']
             delivery_phone = data['delivery_phone']
             delivery_address = data['delivery_address']
             #delivery_unit = data['delivery_unit']
-            delivery_unit = data['unit'] if data.get('unit') is not None else 'NULL'
+            #delivery_unit = data['unit'] if data.get('unit') is not None else 'NULL'
+            delivery_unit = data['delivery_unit'] if data.get('delivery_unit') is not None else 'NULL'
+            print("Delivery unit: ", delivery_unit)
             delivery_city = data['delivery_city']
             delivery_state = data['delivery_state']
             delivery_zip = data['delivery_zip']
             delivery_instructions = "'" + data['delivery_instructions'] + "'" if data.get('delivery_instructions') else 'NULL'
             delivery_longitude = data['delivery_longitude']
             delivery_latitude = data['delivery_latitude']
-
+            print("Item Info")
             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
             order_instructions = "'" + data['order_instructions'] + "'" if data.get('order_instructions') is not None else 'NULL'
             purchase_notes = "'" + data['purchase_notes'] + "'" if data.get('purchase_notes') is not None else 'NULL'
+            print("Payment Info")
             amount_due = data['amount_due']
             amount_discount = data['amount_discount']
             amount_paid = data['amount_paid']
-            print("test 0.7")
+            print("amount due: ", amount_due)
+            print("amount paid: ", amount_paid)
+            print("amount discount: ", amount_discount)
+
+            print("Credit Card Info")
             cc_num = data['cc_num']
-            cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
+            print(cc_num)
+            if cc_num != "NULL":    
+                cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
+            else:
+                cc_exp_date = "0000-00-00 00:00:00"
+            print("CC Expiration Date: ", cc_exp_date)
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
+
             charge_id = data['charge_id']
             payment_type = data['payment_type']
             amb = data['amb'] if data.get('amb') is not None else '0'
-
             taxes = data['tax']
             tip = data['tip']
             service_fee = data['service_fee']
@@ -2133,32 +2155,35 @@ class Checkout(Resource):
 
 
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
-            print("0")
-            print(data)
+
+            
             # We should sanitize the variable before writting into database.
             # must pass these check first
             if items == "'[]'":
                 raise BadRequest()
             
             purchaseId = get_new_purchaseID(conn)
+            print(purchaseId)
             if purchaseId[1] == 500:
                 print(purchaseId[0])
                 response['message'] = "Internal Server Error."
                 return response, 500
             paymentId = get_new_paymentID(conn)
+            print(paymentId)
             if paymentId[1] == 500:
                 print(paymentId[0])
                 response['message'] = "Internal Server Error."
                 return response, 500
+
             # User authenticated
             # check the customer_uid and see what kind of registration.
             # if it was registered by email then check the password.
-            customer_query = """SELECT * FROM customers WHERE customer_uid = '""" + data['customer_uid'] + """';"""
-            customer_res = execute(customer_query, 'get', conn)
+            # customer_query = """SELECT * FROM customers WHERE customer_uid = '""" + data['customer_uid'] + """';"""
+            # customer_res = execute(customer_query, 'get', conn)
 
-            if customer_res['code'] != 280 or not customer_res['result']:
-                response['message'] = "Could not authenticate user"
-                return response, 401
+            # if customer_res['code'] != 280 or not customer_res['result']:
+            #     response['message'] = "Could not authenticate user"
+            #     return response, 401
             # if customer_res['result'][0]['password_hashed'] is not None: original
             #print(customer_res['result'][0]['password_hashed'])
             #print(data['salt'])
@@ -2212,41 +2237,67 @@ class Checkout(Resource):
                 #     return response, 400
 
                 # update coupon table
-                coupon_id = data.get('coupon_id')
-                if str(coupon_id) != "" and coupon_id is not None:
-                    # update coupon table
-                    coupon_id = "'" + coupon_id + "'"
-                    coupon_query = """UPDATE coupons SET num_used = num_used + 1
-                                WHERE coupon_id =  """ + str(coupon_id) + ";"
-                    res = execute(coupon_query, 'post', conn)
-                else:
-                    coupon_id = 'NULL'
 
-                #charge_id = 'NULL' if stripe_charge.get('id') is None else "'" + stripe_charge.get('id') + "'"
-                # charge_id = 'TEST'
 
-                #calculate the start_delivery_date
 
-                dayOfWeek = datetime.now().weekday()
+                # ENTER COUPON ID.  SET TO NULL UNTIL WE IMPLEMENT COUPONS
+                print("I don't think coupons is used")
+                coupon_id = 'NULL'
+                # coupon_id = data.get('coupon_id')
+                # if str(coupon_id) != "" and coupon_id is not None:
+                #     # update coupon table
+                #     coupon_id = "'" + coupon_id + "'"
+                #     coupon_query = """UPDATE coupons SET num_used = num_used + 1
+                #                 WHERE coupon_id =  """ + str(coupon_id) + ";"
+                #     res = execute(coupon_query, 'post', conn)
+                # else:
+                #     coupon_id = 'NULL'
+                # print("coupon ID: ", coupon_id)
 
-                # Get the soonest Thursday, same day if today is Thursday
-                thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
-                print("problem start")
-                # If today is Thursday after 4PM'
-                if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
-                    thurs += timedelta(days=7)
 
-                #the next saturday
-                start_delivery_date = (thurs + timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
+                # CALCULATE start_delivery_date
+                #QUERY 8: NEXT DELIVERY DATE
 
-                #find tax, delivery fee etc
-                find_zone = '''
-                            select * from zones
-                            where 
+                date_query = '''
+                            SELECT DISTINCT menu_date FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                                AND menu_date < ADDDATE(CURDATE(), 7);
                             '''
+                response = simple_get_execute(date_query, "Next Delivery Date", conn)
+                # start_delivery_date = response
+                # print("start_delivery_date: ", start_delivery_date)
+                # start_delivery_date = response[0]
+                # print("start_delivery_date: ", start_delivery_date)
+                # start_delivery_date = response[0]['result']
+                # print("start_delivery_date: ", start_delivery_date)
+                start_delivery_date = response[0]['result'][0]['menu_date']
+                print("start_delivery_date: ", start_delivery_date)
+
+                # # CALCULATE start_delivery_date
+                # dayOfWeek = datetime.now().weekday()
+
+                # # Get the soonest Thursday, same day if today is Thursday
+                # thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
+                # print("problem start")
+                # # If today is Thursday after 4PM'
+                # if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
+                #     thurs += timedelta(days=7)
+
+                # #the next saturday
+                # start_delivery_date = (thurs + timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
+
+
+
+                # FIND TAX, DELIVERY FEE FROM ZONES TABLE
+                print("I don't think ZONES is used")
+                # find_zone = '''
+                #             select * from zones
+                #             where 
+                #             '''
                 # write into Payments table
 
-                
+                print("Before Insert")
+                print("Delivery unit: ", delivery_unit)
                 queries = [
                             '''
                             INSERT INTO M4ME.payments
@@ -2299,6 +2350,7 @@ class Checkout(Resource):
                             '''
                             ]
                 response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
+                print("Insert Response: ", response)
                 if response[1] == 201:
                     response[0]['payment_id'] = paymentId
                     response[0]['purchase_id'] = purchaseId
