@@ -2105,42 +2105,40 @@ class Checkout(Resource):
 
             customer_uid = data['customer_uid']
             business_uid = data['business_uid'] if data.get('business_uid') is not None else 'NULL'
-            print("Delivery Info")
+            # print("Delivery Info")
             delivery_first_name = data['delivery_first_name']
             delivery_last_name = data['delivery_last_name']
             delivery_email = data['delivery_email']
             delivery_phone = data['delivery_phone']
             delivery_address = data['delivery_address']
-            #delivery_unit = data['delivery_unit']
-            #delivery_unit = data['unit'] if data.get('unit') is not None else 'NULL'
             delivery_unit = data['delivery_unit'] if data.get('delivery_unit') is not None else 'NULL'
-            print("Delivery unit: ", delivery_unit)
+            # print("Delivery unit: ", delivery_unit)
             delivery_city = data['delivery_city']
             delivery_state = data['delivery_state']
             delivery_zip = data['delivery_zip']
             delivery_instructions = "'" + data['delivery_instructions'] + "'" if data.get('delivery_instructions') else 'NULL'
             delivery_longitude = data['delivery_longitude']
             delivery_latitude = data['delivery_latitude']
-            print("Item Info")
+            # print("Item Info")
             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
             order_instructions = "'" + data['order_instructions'] + "'" if data.get('order_instructions') is not None else 'NULL'
             purchase_notes = "'" + data['purchase_notes'] + "'" if data.get('purchase_notes') is not None else 'NULL'
-            print("Payment Info")
+            # print("Payment Info")
             amount_due = data['amount_due']
             amount_discount = data['amount_discount']
             amount_paid = data['amount_paid']
-            print("amount due: ", amount_due)
-            print("amount paid: ", amount_paid)
-            print("amount discount: ", amount_discount)
+            # print("amount due: ", amount_due)
+            # print("amount paid: ", amount_paid)
+            # print("amount discount: ", amount_discount)
 
-            print("Credit Card Info")
+            # print("Credit Card Info")
             cc_num = data['cc_num']
-            print(cc_num)
+            # print(cc_num)
             if cc_num != "NULL":    
                 cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
             else:
                 cc_exp_date = "0000-00-00 00:00:00"
-            print("CC Expiration Date: ", cc_exp_date)
+            # print("CC Expiration Date: ", cc_exp_date)
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
 
@@ -2163,83 +2161,20 @@ class Checkout(Resource):
                 raise BadRequest()
             
             purchaseId = get_new_purchaseID(conn)
-            print(purchaseId)
+            # print(purchaseId)
             if purchaseId[1] == 500:
                 print(purchaseId[0])
                 response['message'] = "Internal Server Error."
                 return response, 500
             paymentId = get_new_paymentID(conn)
-            print(paymentId)
+            # print(paymentId)
             if paymentId[1] == 500:
                 print(paymentId[0])
                 response['message'] = "Internal Server Error."
                 return response, 500
 
-            # User authenticated
-            # check the customer_uid and see what kind of registration.
-            # if it was registered by email then check the password.
-            # customer_query = """SELECT * FROM customers WHERE customer_uid = '""" + data['customer_uid'] + """';"""
-            # customer_res = execute(customer_query, 'get', conn)
-
-            # if customer_res['code'] != 280 or not customer_res['result']:
-            #     response['message'] = "Could not authenticate user"
-            #     return response, 401
-            # if customer_res['result'][0]['password_hashed'] is not None: original
-            #print(customer_res['result'][0]['password_hashed'])
-            #print(data['salt'])
-            print("1")
-            # if customer_res['result'][0]['password_hashed'] != 'NULL' and customer_res['result'][0]['password_hashed'] is not None:
-            #     print("1.3")
-            #     print(customer_res['result'][0]['password_hashed'])
-            #     print(data['salt'])
-            #     if customer_res['result'][0]['password_hashed'] != data['salt']:
-            #         print("1.35")
-            #         response['message'] = "Could not authenticate user. Wrong Password"
-            #         return response, 401
-            # Validate credit card
-            # if str(data['cc_num'][0:12]) == "XXXXXXXXXXXX":
-            #     latest_purchase = get_latest_purchases(business_id, customer_uid)
-            #     if latest_purchase['result'] is None:
-            #         response['message'] = "Credit card number is invalid."
-            #         return response, 400
-            #     if str(latest_purchase['result']['cc_num'][:-4refund_calculator]) != str(data['cc_num'][:-4]):
-            #         response['message'] = "Credit card number is invalid."
-            #         return response, 400
-            #     cc_num = latest_purchase['result']['cc_num']
-
-            # create a stripe charge and make sure that charge is successful before writing it into database
-            # we should use Idempotent key to prevent sending multiple payment requests due to connection fail.
-            # Also, It is not safe for using Strip Charge API. We should use Stripe Payment Intent API and its SDKs instead.
-            print("1.4")
             try:
-                print("1.5")
-                # create a token for stripe
-                #card_dict = {"number": data['cc_num'], "exp_month": int(data['cc_exp_month']), "exp_year": int(data['cc_exp_year']),"cvc": data['cc_cvv']}
-                #print(card_dict)
-                #stripe_charge = {}
                 
-                # print(stripe.Token.create(card=card_dict))
-                # print("1.6")
-                # try:
-                #     card_token = stripe.Token.create(card=card_dict)
-                #     print("2")
-                #     if int(amount_must_paid) > 0:
-                #         stripe_charge = stripe.Charge.create(
-                #             amount=int(round(amount_must_paid*100, 0)),
-                #             currency="usd",
-                #             source=card_token,
-                #             description="Charge customer for new Subscription")
-                #     # update amount_paid. At this point, the payment has been processed so amount_paid == amount_due
-                #     amount_paid = amount_due
-                # except stripe.error.CardError as e:
-                #     # Since it's a decline, stripe.error.CardError will be caught
-                #     response['message'] = e.error.message
-                #     return response, 400
-
-                # update coupon table
-
-
-
                 # ENTER COUPON ID.  SET TO NULL UNTIL WE IMPLEMENT COUPONS
                 print("I don't think coupons is used")
                 coupon_id = 'NULL'
@@ -2264,6 +2199,8 @@ class Checkout(Resource):
                                 AND menu_date < ADDDATE(CURDATE(), 7);
                             '''
                 response = simple_get_execute(date_query, "Next Delivery Date", conn)
+                
+                # RESPONSE PARSING EXAMPLES
                 # start_delivery_date = response
                 # print("start_delivery_date: ", start_delivery_date)
                 # start_delivery_date = response[0]
@@ -2271,21 +2208,7 @@ class Checkout(Resource):
                 # start_delivery_date = response[0]['result']
                 # print("start_delivery_date: ", start_delivery_date)
                 start_delivery_date = response[0]['result'][0]['menu_date']
-                print("start_delivery_date: ", start_delivery_date)
-
-                # # CALCULATE start_delivery_date
-                # dayOfWeek = datetime.now().weekday()
-
-                # # Get the soonest Thursday, same day if today is Thursday
-                # thurs = datetime.now() + timedelta(days=(3 - dayOfWeek) % 7)
-                # print("problem start")
-                # # If today is Thursday after 4PM'
-                # if thurs.date() == datetime.now().date() and datetime.now().hour >= 16:
-                #     thurs += timedelta(days=7)
-
-                # #the next saturday
-                # start_delivery_date = (thurs + timedelta(days=1)).strftime("%Y-%m-%d 00:00:00")
-
+                # print("start_delivery_date: ", start_delivery_date)
 
 
                 # FIND TAX, DELIVERY FEE FROM ZONES TABLE
@@ -2296,8 +2219,7 @@ class Checkout(Resource):
                 #             '''
                 # write into Payments table
 
-                print("Before Insert")
-                print("Delivery unit: ", delivery_unit)
+                # print("Before Insert")
                 queries = [
                             '''
                             INSERT INTO M4ME.payments
