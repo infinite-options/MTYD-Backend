@@ -182,7 +182,7 @@ def serializeResponse(response):
 # Set conn parameter to connection object
 # OPTIONAL: Set skipSerialization to True to skip default JSON response serialization
 def execute(sql, cmd, conn, skipSerialization=False):
-    print("Start execute ", cmd)
+    print("\nStart execute ", cmd)
     response = {}
     try:
         with conn.cursor() as cur:
@@ -772,15 +772,17 @@ class customer_lists(Resource):
 
 
 class get_stripe_key(Resource):
+    
     def get_key(self, notes):
-            if notes == "M4METEST":
-                print('TEST')
-                return stripe_secret_test_key 
-                # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-                
-            else:
-                print('LIVE')
-                return stripe_secret_live_key
+        print("get_stripe_key line 775")
+        if notes == "M4METEST":
+            print('TEST')
+            return stripe_secret_test_key 
+            # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+            
+        else:
+            print('LIVE')
+            return stripe_secret_live_key
 
 
 # -----------------------------------------
@@ -8785,8 +8787,9 @@ class Copy_Menu(Resource):
 # Parva Code  -----------------------------------------------------------------------------------------------------------
 
 class change_purchase(Resource):
+    
     def get(self, purchaseID):
-        
+        print("change_purchase line 8788")
         conn = connect()
         info_query = """
                         SELECT pur.*, pay.*, sub.*
@@ -8822,7 +8825,7 @@ class change_purchase(Resource):
 
 
     def post(self, purchaseID):
-        
+        print("change_purchase line 8788")
         try:
             conn = connect()
             #response = {}
@@ -8980,7 +8983,7 @@ class change_purchase(Resource):
             print(test_price2)
             print(test_price3)
             customer_used_amount = float(int(round(customer_used_amount*100))/100)
-            #rint(customer_used_amount)
+            #print(customer_used_amount)
             #info_res[0]['result'][0]["taxes"]
             #info_res[0]['result'][0]["service_fee"]
             #info_res[0]['result'][0]["driver_tip"]
@@ -9437,13 +9440,15 @@ class change_purchase(Resource):
 
     def new_refund_calculator(self, info_res,  conn):
 
-        
+        print("In change purchase class")
         print("in refund calculator")
         print(info_res)
         # checking skips new
 
         start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+        print("Start Delivery Date: ", start_delivery_date)
         week_remaining = int(info_res['payment_frequency'])
+        print("Weeks Remaining: ", week_remaining)
         
         all_deliveries = """
                     SELECT COUNT(delivery_day) AS delivery_count FROM
@@ -9462,6 +9467,7 @@ class change_purchase(Resource):
                     """
         print("here 1")
         delivered_num = execute(all_deliveries, "get", conn)
+        print("delivered_num raw:", delivered_num)
         if delivered_num['code'] != 280:
             return delivered_num
         delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
@@ -9635,7 +9641,7 @@ class change_purchase(Resource):
         return{"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
 
 
-class cancel_purchase(Resource):
+class cancel_purchase_old(Resource):
     def put(self):
         try:
             print("00")
@@ -9644,9 +9650,11 @@ class cancel_purchase(Resource):
             response2 = {}
             refund_info = {}
             data = request.get_json(force=True)
+
+            # GET INFO RELATED TO PURCHASE UID
+            print("0")
             purchaseID = data["purchase_uid"]
             print(data)
-            print("0")
             info_query = """
                         SELECT pur.*, pay.*, sub.*
                         FROM purchases pur, payments pay, subscription_items sub
@@ -9662,15 +9670,16 @@ class cancel_purchase(Resource):
             if info_res[1] != 200:
                 return {"message": "Internal Server Error"}, 500
             # Calculate refund
+            
+
+            # GET STRIPE KEY
             print("1")
-
-
             print(info_res[0]['result'][0]["delivery_instructions"])
             temp_key = ""
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             stripe.api_key = get_stripe_key().get_key(info_res[0]['result'][0]["delivery_instructions"])
-
+            print("Stripe Key: ", stripe.api_key)
 
             # if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
             #     stripe.api_key = stripe_secret_test_key
@@ -9679,6 +9688,9 @@ class cancel_purchase(Resource):
             # else:
             #     stripe.api_key = stripe_secret_live_key
             #     print('LIVE')
+
+
+            # CALCULATE REFUND INFO
             print("try here 0")
             #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
             refund_info = change_purchase().new_refund_calculator(info_res[0]['result'][0], conn)
@@ -10478,7 +10490,7 @@ class test_cal(Resource):
 
     def new_refund_calculator(self, info_res,  conn):
 
-
+        print("In test_cal class")
         print("in refund calculator")
         
         # checking skips new
@@ -10648,7 +10660,17 @@ class predict_autopay_day(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+### End of code by Parva ################################################################################
 
+
+
+
+
+
+
+
+
+### START PRASHANT CODE ################################################################################
 
 # PRASHANT NEXT BILLING DATE ATTEMPT
 class predict_next_billing_date(Resource):
@@ -10719,7 +10741,426 @@ class predict_next_billing_date(Resource):
         finally:
             disconnect(conn)
 
-### End of code by Parva ################################################################################
+
+class calculator(Resource):
+
+    # GETS ALL INFORMATION RELATED TO A PURCHASE ID INCLUDING PAYMENT AND SUBSCRIPTION INFO        
+    def purchase_engine (self, pur_id):
+
+        try:
+            conn = connect()
+            # pur_id = '400-000223'
+            print("\nInside purchase_engine calculator", pur_id)
+
+            # TO RETURN ALL INFO ASSOCIATED WITH A PARTICULAR PURCHASE UID OR PURCHASE ID
+
+            query = """
+                    SELECT pur.*, pay.*, sub.*
+                    FROM purchases pur, payments pay, subscription_items sub
+                    WHERE pur.purchase_uid = pay.pay_purchase_uid
+                        AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
+                                                FROM purchases WHERE purchase_uid = '""" + pur_id + """')
+                        AND pur.purchase_uid = '""" + pur_id + """'
+                        AND pur.purchase_status='ACTIVE';  
+                    """
+            pur_details = execute(query, 'get', conn)
+            print('\nPurchase Details from Purchase Engine: ', pur_details)
+            return pur_details
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+        
+    # DETERMINE HOW MUCH SOMEONE SHOULD PAY IF SOMEONE SELECTS A NEW PLAN
+    def billing_pur_id (self, pur_id):
+
+        try:
+            conn = connect()
+            print("\nInside billing with Purchase ID calculator", pur_id)
+
+            # pur_details = change_purchase().new_refund_calculator(info_res[0]['result'][0], conn)
+            pur_details = calculator().purchase_engine(pur_id)
+            # print("Purchase_details from billing: ", pur_details)
+
+            items_uid = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            print("Item_UID: ", items_uid)
+            num_deliveries = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            print("Item_UID: ", num_deliveries)
+
+            # GET ITEM PRICE
+            query = """
+                SELECT *
+                FROM M4ME.subscription_items, M4ME.discounts
+                WHERE item_uid = '""" + items_uid + """'
+                    AND num_deliveries = '""" + num_deliveries + """';
+                """
+
+            price_details = execute(query, 'get', conn)
+            print('\nPurchase Details from Purchase Engine: ', price_details)
+            return price_details
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+    # DETERMINE HOW MUCH SOMEONE SHOULD PAY IF SOMEONE SELECTS A NEW PLAN
+    def billing (self, items_uid, qty):
+        print("\nInside billing calculator")
+        try:
+            conn = connect()
+            print("Item_UID: ", items_uid)
+            qty = str(qty)
+            print("Number of Deliveries: ", qty)
+
+            # GET ITEM PRICE
+            query = """
+                SELECT *
+                FROM M4ME.subscription_items, M4ME.discounts
+                WHERE item_uid = '""" + items_uid + """'
+                    AND num_deliveries = '""" + qty + """';
+                """
+
+            price_details = execute(query, 'get', conn)
+            print('Purchase Details from Purchase Engine: ', price_details)
+            return price_details
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)    
+
+
+    def deliveries_made (self, pur_id):
+        try:
+            conn = connect()
+            print("\nInside number of deliveries made", pur_id)
+
+            # GET NUMBER OF ACTUAL DELIVERIES MADE (REMOVING SKIPS)
+            query = """
+                # QUERY 7: NUMBER OF DELIVERIES ALREADY MADE        
+                SELECT -- *,
+                    purchase_uid,
+                    purchase_id,
+                    sum(delivery) as num_deliveries
+                FROM ( 
+                    SELECT * ,
+                        IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                        json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                    FROM M4ME.lplp
+                    JOIN (
+                        SELECT DISTINCT menu_date
+                        FROM menu
+                        -- WHERE menu_date > now()
+                        ORDER BY menu_date ASC) AS md
+                    LEFT JOIN M4ME.latest_combined_meal lcm
+                    ON lplp.purchase_id = lcm.sel_purchase_id AND
+                            md.menu_date = lcm.sel_menu_date
+                    WHERE purchase_uid = '""" + pur_id + """' 
+                        AND menu_date >= lplp.start_delivery_date 	-- AFTER START DATE
+                        AND menu_date <= now()) AS lplpmdlcm;		-- BEFORE TODAY
+                """
+
+            deliveries = execute(query, 'get', conn)
+            print('Deliveries Made: ', deliveries)
+
+            return deliveries
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)   
+
+    def get (self, pur_id):
+
+        try:
+            conn = connect()
+            print("\nInside refund calculator", pur_id)
+            # print("Item_UID: ", items_uid)
+            # print("Number of Deliveries: ", qty)
+
+            # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID
+            pur_details = calculator().purchase_engine(pur_id)
+            print("\nPurchase_details from billing: ", pur_details)
+
+            items_uid = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            print("Item_UID: ", items_uid)
+            num_deliveries = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            print("Number of Deliveries: ", num_deliveries)
+            subtotal = pur_details['result'][0]['subtotal']
+            print("Customer Subtotal: ", subtotal)
+            amount_discount = pur_details['result'][0]['amount_discount']
+            print("Customer amount_discount: ", amount_discount)
+            service_fee = pur_details['result'][0]['service_fee']
+            print("Customer service_fee: ", service_fee)
+            delivery_fee = pur_details['result'][0]['delivery_fee']
+            print("Customer delivery_fee: ", delivery_fee)
+            driver_tip = pur_details['result'][0]['driver_tip']
+            print("Customer driver_tip: ", driver_tip)
+            taxes = pur_details['result'][0]['taxes']
+            print("Customer taxes ", taxes)
+            ambassador_code = pur_details['result'][0]['ambassador_code']
+            print("Customer ambassador_code: ", ambassador_code)
+            amount_due = pur_details['result'][0]['amount_due']
+            print("Customer amount_due: ", amount_due)
+            amount_paid = pur_details['result'][0]['amount_paid']
+            print("Customer amount_paid: ", amount_paid)
+            charge_id = pur_details['result'][0]['charge_id']
+            print("Customer charge_id: ", charge_id)
+
+
+            # CALCULATE NUMBER OF DELIVERIES ALREADY MADE
+            deliveries_made = calculator().deliveries_made(pur_id)
+            print("\nReturned from deliveries_made: ", deliveries_made)
+            completed_deliveries = deliveries_made['result'][0]['num_deliveries']
+            print("Num of Completed Deliveries: ", completed_deliveries)
+
+            if completed_deliveries != None:
+                qty = int(num_deliveries) - int(completed_deliveries)
+                print("Remaining Deliveries: ", qty)
+            else:
+                print("false")
+                completed_deliveries = 0
+                print("completed_deliveries: ", completed_deliveries)
+
+            # CALCULATE REFUND AMOUNT USED (NUM OF MEALS, NUMBER OF ACTUAL DELIVERIES)
+            if completed_deliveries > 0:
+                print("true")
+                used = calculator().billing(items_uid, completed_deliveries)
+                print("\nConsumed Subscription: ", used)
+                item_price = used['result'][0]['item_price']
+                print("Used Price: ", item_price)
+                delivery_discount = used['result'][0]['delivery_discount']
+                print("Used delivery_discount: ", delivery_discount)
+                total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
+                print("Total Used: ", total_used)
+            else:
+                print("true")
+                total_used = 0
+                print(total_used)
+
+            
+
+            # CALCULATE REFUND NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
+            refund = round(subtotal - amount_discount - total_used,2)
+            print("Final Refund: ", refund)
+
+            
+            return {"purchase_uid"      :  pur_id,
+                    "purchase_id"       :  pur_id,
+                    "meal refund"       :  refund,
+                    "service_fee"       :  service_fee,
+                    "delivery_fee"      :  delivery_fee,
+                    "driver_tip"        :  driver_tip,
+                    "taxes"             :  taxes,
+                    "ambassador_code"   :  ambassador_code,
+                    "charge_id"         :  charge_id}
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+     
+class cancel_purchase(Resource):
+    def put(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            pur_id = data["purchase_uid"]
+
+            # GET CURRENT PURCHASE INFO
+            pur_details = calculator().purchase_engine(pur_id)
+            print("Purchase_details from billing: ", pur_details)
+
+            items_uid = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            print("Item_UID: ", items_uid)
+            num_deliveries = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            print("Number of Deliveries: ", num_deliveries)
+
+
+
+
+            print("00")
+            conn = connect()
+            response = {}
+            response2 = {}
+            refund_info = {}
+            data = request.get_json(force=True)
+
+            # GET INFO RELATED TO PURCHASE UID
+            print("0")
+            purchaseID = data["purchase_uid"]
+            print(data)
+            info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';
+                        """
+            
+            info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+            print(info_res[0]['result'][0])
+            if info_res[1] != 200:
+                return {"message": "Internal Server Error"}, 500
+            # Calculate refund
+            
+
+            # GET STRIPE KEY
+            print("1")
+            print(info_res[0]['result'][0]["delivery_instructions"])
+            temp_key = ""
+            if stripe.api_key is not None:
+                temp_key = stripe.api_key
+            stripe.api_key = get_stripe_key().get_key(info_res[0]['result'][0]["delivery_instructions"])
+            print("Stripe Key: ", stripe.api_key)
+
+            # if info_res[0]['result'][0]["delivery_instructions"] == "M4METEST":
+            #     stripe.api_key = stripe_secret_test_key
+            #     #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+            #     print('TEST')
+            # else:
+            #     stripe.api_key = stripe_secret_live_key
+            #     print('LIVE')
+
+
+            # CALCULATE REFUND INFO
+            print("try here 0")
+            #refund_info = Change_Purchase().refund_calculator(info_res[0]['result'][0], conn)
+            refund_info = change_purchase().new_refund_calculator(info_res[0]['result'][0], conn)
+            #print(refund_info)
+            #print("2")
+            print("try here 1")
+            print(refund_info)
+
+
+            
+            refund_amount = refund_info['refund_amount']
+            print(refund_amount)
+            if refund_amount > 0:
+                print("2.3")
+                # establishing more info for refund_info before we feed it in stripe_refund
+                refund_info['refund_amount'] = abs(refund_amount)
+                print("2.33")
+                refund_info['purchase_uid'] = purchaseID
+                print("2.36")
+                print(refund_info)
+                refund_info['refunded_id'] = change_purchase().stripe_refund(refund_info, conn)
+                print(refund_info['refunded_id'])
+                print("2.4")
+                if refund_info['refunded_id'] is not None:
+                    refunded = True
+                else:
+                    return {"message": "REFUND PROCESS ERROR."}, 500
+            print("2.5")
+            query = """
+                    Update M4ME.purchases
+                    set 
+                        purchase_status = "CANCELLED and REFUNDED"
+                    where purchase_uid = '""" + purchaseID + """';
+                    """
+            response = execute(query, 'post', conn)
+            print("3")
+            print(response)
+            if response['code'] != 281:
+                return {"message": "Internal Server Error"}, 500
+            print("3.3")
+            new_paymentId = get_new_paymentID(conn)
+            print("3.4")
+            if new_paymentId[1] == 500:
+                print(new_paymentId[0])
+                response['message'] = "Internal Server Error."
+                return response, 500
+            print("3.5")
+            print(refund_amount)
+            new_refund = 0-abs(refund_amount)
+            
+            new_refund = str(new_refund)
+            print("3.6")
+            #print(info_res["result"][2])
+            print(type(new_refund))
+            print(new_refund)
+            #print(refund_info["refunded_id"][0])
+            refund_id = str(refund_info["refunded_id"][0])
+            print(refund_id)
+            print("3.65")
+            print("start input")
+            print(new_paymentId)
+            print(purchaseID)
+            print(new_refund)
+            print(refund_id)
+            print("end input")
+            payment_query = """
+                    insert into payments(payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, start_delivery_date, amount_due, amount_paid, charge_id, payment_type, cc_num, cc_exp_date, cc_cvv, cc_zip)
+                    values(
+                        '""" + new_paymentId + """',
+                        '""" + new_paymentId + """',
+                        '""" + purchaseID + """',
+                        (
+                            select purchase_id
+                            from purchases
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by purchase_date desc
+                            limit 1
+                        ),
+                        now(),
+                        now(),
+                        '""" + new_refund + """',
+                        '""" + new_refund + """',
+                        '""" + refund_id + """',
+                        "STRIPE",
+                        (
+                            select cc_num
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_exp_date
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_cvv
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        ),
+                        (
+                            select cc_zip
+                            from lplp
+                            where purchase_uid = '""" + purchaseID + """'
+                            order by payment_time_stamp desc
+                            limit 1
+                        )
+                    );
+                    """
+            print("3.7", payment_query)
+            response2 = execute(payment_query, 'post', conn)
+            print("4")
+            print(response2)
+            if response2['code'] != 281:
+                return {"message": "Internal Server Error"}, 500
+            print("before api reset")
+            print(temp_key)
+            if temp_key is not None:
+                stripe.api_key = temp_key
+            return response2
+
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
+### END PRASHANT CODE ################################################################################
 
 
 
@@ -11617,16 +12058,18 @@ class lplp_specific(Resource):
 
 
 class get_stripe_key(Resource):
+    
     def get_key(self, notes):
-            if notes == "M4METEST":
-                print('TEST')
-                #return stripe_secret_test_key 
-                return "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
-                
-            else:
-                print('LIVE')
-                return stripe_secret_live_key
-                
+        print("get_stripe_key line 11625")
+        if notes == "M4METEST":
+            print('TEST')
+            #return stripe_secret_test_key 
+            return "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
+            
+        else:
+            print('LIVE')
+            return stripe_secret_live_key
+            
 
 
 class update_pay_pur_mobile(Resource):
@@ -12423,6 +12866,10 @@ api.add_resource(meals_selected_with_billing, '/api/v2/meals_selected_with_billi
 api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
 
 api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
+
+api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>')
+# api.add_resource(calculator, '/api/v2/calculator/<string:items_uid>/<string:qty>')
+# api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>/<string:items_uid>/<string:qty>')
 
 
 # Run on below IP address and port
