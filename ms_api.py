@@ -11148,11 +11148,11 @@ class cancel_purchase(Resource):
             conn = connect()
             data = request.get_json(force=True)
             print("Input JSON Data: ", data)
-            pur_id = data["purchase_uid"]
-            print("Input Purchase ID: ", pur_id)
+            pur_uid = data["purchase_uid"]
+            print("Input Purchase ID: ", pur_uid)
 
-            # CALL REFUND CALCULATOR TO SEE VALUE LEFT IN MEAL PLAN
-            pur_details = calculator().refund(pur_id)
+            # STEP 1 CALL REFUND CALCULATOR TO SEE VALUE LEFT IN MEAL PLAN
+            pur_details = calculator().refund(pur_uid)
             print("\nPurchase_details from billing: ", pur_details)
            
             meal_refund = pur_details['meal_refund']
@@ -11167,35 +11167,34 @@ class cancel_purchase(Resource):
             print("Customer taxes ", taxes)
             ambassador_code = pur_details['ambassador_code']
             print("Customer ambassador_code: ", ambassador_code)
-            # amount_due = pur_details['amount_due']
-            # print("Customer amount_due: ", amount_due)
-            # amount_paid = pur_details['amount_paid']
-            # print("Customer amount_paid: ", amount_paid)
             charge_id = pur_details['charge_id']
             print("Customer charge_id: ", charge_id)
             delivery_instructions = pur_details['delivery_instructions']
             print("Customer delivery_instructions: ", delivery_instructions)
-            
+            refund_amount = round(meal_refund + service_fee + delivery_fee + driver_tip + taxes + ambassador_code,2)
+            print("Refund Amount: ", refund_amount)
 
-            # GET STRIPE KEY
+
+            # STEP 2 GET STRIPE KEY TO BE ABLE TO CALL STRIPE
             print("\nGet Stripe Key")
             temp_key = ""
             if stripe.api_key is not None:
                 temp_key = stripe.api_key
             stripe.api_key = get_stripe_key().get_key(delivery_instructions)
             print("Stripe Key: ", stripe.api_key)
-
-            stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
-            print("Hard Coded Stripe Key: ", stripe.api_key)
+            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
 
 
-            # GET ALL PURCHASES ASSOCIATED WITH TRANSACTION
+            # STEP 3 GET ALL PURCHASES ASSOCIATED WITH TRANSACTION
             print("\nGet Stripe Payment Intents")
             query = """
                 SELECT charge_id 
                 FROM M4ME.payments
-                WHERE pay_purchase_id = '""" + pur_id + """'
-                ORDER BY payment_time_stamp DESC
+                WHERE pay_purchase_id = (
+                    SELECT pay_purchase_id 
+                    FROM M4ME.payments
+                    WHERE pay_purchase_uid = '""" + pur_uid + """')
+                ORDER BY payment_time_stamp DESC;
             """
             res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
             print("Return all stripe pi's: ",res)
@@ -11224,7 +11223,7 @@ class cancel_purchase(Resource):
                 #charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
                 #print("charge id " + charge_ids[intx])
 
-                refund_amount = 1
+                refund_amount = 1 if pur_uid == "400-000003" else refund_amount
                 print("\nRefund amount: ", refund_amount)
                 amount_should_refund = round(refund_amount*100,0)
                 print("Amount should refund: ", amount_should_refund)
