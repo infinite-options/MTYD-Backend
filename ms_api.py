@@ -2198,19 +2198,20 @@ class Checkout(Resource):
                 date_query = '''
                             SELECT DISTINCT menu_date FROM M4ME.menu
                             WHERE menu_date > CURDATE()
-                                AND menu_date < ADDDATE(CURDATE(), 7);
+                            ORDER BY menu_date ASC
+                            LIMIT 1
                             '''
                 response = simple_get_execute(date_query, "Next Delivery Date", conn)
                 
                 # RESPONSE PARSING EXAMPLES
-                # start_delivery_date = response
-                # print("start_delivery_date: ", start_delivery_date)
+                start_delivery_date = response
+                print("start_delivery_date: ", start_delivery_date)
                 # start_delivery_date = response[0]
                 # print("start_delivery_date: ", start_delivery_date)
                 # start_delivery_date = response[0]['result']
                 # print("start_delivery_date: ", start_delivery_date)
                 start_delivery_date = response[0]['result'][0]['menu_date']
-                # print("start_delivery_date: ", start_delivery_date)
+                print("start_delivery_date: ", start_delivery_date)
 
 
                 # FIND TAX, DELIVERY FEE FROM ZONES TABLE
