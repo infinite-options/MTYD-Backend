@@ -547,6 +547,77 @@ class stripe_key(Resource):
             return {'publicKey': stripe_public_live_key} 
 
 
+# I DON'T THINK THIS IS BEING USED.  COMMENT OUT AND DELETE AFTER TESTING.  IDENTICAL TO CODE BELOW
+# class get_stripe_key(Resource):
+    
+#     def get_key(self, notes):
+#         print("get_stripe_key line 550")
+#         if notes == "M4METEST":
+#             print('TEST')
+#             return stripe_secret_test_key 
+#             # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+            
+#         else:
+#             print('LIVE')
+#             return stripe_secret_live_key
+
+class get_stripe_key(Resource):
+    
+    def get_key(self, notes):
+        print("get_stripe_key line 563")
+        if notes == "M4METEST":
+            print('TEST')
+            #return stripe_secret_test_key 
+            return "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
+            
+        else:
+            print('LIVE')
+            return stripe_secret_live_key
+
+
+# NEED A CLASS TO PROCESS A REFUND AND ANOTHER TO MAKE A CHARGE
+
+class stripe_transaction(Resource):
+
+    def purchase(self, amount, key):
+        print("In stripe_transaction PURCHASE")
+
+        charge_id = 1
+        response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createPaymentIntent', data = {'key':'value'})
+
+        return charge_id
+    
+    def refund(self, amount, stripe_process_id):
+        print("In stripe_transaction REFUND")
+        print("Inputs: ", stripe_process_id, amount)
+
+        try:
+            refund_res = stripe.Refund.create(
+                charge=str(stripe_process_id),
+                amount=int(amount)
+            )
+            print("refund_res: ", refund_res['id'])
+            amount_should_refund = 0
+        except stripe.error.CardError as e:
+            # Since it's a decline, stripe.error.CardError will be caught
+            response['message'] = e.error.message
+            return response, 400
+
+        return refund_res
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # FOR TESTING PURPOSES ONLY
 @app.route('/api/v2/customer', methods=['GET'])
 def stripe_customer():
@@ -774,19 +845,6 @@ class customer_lists(Resource):
         except:
             raise BadRequest('Request failed, please try again later.')
 
-
-class get_stripe_key(Resource):
-    
-    def get_key(self, notes):
-        print("get_stripe_key line 775")
-        if notes == "M4METEST":
-            print('TEST')
-            return stripe_secret_test_key 
-            # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-            
-        else:
-            print('LIVE')
-            return stripe_secret_live_key
 
 
 # -----------------------------------------
@@ -10359,7 +10417,7 @@ class change_purchase_pm (Resource):
 
         # STEP 4 WRITE TO DATABASE
     
-        return
+            return
 
 
 class cancel_purchase (Resource):
@@ -10379,7 +10437,7 @@ class cancel_purchase (Resource):
         print("\nInside Calculate Refund", pur_uid)
         refund = calculator().refund(pur_uid)
         print("\nPurchase_details from billing: ", refund)
-        amount_should_refund = round(refund['refund_amount'],2)
+        amount_should_refund = int(round(refund['refund_amount'],2) * 100)
         print("Amount to be Refunded: ", amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
@@ -10388,9 +10446,6 @@ class cancel_purchase (Resource):
         print("\nGet Stripe Key")
         delivery_instructions = refund['delivery_instructions']
         print(delivery_instructions)
-        temp_key = ""
-        if stripe.api_key is not None:
-            temp_key = stripe.api_key
         stripe.api_key = get_stripe_key().get_key(delivery_instructions)
         print("Stripe Key: ", stripe.api_key)
         print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
@@ -10433,31 +10488,17 @@ class cancel_purchase (Resource):
             if refundable_amount >= amount_should_refund:
                 # refund it right away => amount should be refund is equal refunded_amount
                 print("In If Statement")
-                try:
-                    refund_res = stripe.Refund.create(
-                        charge=stripe_process_id,
-                        amount=int(amount_should_refund)
-                    )
-                    print("refund_res: ", refund_res['id'])
-                    amount_should_refund = 0
-                except stripe.error.CardError as e:
-                    # Since it's a decline, stripe.error.CardError will be caught
-                    response['message'] = e.error.message
-                    return response, 400
 
+                # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+                refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
+                amount_should_refund = 0
+                print("Refund id: ", refund_id['id'])
             else:
                 print("In Else Statement")
-                try:
-                    refund_res = stripe.Refund.create(
-                        charge=stripe_process_id,
-                        amount=int(refundable_amount)
-                    )
-                    print("refund_res: ", refund_res['id'])
-                    amount_should_refund = amount_should_refund - refundable_amount
-                except stripe.error.CardError as e:
-                    # Since it's a decline, stripe.error.CardError will be caught
-                    response['message'] = e.error.message
-                    return response, 400
+                refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
+                amount_should_refund = amount_should_refund - refundable_amount
+                print("Refund id: ", refund_id['id'])
+
 
             num_transactions - num_transactions - 1
             n = n + 1
@@ -10498,7 +10539,7 @@ class cancel_purchase (Resource):
         print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
         print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
         print(str(refund['ambassador_code']))
-        print("refund_res: ", refund_res['id'])
+        print("refund_res: ", refund_id['id'])
         query = """
                 INSERT INTO M4ME.payments
                 SET payment_uid = '""" + get_new_paymentID(conn) + """',
@@ -10514,7 +10555,7 @@ class cancel_purchase (Resource):
                     amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
                     amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
                     ambassador_code = '""" + str(refund['ambassador_code']) + """',
-                    charge_id = '""" + str(refund_res['id']) + """';
+                    charge_id = '""" + str(refund_id['id']) + """';
                 """        
                 
                          
@@ -10535,7 +10576,7 @@ class cancel_purchase (Resource):
         if response['code'] != 281:
             return {"message": "Purchase Insert Error"}, 500
         
-        return refund_res['id']
+        return refund_id['id']
 
 
 
@@ -11770,18 +11811,7 @@ class lplp_specific(Resource):
 
 
 
-class get_stripe_key(Resource):
-    
-    def get_key(self, notes):
-        print("get_stripe_key line 11625")
-        if notes == "M4METEST":
-            print('TEST')
-            #return stripe_secret_test_key 
-            return "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
-            
-        else:
-            print('LIVE')
-            return stripe_secret_live_key
+
             
 
 
@@ -12585,6 +12615,10 @@ api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>/<string:items_uid>/<string:qty>')
 
 api.add_resource(change_purchase_pm, '/api/v2/change_purchase_pm')
+
+api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
+
+
 
 
 # Run on below IP address and port
