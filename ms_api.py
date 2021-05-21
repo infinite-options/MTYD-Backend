@@ -1,9 +1,9 @@
-
 # M4ME BACKEND PYTHON FILE
 # mealsfor.me
 # https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev/api/v2/<enter_endpoint_details>
 
 
+# SECTION 1:  IMPORT FILES AND FUNCTIONS
 #pip3 install shapely
 from flask import Flask, request, render_template, url_for, redirect, jsonify, send_from_directory
 from flask_restful import Resource, Api
@@ -46,39 +46,9 @@ cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
 app.config['DEBUG'] = True
 
 
-# DATABASE INFO
-# RDS for AWS SQL 5.7
-# RDS_HOST = 'pm-mysqldb.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
-# RDS for AWS SQL 8.0
-RDS_HOST = 'io-mysqldb8.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
-RDS_PORT = 3306
-RDS_USER = 'admin'
-RDS_DB = 'M4ME'
-RDS_PW="prashant"
-# RDS_PW = os.environ.get('RDS_PW')
 
 
-
-# STRIPE AND PAYPAL KEYS
-paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
-paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
-
-paypal_client_test_key = os.environ.get('paypal_client_test_key')
-paypal_client_live_key = os.environ.get('paypal_client_live_key')
-
-stripe_public_test_key = os.environ.get('stripe_public_test_key')
-stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
-
-stripe_public_live_key = os.environ.get('stripe_public_live_key')
-stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
-
-#stripe.api_key = stripe_secret_test_key
-
-#use below for local testing
-#stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-
-
-
+# SECTION 2:  UTILITIES AND SUPPORT FUNCTIONS
 # EMAIL INFO
 #app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_SERVER'] = 'smtp.mydomain.com'
@@ -90,8 +60,6 @@ app.config['MAIL_DEFAULT_SENDER'] = 'support@mealsfor.me'
 # app.config['MAIL_USERNAME'] = os.environ.get('SUPPORT_EMAIL')
 # app.config['MAIL_PASSWORD'] = os.environ.get('SUPPORT_PASSWORD')
 # app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('SUPPORT_EMAIL')
-
-
 
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
@@ -105,13 +73,31 @@ s = URLSafeTimedSerializer('thisisaverysecretkey')
 api = Api(app)
 
 
-
 # convert to UTC time zone when testing in local time zone
 utc = pytz.utc
 def getToday(): return datetime.strftime(datetime.now(utc), "%Y-%m-%d")
 def getNow(): return datetime.strftime(datetime.now(utc),"%Y-%m-%d %H:%M:%S")
 
 
+
+
+
+
+
+
+
+
+
+# SECTION 3: DATABASE FUNCTIONALITY
+# RDS for AWS SQL 5.7
+# RDS_HOST = 'pm-mysqldb.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
+# RDS for AWS SQL 8.0
+RDS_HOST = 'io-mysqldb8.cxjnrciilyjq.us-west-1.rds.amazonaws.com'
+RDS_PORT = 3306
+RDS_USER = 'admin'
+RDS_DB = 'M4ME'
+RDS_PW="prashant"
+# RDS_PW = os.environ.get('RDS_PW')
 
 # CONNECT AND DISCONNECT TO MYSQL DATABASE ON AWS RDS (API v2)
 # Connect to MySQL database (API v2)
@@ -145,35 +131,6 @@ def disconnect(conn):
     except:
         print("Could not properly disconnect from MySQL database. (API v2)")
         raise Exception("Failure disconnecting from MySQL database. (API v2)")
-
-
-
-# Serialize JSON
-def serializeResponse(response):
-    # def is_json(myjson):
-    #     try:
-    #         if type(myjson) is not str:
-    #             return False
-    #         json.loads(myjson)
-    #     except ValueError as e:
-    #         return False
-    #     return True
-    try:
-        for row in response:
-            for key in row:
-                if type(row[key]) is Decimal:
-                    row[key] = float(row[key])
-                elif (type(row[key]) is date or type(row[key]) is datetime) and row[key] is not None:
-                # Change this back when finished testing to get only date
-                    # row[key] = row[key].strftime("%Y-%m-%d")
-                    row[key] = row[key].strftime("%Y-%m-%d %H-%M-%S")
-                # elif is_json(row[key]):
-                #     row[key] = json.loads(row[key])
-                elif isinstance(row[key], bytes):
-                    row[key] = row[key].decode()
-        return response
-    except:
-        raise Exception("Bad query JSON")
 
 
 
@@ -212,6 +169,32 @@ def execute(sql, cmd, conn, skipSerialization=False):
         # response['sql'] = sql
         return response
 
+# Serialize JSON
+def serializeResponse(response):
+    # def is_json(myjson):
+    #     try:
+    #         if type(myjson) is not str:
+    #             return False
+    #         json.loads(myjson)
+    #     except ValueError as e:
+    #         return False
+    #     return True
+    try:
+        for row in response:
+            for key in row:
+                if type(row[key]) is Decimal:
+                    row[key] = float(row[key])
+                elif (type(row[key]) is date or type(row[key]) is datetime) and row[key] is not None:
+                # Change this back when finished testing to get only date
+                    # row[key] = row[key].strftime("%Y-%m-%d")
+                    row[key] = row[key].strftime("%Y-%m-%d %H-%M-%S")
+                # elif is_json(row[key]):
+                #     row[key] = json.loads(row[key])
+                elif isinstance(row[key], bytes):
+                    row[key] = row[key].decode()
+        return response
+    except:
+        raise Exception("Bad query JSON")
 
 
 # RUN STORED PROCEDURES
@@ -336,8 +319,29 @@ def get_all_s3_keys(bucket):
 
 
 
-# -----------------------------------------
-#  STRIPE FUNCTIONS
+
+
+
+# SECTION 3: PAYMENT FUNCTIONS 
+# STRIPE AND PAYPAL KEYS
+paypal_secret_test_key = os.environ.get('paypal_secret_key_test')
+paypal_secret_live_key = os.environ.get('paypal_secret_key_live')
+
+paypal_client_test_key = os.environ.get('paypal_client_test_key')
+paypal_client_live_key = os.environ.get('paypal_client_live_key')
+
+stripe_public_test_key = os.environ.get('stripe_public_test_key')
+stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
+
+stripe_public_live_key = os.environ.get('stripe_public_live_key')
+stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
+
+#stripe.api_key = stripe_secret_test_key
+
+#use below for local testing
+#stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+
+
 
 STRIPE_PUBLISHABLE_KEY=stripe_public_test_key
 stripe.api_key = stripe_secret_test_key
@@ -1101,8 +1105,6 @@ class email_verification(Resource):
             disconnect(conn)
 
 
-
-
 # confirmation page
 @app.route('/api/v2/confirm', methods=['GET'])
 def confirm():
@@ -1262,123 +1264,7 @@ class Login(Resource):
             disconnect(conn)
 
 
-
-# class Login(Resource):
-#     def post(self):
-#         response = {}
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-#             email = data['email']
-#             password = data.get('password')
-#             refresh_token = data.get('token')
-#             signup_platform = data.get('signup_platform')
-#             query = """
-#                     # CUSTOMER QUERY 1: LOGIN
-#                     SELECT customer_uid,
-#                         customer_last_name,
-#                         customer_first_name,
-#                         customer_email,
-#                         password_hashed,
-#                         email_verified,
-#                         user_social_media,
-#                         user_access_token,
-#                         user_refresh_token
-#                     FROM M4ME.customers c
-#                     -- WHERE customer_email = "1m4kfun@gmail.com";
-#                     WHERE customer_email = \'""" + email + """\';
-#                     """
-#             items = execute(query, 'get', conn)
-#             print('Password', password)
-#             print(items)
-
-#             if items['code'] != 280:
-#                 response['message'] = "Internal Server Error."
-#                 response['code'] = 500
-#                 return response
-#             elif not items['result']:
-#                 items['message'] = 'Email Not Found. Please signup'
-#                 items['result'] = ''
-#                 items['code'] = 404
-#                 return items
-#             else:
-#                 print(items['result'])
-#                 print('sc: ', items['result'][0]['user_social_media'])
-
-
-#                 # checks if login was by social media
-#                 if password and items['result'][0]['user_social_media'] != 'NULL' and items['result'][0]['user_social_media'] != None:
-#                     response['message'] = "Need to login by Social Media"
-#                     response['code'] = 401
-#                     return response
-
-#                # nothing to check
-#                 elif (password is None and refresh_token is None) or (password is None and items['result'][0]['user_social_media'] == 'NULL'):
-#                     response['message'] = "Enter password else login from social media"
-#                     response['code'] = 405
-#                     return response
-
-#                 # compare passwords if user_social_media is false
-#                 elif (items['result'][0]['user_social_media'] == 'NULL' or items['result'][0]['user_social_media'] == None) and password is not None:
-
-#                     if items['result'][0]['password_hashed'] != password:
-#                         items['message'] = "Wrong password"
-#                         items['result'] = ''
-#                         items['code'] = 406
-#                         return items
-
-#                     if ((items['result'][0]['email_verified']) == '0') or (items['result'][0]['email_verified'] == "FALSE"):
-#                         response['message'] = "Account need to be verified by email."
-#                         response['code'] = 407
-#                         return response
-
-#                 # compare the refresh token because it never expire.
-#                 elif (items['result'][0]['user_social_media']) != 'NULL':
-#                     '''
-#                     keep
-#                     if signup_platform != items['result'][0]['user_social_media']:
-#                         items['message'] = "Wrong social media used for signup. Use \'" + items['result'][0]['user_social_media'] + "\'."
-#                         items['result'] = ''
-#                         items['code'] = 401
-#                         return items
-#                     '''
-#                     if (items['result'][0]['user_refresh_token'] != refresh_token):
-#                         print(items['result'][0]['user_refresh_token'])
-
-#                         items['message'] = "Cannot Authenticated. Token is invalid"
-#                         items['result'] = ''
-#                         items['code'] = 408
-#                         return items
-
-#                 else:
-#                     string = " Cannot compare the password or refresh token while log in. "
-#                     print("*" * (len(string) + 10))
-#                     print(string.center(len(string) + 10, "*"))
-#                     print("*" * (len(string) + 10))
-#                     response['message'] = string
-#                     response['code'] = 500
-#                     return response
-#                 del items['result'][0]['password_hashed']
-#                 del items['result'][0]['email_verified']
-
-#                 query = "SELECT * from M4ME.customers WHERE customer_email = \'" + email + "\';"
-#                 items = execute(query, 'get', conn)
-#                 items['message'] = "Authenticated successfully."
-#                 items['code'] = 200
-#                 return items
-
-#         except:
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-
-
-
-
-
-
 class AppleLogin (Resource):
-
     def post(self):
         response = {}
         items = {}
@@ -1517,157 +1403,6 @@ class AppleLogin (Resource):
             raise BadRequest("Request failed, please try again later.")
 
 
-
-
-# class AppleLogin (Resource):
-
-#     def post(self):
-#         response = {}
-#         items = {}
-#         try:
-#             conn = connect()
-#             token = request.form.get('id_token')
-#             print(token)
-#             if token:
-#                 print('INN')
-#                 data = jwt.decode(token, verify=False)
-#                 print('data-----', data)
-#                 email = data.get('email')
-
-#                 print(data, email)
-#                 if email is not None:
-#                     sub = data['sub']
-#                     query = """
-#                     SELECT customer_uid,
-#                         customer_last_name,
-#                         customer_first_name,
-#                         customer_email,
-#                         password_hashed,
-#                         email_verified,
-#                         user_social_media,
-#                         user_access_token,
-#                         user_refresh_token
-#                     FROM M4ME.customers c
-#                     WHERE customer_email = \'""" + email + """\';
-#                     """
-#                     items = execute(query, 'get', conn)
-#                     print(items)
-
-#                     if items['code'] != 280:
-#                         items['message'] = "Internal error"
-#                         return items
-
-
-#                     # new customer
-#                     if not items['result']:
-#                         items['message'] = "Email doesn't exists Please go to the signup page"
-#                         get_user_id_query = "CALL new_customer_uid();"
-#                         NewUserIDresponse = execute(get_user_id_query, 'get', conn)
-
-#                         if NewUserIDresponse['code'] == 490:
-#                             string = " Cannot get new User id. "
-#                             print("*" * (len(string) + 10))
-#                             print(string.center(len(string) + 10, "*"))
-#                             print("*" * (len(string) + 10))
-#                             response['message'] = "Internal Server Error."
-#                             response['code'] = 500
-#                             return response
-
-#                         NewUserID = NewUserIDresponse['result'][0]['new_id']
-#                         user_social_signup = 'APPLE'
-#                         print('NewUserID', NewUserID)
-#                         #only works for mysql, and only allows for inserting one row at a time
-#                         customer_insert_query = """
-#                                     INSERT INTO M4ME.customers 
-#                                     set
-#                                         customer_uid = \'""" + NewUserID + """\',
-#                                         customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-#                                         customer_email = \'""" + email + """\',
-#                                         user_social_media = \'""" + user_social_signup + """\',
-#                                         user_refresh_token = \'""" + sub + """\'
-#                                     ;"""
-
-
-#                                     #original code for reference
-#                                     #   INSERT INTO M4ME.customers 
-#                                     # (
-#                                     #     customer_uid,
-#                                     #     customer_created_at,
-#                                     #     customer_email,
-#                                     #     user_social_media,
-#                                     #     user_refresh_token
-#                                     # )
-#                                     # VALUES
-#                                     # (
-                                    
-#                                     #     \'""" + NewUserID + """\',
-#                                     #     \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-#                                     #     \'""" + email + """\',
-#                                     #     \'""" + user_social_signup + """\',
-#                                     #     \'""" + sub + """\'
-#                                     # );"""
-
-
-#                         item = execute(customer_insert_query, 'post', conn)
-
-#                         print('INSERT')
-
-#                         #if sql works, and new user then social sign up
-#                         if item['code'] != 281:
-#                             item['message'] = 'Check insert sql query'
-#                             return item
-#                         #applelogin changes
-#                         return redirect("https://mealtoyourdoor.netlify.app/social-sign-up?id=" + NewUserID)
-#                         #return redirect("http://localhost:3000/social-sign-up?id=" + NewUserID)
-
-#                     # Existing customer
-
-#                     #if we get back a refresh token
-#                     if items['result'][0]['user_refresh_token']:
-#                         print(items['result'][0]['user_social_media'], items['result'][0]['user_refresh_token'])
-
-#                         #if result is not apple
-#                         if items['result'][0]['user_social_media'] != "APPLE":
-#                             items['message'] = "Wrong social media used for signup. Use \'" + items['result'][0]['user_social_media'] + "\'."
-#                             items['code'] = 400
-#                             return redirect("https://mealtoyourdoor.netlify.app/")
-#                             #return redirect("http://localhost:3000")
-#                             #return items
-
-#                         #if referesh token does not match
-#                         elif items['result'][0]['user_refresh_token'] != sub:
-#                             items['message'] = "Token mismatch"
-#                             items['code'] = 400
-#                             return redirect("https://mealtoyourdoor.netlify.app/")
-#                             #return redirect("http://localhost:3000")
-#                             #return items
-
-#                         #if social media = apple, and token matches, send to meals selected
-#                         else:
-#                             #applelogin changes
-#                             # return redirect("http://localhost:3000/farms?id=" + items['result'][0]['customer_uid'])
-#                             return redirect("https://mealtoyourdoor.netlify.app/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
-#                             #return redirect("http://localhost:3000/select-meal?id=" + items['result'][0]['customer_uid'])
-
-#                 else:
-#                     items['message'] = "Email not returned by Apple LOGIN"
-#                     items['code'] = 400
-#                     return items
-
-
-#             else:
-#                 response = {
-#                     "message": "Token not found in Apple's Response",
-#                     "code": 400
-#                 }
-#                 return response
-#         except:
-#             raise BadRequest("Request failed, please try again later.")
-
-
-
-
-
 class Change_Password(Resource):
     def post(self):
         response = {}
@@ -1767,6 +1502,10 @@ class Reset_Password(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+
+
+
 
 class Meals_Selected(Resource): #(meals_selected_endpoint)
     def get(self):
@@ -2052,46 +1791,6 @@ class AccountSalt(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)   
-
-
-
-
-
-# class AccountSalt(Resource):
-#     def post(self):
-#         items = {}
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-
-#             email = data['email']
-#             print("1")
-#             query = """
-#                         SELECT user_social_media
-#                         FROM customers cus
-#                         WHERE customer_email = \'""" + email + """\';
-#                         """
-#             items = simple_get_execute(query, __class__.__name__, conn)
-#             #print("2")
-#             #print(items[0]['result'][0]["user_social_media"])
-#             #customer_res['result'][0]['password_hashed']
-#             #print("3")
-#             if items[0]['result'][0]["user_social_media"]is not None:
-#                 #print("4")
-#                 return items[0]['result'][0]["user_social_media"]
-#             else:
-#                 query = """
-#                         SELECT password_algorithm, 
-#                                 password_salt 
-#                         FROM customers cus
-#                         WHERE customer_email = \'""" + email + """\';
-#                         """
-#                 return simple_get_execute(query, __class__.__name__, conn)
-#         except:
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-
 
 
 
@@ -2405,6 +2104,8 @@ class Refund_Calculator (Resource):
             raise BadRequest("Request failed, please try again later.")
         finally:
             disconnect(conn)
+
+
     def refund_calf(self, p_uid):
         try:
             conn = connect()
@@ -2484,6 +2185,9 @@ class Update_Delivery_Info (Resource):
         finally:
             disconnect(conn)
 
+
+
+
 # ---------- ADMIN ENDPOINTS ----------------#
 # admin endpoints start from here            #
 #--------------------------------------------#
@@ -2512,6 +2216,7 @@ class Plans(Resource):
         finally:
             disconnect(conn)
 # Endpoint for Create/Edit menu
+
 class Menu (Resource):
     def get(self):
         try:
@@ -2672,7 +2377,6 @@ class Delete_Menu_Specific (Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
 
 
 
@@ -2883,7 +2587,6 @@ class create_update_meals(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
 
 
     def put(self):
@@ -3413,9 +3116,6 @@ class CouponDetails(Resource):
 
 
 
-
-
-
 class Ordered_By_Date(Resource):
     def get(self):
         try:
@@ -3502,13 +3202,6 @@ class Ingredients_Need (Resource):
 
 
 
-
-
-
-
-
-
-
 class Edit_Menu(Resource):
     def get(self):
         response = {}
@@ -3579,15 +3272,6 @@ class Edit_Menu(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3665,14 +3349,6 @@ class Edit_Meal(Resource):
 
 
 
-
-
-
-
-
-
-
-
 class MealCreation(Resource):
     def listIngredients(self, result):
         response = {}
@@ -3693,6 +3369,7 @@ class MealCreation(Resource):
 
         return response
         print("2")
+    
     def get(self):
         response = {}
         items = {}
@@ -3812,12 +3489,6 @@ class MealCreation(Resource):
 
 
 
-
-
-
-
-
-
 class Edit_Recipe(Resource):
     def post(self):
         response = {}
@@ -3871,12 +3542,6 @@ class Edit_Recipe(Resource):
 
 
 
-
-
-
-
-
-
 class Add_New_Ingredient(Resource):
     def post(self):
         response = {}
@@ -3911,6 +3576,7 @@ class Add_New_Ingredient(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+    
     def get(self):
         response = {}
         items = {}
@@ -3930,14 +3596,6 @@ class Add_New_Ingredient(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
-
-
-
-
-
 
 
 
@@ -3987,10 +3645,6 @@ class Add_Meal_plan(Resource):
             disconnect(conn)
 
 
-
-
-
-
 class Profile(Resource):
     # Fetches ALL DETAILS FOR A SPECIFIC USER
 
@@ -4024,8 +3678,6 @@ class Profile(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
 
 
 
@@ -4119,109 +3771,6 @@ class access_refresh_update(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
-# class access_refresh_update(Resource):
-
-#     def post(self):
-
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-#             query = """
-#                     UPDATE M4ME.customers SET 
-#                     user_access_token = \'""" + data['access_token'] + """\', 
-#                     user_refresh_token = \'""" + data['refresh_token'] + """\', 
-#                     social_timestamp =  \'""" + data['social_timestamp'] + """\' 
-#                     WHERE (customer_uid = \'""" + data['uid'] + """\'); ;
-#                     """
-#             print(query)
-#             items = execute(query, 'post', conn)
-#             if items['code'] == 281:
-#                 items['message'] = 'Access and refresh token updated successfully'
-#                 print(items['code'])
-#                 items['code'] = 200
-#             else:
-#                 items['message'] = 'Check sql query'
-#                 items['code'] = 400
-
-
-#             return items
-
-#         except:
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-
-
-
-
-# class token_fetch_update (Resource):
-
-#     def post(self, action):
-#         items = {}
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-#             email = data['email']
-#             print(data)
-
-#             if action == 'get':
-#                 query = """
-#                         SELECT *
-#                         FROM M4ME.customers c
-#                         WHERE customer_email = \'""" + email + """\';
-#                         """
-#                 items = execute(query, 'get', conn)
-
-#                 if items['result']:
-
-#                     items['message'] = 'Tokens recieved successful'
-#                     items['result'] = items['result']
-#                     items['code'] = 200
-#                     return items
-#                 else:
-#                     items['message'] = "Email doesn't exists"
-#                     items['result'] = items['result']
-#                     items['code'] = 404
-#                     return items
-#             elif action == 'update':
-#                 query = """
-#                         UPDATE M4ME.customers 
-#                         SET  
-#                         user_access_token = \'""" + data['user_access_token'] + """\', 
-#                         user_refresh_token = \'""" + data['user_refresh_token'] + """\',
-#                         mobile_access_token = \'""" + data['mobile_access_token'] + """\', 
-#                         mobile_refresh_token = \'""" + data['mobile_refresh_token'] + """\', 
-#                         social_timestamp = DATE_ADD(social_timestamp , INTERVAL 14 DAY)
-#                         WHERE customer_email = \'""" + email + """\';
-#                         """
-#                 print(query)
-#                 items = execute(query, 'post', conn)
-#                 print(items)
-
-#                 if items['code'] == 281:
-
-#                     items['message'] = 'Tokens and timestamp updated successful'
-#                     items['result'] = items['result']
-#                     items['code'] = 200
-#                     return items
-#                 else:
-#                     items['message'] = "Email doesn't exists"
-#                     items['result'] = items['result']
-#                     items['code'] = 404
-#                     return items
-
-#             else:
-#                 items['code'] = 400
-#                 items['message'] = 'Select proper option'
-
-
-#         except:
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
 
 
 
@@ -4387,11 +3936,6 @@ class customer_infos(Resource):
 
 
 
-
-
-
-
-
 class Meal_Detail(Resource):
 
     def get(self, date):
@@ -4426,55 +3970,6 @@ class Meal_Detail(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
-
-
-
-
-
-
-
-# class Meal_Detail(Resource):
-#     def get(self):
-#         response={}
-#         items={}
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-#             print("1")
-#             date = data['date']
-#             query = """
-#                     select * 
-#                     from meals 
-#                     inner join menu
-#                         on meal_uid = menu_meal_id
-#                     where menu_meal_id = \'""" + date + """\';
-#                     """
-#             print(query)
-#             items = execute(query, 'get', conn)
-#             #print("SUBSTRING("SQL Tutorial", 5, 3")
-#             print("2")
-#             print(items)
-#             if items['code'] == 280:
-#                 items['message'] = 'Get Meal_detail successfully'
-#                 print(items)
-#                 #items['result'] = items['result']
-#                 #print(items['code'])
-#                 items['code'] = 200
-#                 return items
-#             else:
-#                 items['message'] = 'Check sql query'
-#                 items['code'] = 400
-#                 return items
-#         except:
-#             print("3")
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-
-
 
 
 
@@ -5097,100 +4592,6 @@ class get_delivery_info(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
-# class update_guid_notification(Resource):
-
-#     def post(self, role):
-#         response = {}
-#         items = {}
-
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-
-#             print(data)
-#             if role == 'customer':
-#                 uid = data['uid']
-#                 guid = data['guid']
-#                 notification = data['notification']
-#                 query = """
-#                         SELECT *
-#                         FROM M4ME.customers c
-#                         WHERE customer_uid = \'""" + uid + """\'
-#                         """
-#                 items = execute(query, 'get', conn)
-#                 del data['uid']
-#                 test = str(data).replace("'", "\"")
-#                 print('test---------', test)
-#                 data = "'" + test + "'"
-
-#                 print(data)
-#                 if items['result']:
-
-#                     query = " " \
-#                             "UPDATE M4ME.customers " \
-#                             "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
-#                             "WHERE customer_uid = '" + str(uid) + "';" \
-#                             ""
-
-#                     items = execute(query, 'post', conn)
-#                     print(items)
-#                     if items['code'] == 281:
-#                         items['code'] = 200
-#                         items['message'] = 'Device_id notification and GUID updated'
-#                     else:
-#                         items['message'] = 'check sql query'
-
-#                 else:
-#                     items['message'] = "UID doesn't exists"
-
-#                 return items
-
-#             elif role == 'business':
-#                 uid = data['uid']
-#                 guid = data['guid']
-#                 query = """
-#                         SELECT *
-#                         FROM M4ME.businesses b
-#                         WHERE business_uid = \'""" + uid + """\'
-#                         """
-#                 items = execute(query, 'get', conn)
-
-#                 del data['uid']
-#                 test = str(data).replace("'", "\"")
-#                 print('test---------', test)
-#                 data = "'" + test + "'"
-
-#                 if items['result']:
-#                     data
-#                     query = " " \
-#                             "UPDATE M4ME.businesses " \
-#                             "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
-#                             "WHERE business_uid = '" + str(uid) + "';" \
-#                             ""
-
-#                     items = execute(query, 'post', conn)
-
-#                     if items['code'] == 281:
-#                         items['code'] = 200
-#                         items['message'] = 'Device_id notification and GUID updated'
-#                     else:
-#                         items['message'] = 'check sql query'
-
-#                 else:
-#                     items['message'] = "UID doesn't exists"
-
-#                 return items
-
-#             else:
-#                 return 'choose correct option'
-
-#         except:
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
 
 
 class update_guid_notification(Resource):
@@ -5912,101 +5313,6 @@ class customer_info(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
-
-
-# class Send_Notification(Resource):
-
-#     def post(self, role):
-
-#         def deconstruct(uids, role):
-#             print('IN decon')
-#             conn = connect()
-#             uids_array = uids.split(',')
-#             output = []
-#             for uid in uids_array:
-#                 if role == 'customer':
-#                     query = """SELECT cust_guid_device_id_notification FROM customers WHERE customer_uid = \'""" + uid + """\';"""
-#                     items = execute(query, 'get', conn)
-
-#                     if items['code'] != 280:
-#                         items['message'] = "check sql query"
-#                         items['code'] = 404
-#                         return items
-
-#                     json_val = items['result'][0]['cust_guid_device_id_notification']
-
-#                 else:
-
-#                     query = """SELECT bus_guid_device_id_notification FROM businesses WHERE business_uid = \'""" + uid + """\';"""
-#                     items = execute(query, 'get', conn)
-
-#                     if items['code'] != 280:
-#                         items['message'] = "check sql query"
-#                         items['code'] = 404
-#                         return items
-
-#                     json_val = items['result'][0]['bus_guid_device_id_notification']
-
-#                 if json_val != 'null':
-#                     print("in deconstruct")
-#                     print(type(json_val))
-#                     print(json_val)
-#                     input_val = json.loads(json_val)
-#                     print(type(input_val))
-#                     print(input_val)
-#                     for vals in input_val:
-#                         print('vals--', vals)
-#                         print(type(vals))
-#                         if vals == None:
-#                             continue
-#                         print('guid--', vals['guid'])
-#                         print('notification---', vals['notification'])
-#                         if vals['notification'] == 'TRUE':
-#                             output.append('guid_' + vals['guid'])
-#             output = ",".join(output)
-#             print('output-----', output)
-#             return output
-#         print('IN---')
-
-#         hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
-
-
-#         print('role----', role)
-#         uids = request.form.get('uids')
-#         message = request.form.get('message')
-#         print('uids', uids)
-#         print('role', role)
-#         tags = deconstruct(uids, role)
-#         print('tags-----', tags)
-
-#         if tags == []:
-#             return 'No GUIDs found for the UIDs provided'
-#         #tags = uids
-#         if tags is None:
-#             raise BadRequest('Request failed. Please provide the tag field.')
-#         if message is None:
-#             raise BadRequest('Request failed. Please provide the message field.')
-#         tags = tags.split(',')
-#         tags = list(set(tags))
-#         print('tags11-----', tags)
-#         print('RESULT-----',tags)
-#         for tag in tags:
-#             print('tag-----', tag)
-#             print(type(tag))
-#             alert_payload = {
-#                 "aps" : {
-#                     "alert" : message,
-#                 },
-#             }
-#             hub.send_apple_notification(alert_payload, tags = tag)
-
-#             fcm_payload = {
-#                 "data":{"message": message}
-#             }
-#             hub.send_gcm_notification(fcm_payload, tags = tag)
-
-#         return 200
 
 
 
@@ -9182,25 +8488,6 @@ class change_purchase(Resource):
             # driver_tip = str(float(info_res[0]['result'][0]["driver_tip"]))
             # print("driver_tip " + driver_tip)
 
-###########verison 2
-
-                # INSERT INTO M4ME.payments (payment_uid, payment_time_stamp, start_delivery_date, payment_id, pay_purchase_id,
-                #                             amount_due, amount_discount, amount_paid, pay_coupon_id, charge_id, payment_type,
-                #                             info_is_Addon, cc_num, cc_exp_date, cc_cvv, cc_zip, taxes, service_fee, delivery_fee,
-                #                             amount_discount, driver_tip, ambassador_code)
-                # Values( "''' + payment_uid + '''", "''' + getNow() + '''", "''' + start_delivery_date + '''",
-                #         "''' + payment_id + '''", "''' + purchase_id + '''", "''' + purchase_uid + '''",
-                #         "''' + str(round(amount_will_charge,2)) + '''", 0, "''' + str(round(amount_will_charge,2)) + '''",
-                #         NULL, "''' + charge_id + '''", NULL, "FALSE", "''' + str(cc_num) + '''", "''' + str(cc_exp_date) + '''",
-                #         "''' + str(cc_cvv) + '''", "''' + str(cc_zip) + '''", (int(num_days)*price*(1-discount/100))*(9.25/100),
-                #         "''' + service_fee + '''", "''' + delivery_fee + '''", "''' + amount_discount + '''",
-                #         "''' + driver_tip + '''", "0" );
-
-
-
-
-
-############
             subtotal = str(float(int(round((int(num_days)*price)*100)))/100)
             taxes = str(float(int((round((int(num_days)*price*(1-discount/100))*(tax/100)*100)))/100))
             print("testing taxes " + str(taxes))
@@ -9430,13 +8717,6 @@ class change_purchase(Resource):
                     refund_id.append(refund_res.get('id'))
                     #print("refund id is " + refund_id)
             return refund_id
-
-
-
-
-
-
-
 
 
     def new_refund_calculator(self, info_res,  conn):
@@ -11030,28 +10310,60 @@ class calculator(Resource):
 
 # JAYDEVA
 class change_purchase_pm (Resource):
-    def put(self):
     
+    def put(self):
+        
         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
+        data = request.get_json(force=True)
+        print("Input JSON Data: ", data)
 
-        # STEP 2 CALCULATE REFUND OR EXTRA CHARGE AMOUNT
+        # WHAT THEY HAD
+        pur_uid = data["purchase_uid"]
+        print("Input Purchase ID: ", pur_uid)
+
+        # WHAT THEY ARE CHANGING TO
+        item_uid = data["items"][0]['item_uid']
+        print("item_uid : ", item_uid)
+        num_deliveries = data["items"][0]['qty']
+        print("days : ", num_deliveries)
+        # num_meals = data["items"][0]['name']
+        # print("meals : ",num_meals)
+        # price = data["items"][0]['price']
+        # print("price : ", price)
+        # item_uid = data["items"][0]['item_uid']
+        # print("item_uid : ", item_uid)
+
+
+
+        # STEP 2A CALCULATE REFUND
+        print("\nInside Calculate Refund", pur_uid)
+        refund = calculator().refund(pur_uid)
+        print("\nPurchase_details from billing: ", refund)
+        amount_should_refund = round(refund['refund_amount'],2)
+        print("Amount to be Refunded: ", amount_should_refund)
+
+
+        # STEP 2B CALCULATE EXTRA CHARGE AMOUNT
+        print("\nInside Calculate New Charge", pur_uid)
+        new_charge = calculator().billing(item_uid, num_deliveries)
+        print("Amount for new Plan: ", new_charge)
+        print("Additional Charge/Refund: ", new_charge - amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
+        if new_charge > amount_should_refund:
+
+            # GET STRIPE KEY
+            # CHARGE STRIPE
+
+
 
         # STEP 4 WRITE TO DATABASE
     
         return
 
 
-# COPING ORIGINAL CLASS TO AVOID ENDPOINT ERROR
-class cancel_purchase_pm (Resource):
-
-    def put(self):
-
-        return
-
 class cancel_purchase (Resource):
-    # def put(self, pur_uid):
+    
     def put(self):
 
         data = request.get_json(force=True)
@@ -11117,8 +10429,6 @@ class cancel_purchase (Resource):
             print("Amount Refunded: ", refundable_info['amount_refunded'])
             print("Refundable Amount: ", refundable_amount)
             print("Amount to be Refunded: ", amount_should_refund)
-
-# Vishnu
 
             if refundable_amount >= amount_should_refund:
                 # refund it right away => amount should be refund is equal refunded_amount
@@ -12283,150 +11593,6 @@ class brandAmbassador(Resource):
 
 
 
-# class brandAmbassador(Resource):
-
-#     def post(self, action):
-#         try:
-
-#             data = request.get_json(force=True)
-#             conn = connect()
-#             if not data.get('amb_email'):
-#                 return 'Please enter ambassador email'
-#             query_amb = """
-#                     SELECT * FROM coupons
-#                     WHERE email_id = \'""" + data['amb_email'] + """\';
-#                     """
-#             items_amb = execute(query_amb, 'get', conn)
-
-#             if items_amb['code'] != 280:
-#                 items_amb['message'] = 'No data available for this ambassador email'
-#                 return items_amb
-
-#             if action == 'create_ambassador':
-                
-#                 for vals in items_amb['result']:
-#                     if vals['coupon_id'] == 'SFAmbassador':
-#                         return 'Customer already a Ambassador'
-                
-#                 # all check done, now make the custoamer a ambassador and issue them a coupon
-
-#                 query = ["CALL new_coupons_uid;"]
-#                 couponIDresponse = execute(query[0], 'get', conn)
-#                 couponID = couponIDresponse['result'][0]['new_id']
-#                 print('all checks done')
-#                 dateObject = datetime.now()
-
-#                 exp_date = dateObject.replace(year=dateObject.year + 5)
-#                 exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-#                 query = """
-#                 INSERT INTO coupons 
-#                 (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-#                 VALUES ( \'""" + couponID + """\', 'SFAmbassador', 'TRUE', '0', '10', '5', \'""" + exp_date + """\', '2', 'SFAmbassador', '0', 'F', \'""" + data['amb_email'] + """\', 'null', '5');
-#                 """
-#                 print(query)
-#                 items = execute(query, 'post', conn)
-#                 if items['code'] != 281:
-#                     items['message'] = "check sql query"
-#                     items['code'] = 400
-#                     return items
-
-
-#                 items['message'] = 'SF Ambassdaor created'
-#                 items['code'] = 200
-#                 return items
-
-#             elif action == 'generate_coupon':
-
-#                 # check if customer is already a ambassador because ambassador cannot refer himself or get referred
-#                 query_cust = """
-#                     SELECT * FROM coupons
-#                     WHERE email_id = \'""" + data['cust_email'] + """\';
-#                     """
-#                 items_cust = execute(query_cust, 'get', conn)
-#                 for vals in items_cust['result']:
-#                     if vals['coupon_id'] == 'SFAmbassador':
-#                         return 'Customer himself is an Ambassador'
-
-
-#                 flag = 0
-#                 # check if ambassador exists
-#                 for vals in items_amb['result']:
-#                     if vals['coupon_id'] == 'SFAmbassador':
-#                         flag = 1
-                
-#                 if flag == 0:
-#                     return 'No such Ambassador email exists'
-                
-
-#                 cust_email = data['cust_email']
-
-#                 # customer can be referred only once so check that
-
-#                 flag = 0
-#                 for vals in items_cust['result']:
-#                     if vals['coupon_id'] == 'Referral':
-#                         flag = 1
-                
-#                 if flag == 1:
-#                     return 'Customer has already been refered in past'
-
-
-#                 # generate coupon for refereed customer
-
-#                 query = ["CALL new_coupons_uid;"]
-#                 couponIDresponse = execute(query[0], 'get', conn)
-#                 couponID = couponIDresponse['result'][0]['new_id']
-                
-#                 dateObject = datetime.now()
-#                 exp_date = dateObject.replace(year=dateObject.year + 1)
-#                 exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-#                 query = """
-#                 INSERT INTO coupons 
-#                 (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-#                 VALUES ( \'""" + couponID + """\', 'Referral', 'TRUE', '0', '10', '5', \'""" + exp_date + """\', '2', 'Referral', '0', 'F', \'""" + cust_email + """\', 'null', '5');
-#                 """
-#                 print(query)
-#                 items = execute(query, 'post', conn)
-#                 if items['code'] != 281:
-#                     items['message'] = "check sql query"
-#                     return items
-
-#                 # Now update ambasaddor coupon
-#                 print('updating amb')
-#                 query = """
-#                         UPDATE coupons SET limits = limits + 2 
-#                         WHERE coupon_id = 'SFAmbassador' AND email_id = \'""" + data['amb_email'] + """\'
-#                         """
-#                 items = execute(query, 'post', conn)
-#                 if items['code'] != 281:
-#                     items['message'] = "check sql query"
-#                     return items
-#                 items['message'] = 'customer and ambassador coupons generated'
-#                 query2= """
-#                         select * from coupons
-#                         where coupon_uid = '""" + couponID + """';
-#                         """
-#                 items2 = execute(query2, 'get', conn)
-#                 if items2['code'] != 280:
-#                     items2['message'] = "check sql query"
-#                     return items
-#                 items2['message'] = 'customer and ambassador coupons generated'
-#                 return items2
-            
-#             else:
-#                 return 'enter correct option'
-            
-            
-
-
-#         except:
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-
-
-
-
 class orders_by_customers(Resource):
     def get(self):
         try:
@@ -13418,7 +12584,7 @@ api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:items_uid>/<string:qty>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>/<string:items_uid>/<string:qty>')
 
-api.add_resource(cancel_purchase_pm, '/api/v2/cancel_purchase_pm/<string:pur_uid>')
+api.add_resource(change_purchase_pm, '/api/v2/change_purchase_pm')
 
 
 # Run on below IP address and port
