@@ -11066,7 +11066,7 @@ class cancel_purchase (Resource):
         print("\nInside Calculate Refund", pur_uid)
         refund = calculator().refund(pur_uid)
         print("\nPurchase_details from billing: ", refund)
-        amount_should_refund = refund['refund_amount']
+        amount_should_refund = round(refund['refund_amount'],2)
         print("Amount to be Refunded: ", amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
@@ -11172,6 +11172,22 @@ class cancel_purchase (Resource):
             return {"message": "Payment Insert Error"}, 500
         print("Get Payment ID response: ", response)
 
+
+
+        print(get_new_paymentID(conn))
+        print(response['result'][0]['payment_id'])
+        print(pur_uid)
+        print(response['result'][0]['pay_purchase_id'])
+        print(str(getNow()))
+        print(str(refund['meal_refund']))
+        print(str(refund['service_fee']))
+        print(str(refund['delivery_fee']))
+        print(str(refund['driver_tip']))
+        print(str(refund['taxes']))
+        print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
+        print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
+        print(str(refund['ambassador_code']))
+        print("refund_res: ", refund_res['id'])
         query = """
                 INSERT INTO M4ME.payments
                 SET payment_uid = '""" + get_new_paymentID(conn) + """',
@@ -11197,19 +11213,20 @@ class cancel_purchase (Resource):
         if response['code'] != 281:
             return {"message": "Payment Insert Error"}, 500
 
+        # UPDATE PURCHASE TABLE
+        query = """
+                UPDATE M4ME.purchases
+                SET purchase_status = "CANCELLED and REFUNDED"
+                where purchase_uid = '""" + pur_uid + """';
+                """
+        response = execute(query, 'post', conn)
+        print("Purchases Update db response: ", response)
+        if response['code'] != 281:
+            return {"message": "Purchase Insert Error"}, 500
+        
         return refund_res['id']
 
-        # UPDATE PURCHASE TABLE
-        # query = """
-        #         UPDATE M4ME.purchases
-        #         SET purchase_status = "CANCELLED and REFUNDED"
-        #         where purchase_uid = '""" + pur_uid + """';
-        #         """
-        # response = execute(query, 'post', conn)
-        # print("Purchases Update db response: ", response)
-        # if response['code'] != 281:
-        #     return {"message": "Purchase Insert Error"}, 500
-        # return
+
 
 class update_db (Resource):
     def update_purchase(self, purchase_uid):
