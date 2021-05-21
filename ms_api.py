@@ -122,7 +122,7 @@ def connect():
     global RDS_USER
     global RDS_DB
 
-    print("Trying to connect to RDS (API v2)...")
+    print("\n   Trying to connect to RDS (API v2)...")
     try:
         conn = pymysql.connect(host=RDS_HOST,
                                user=RDS_USER,
@@ -131,7 +131,7 @@ def connect():
                                db=RDS_DB,
                                charset='utf8mb4',
                                cursorclass=pymysql.cursors.DictCursor)
-        print("Successfully connected to RDS. (API v2)")
+        print("   Successfully connected to RDS. (API v2)")
         return conn
     except:
         print("Could not connect to RDS. (API v2)")
@@ -182,7 +182,7 @@ def serializeResponse(response):
 # Set conn parameter to connection object
 # OPTIONAL: Set skipSerialization to True to skip default JSON response serialization
 def execute(sql, cmd, conn, skipSerialization=False):
-    print("\nStart execute ", cmd)
+    print("==> Execute Query: ", cmd)
     response = {}
     try:
         with conn.cursor() as cur:
@@ -2250,7 +2250,7 @@ class Checkout(Resource):
                                 ambassador_code = \'''' + amb + '''\';
                             ''',
                             '''
-                            INSERT INTO  M4ME.purchases
+                            INSERT INTO M4ME.purchases
                             SET purchase_uid = \'''' + purchaseId + '''\',
                                 purchase_date = \'''' + getNow() + '''\',
                                 purchase_id = \'''' + purchaseId + '''\',
@@ -6947,7 +6947,7 @@ class UpdatePassword(Resource):
 #                                         cc_zip = "''' + str(cc_zip) + '''";
 #                 ''',
 #                 '''
-#                 INSERT INTO  M4ME.purchases
+#                 INSERT INTO M4ME.purchases
 #                 SET purchase_uid = "''' + purchase_uid + '''",
 #                                         purchase_date = "''' + getNow() + '''",
 #                                         purchase_id = "''' + purchase_id + '''",
@@ -9233,7 +9233,7 @@ class change_purchase(Resource):
                                         ;
                 ''',
                 '''
-                INSERT INTO  M4ME.purchases
+                INSERT INTO M4ME.purchases
                 SET purchase_uid = "''' + purchase_uid + '''",
                                         purchase_date = "''' + getNow() + '''",
                                         purchase_id = "''' + purchase_id + '''",
@@ -10089,7 +10089,7 @@ def createNewPurchase(id, start_delivery_date):
                         ambassador_code = 0;
                     ''',
                     '''
-                    INSERT INTO  M4ME.purchases
+                    INSERT INTO M4ME.purchases
                     SET purchase_uid = \'''' + purchaseId + '''\',
                         purchase_date = \'''' + str(getNow()) + '''\',
                         purchase_id = \'''' + purchaseId + '''\',
@@ -10764,7 +10764,7 @@ class calculator(Resource):
                         AND pur.purchase_status='ACTIVE';  
                     """
             pur_details = execute(query, 'get', conn)
-            print('\nPurchase Details from Purchase Engine: ', pur_details)
+            # print('\nPurchase Details from Purchase Engine: ', pur_details)
             return pur_details
 
         except:
@@ -10848,9 +10848,9 @@ class calculator(Resource):
             # print("Item_UID: ", items_uid)
             # print("Number of Deliveries: ", qty)
 
-            # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID
+            # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID (PURCHASE ENGINE)
             pur_details = calculator().purchase_engine(pur_id)
-            print("\nPurchase_details from billing: ", pur_details)
+            print("\nPurchase_details from purchase_engine: ", pur_details)
 
             items_uid = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             print("Item_UID: ", items_uid)
@@ -10880,12 +10880,14 @@ class calculator(Resource):
             print("Customer delivery_instructions: ", delivery_instructions)
 
 
-            # CALCULATE NUMBER OF DELIVERIES ALREADY MADE
+            # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
             deliveries_made = calculator().deliveries_made(pur_id)
             print("\nReturned from deliveries_made: ", deliveries_made)
             completed_deliveries = deliveries_made['result'][0]['num_deliveries']
             print("Num of Completed Deliveries: ", completed_deliveries)
 
+
+            # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
             if completed_deliveries is None:
                 completed_deliveries = 0
                 print("completed_deliveries: ", completed_deliveries)
@@ -10921,6 +10923,7 @@ class calculator(Resource):
                     "driver_tip"            :  round(driver_tip * ratio,2),
                     "taxes"                 :  taxes,
                     "ambassador_code"       :  round(ambassador_code * ratio,2),
+                    "refund_amount"         :  refund + round(driver_tip * ratio,2) - round(ambassador_code * ratio,2),
                     "charge_id"             :  charge_id,
                     "delivery_instructions" :  delivery_instructions}
 
@@ -11011,6 +11014,7 @@ class calculator(Resource):
                     "driver_tip"            :  round(driver_tip * ratio,2),
                     "taxes"                 :  taxes,
                     "ambassador_code"       :  round(ambassador_code * ratio,2),
+                    "refund_amount"         :  refund + round(driver_tip * ratio,2) - round(ambassador_code * ratio,2),
                     "charge_id"             :  charge_id,
                     "delivery_instructions" :  delivery_instructions}
 
@@ -11020,7 +11024,218 @@ class calculator(Resource):
             disconnect(conn)
 
 
-    # # PROCESS STRIPE REFUND
+    
+
+
+# JAYDEVA
+class change_purchase_pm (Resource):
+    def put(self):
+    
+        # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
+
+        # STEP 2 CALCULATE REFUND OR EXTRA CHARGE AMOUNT
+
+        # STEP 3 PROCESS STRIPE
+
+        # STEP 4 WRITE TO DATABASE
+    
+        return
+
+
+# COPING ORIGINAL CLASS TO AVOID ENDPOINT ERROR
+class cancel_purchase_pm (Resource):
+
+    def put(self):
+
+        return
+
+class cancel_purchase (Resource):
+    # def put(self, pur_uid):
+    def put(self):
+
+        data = request.get_json(force=True)
+        print("Input JSON Data: ", data)
+        pur_uid = data["purchase_uid"]
+        print("Input Purchase ID: ", pur_uid)
+        
+        # STEP 1 GET INPUT INFO (WHAT ARE THEY CANCELLING)
+        conn = connect()
+        print("\nInside Cancel Purchase", pur_uid)
+
+        # STEP 2 CALCULATE REFUND
+        print("\nInside Calculate Refund", pur_uid)
+        refund = calculator().refund(pur_uid)
+        print("\nPurchase_details from billing: ", refund)
+        amount_should_refund = refund['refund_amount']
+        print("Amount to be Refunded: ", amount_should_refund)
+
+        # STEP 3 PROCESS STRIPE
+
+        # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
+        print("\nGet Stripe Key")
+        delivery_instructions = refund['delivery_instructions']
+        print(delivery_instructions)
+        temp_key = ""
+        if stripe.api_key is not None:
+            temp_key = stripe.api_key
+        stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+        print("Stripe Key: ", stripe.api_key)
+        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+
+        # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
+        print("\nInside Get All Transactions", pur_uid)
+        query = """ 
+                SELECT charge_id 
+                FROM M4ME.payments
+                WHERE pay_purchase_uid = '""" + pur_uid + """'
+                ORDER BY payment_time_stamp DESC;
+                """
+        response = execute(query, 'get', conn)
+        if response['code'] != 280:
+            return {"message": "Related Transaction Error"}, 500
+        print("Related Puchase IDs: ", response['result'])
+        num_transactions = len(response['result'])
+        print("Number of Related Puchase IDs: ", num_transactions)
+
+        # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
+        print("\nInside Systematically Stepping Through Transactions")
+        n = 0
+        while num_transactions > 0 and amount_should_refund > 0 :
+            print("Number of Transactions: ", num_transactions)
+            print("Amount to Refund: ",amount_should_refund)
+            stripe_process_id = response['result'][n]['charge_id']
+            print("Stripe Purchase ID: ", stripe_process_id)
+
+            if stripe_process_id[:2] == "pi":
+                stripe_process_id = stripe.PaymentIntent.retrieve(stripe_process_id).get("charges").get("data")[0].get("id")
+                print("Update Purchase ID: ", stripe_process_id)
+            refundable_info = stripe.Charge.retrieve(stripe_process_id,)
+            refundable_amount = refundable_info['amount_captured'] - refundable_info['amount_refunded']
+            print("\nRefundable Amount: ", refundable_info)
+            print("\nAmount Captured: ", refundable_info['amount_captured'])
+            print("Amount Refunded: ", refundable_info['amount_refunded'])
+            print("Refundable Amount: ", refundable_amount)
+            print("Amount to be Refunded: ", amount_should_refund)
+
+# Vishnu
+
+            if refundable_amount >= amount_should_refund:
+                # refund it right away => amount should be refund is equal refunded_amount
+                print("In If Statement")
+                try:
+                    refund_res = stripe.Refund.create(
+                        charge=stripe_process_id,
+                        amount=int(amount_should_refund)
+                    )
+                    print("refund_res: ", refund_res['id'])
+                    amount_should_refund = 0
+                except stripe.error.CardError as e:
+                    # Since it's a decline, stripe.error.CardError will be caught
+                    response['message'] = e.error.message
+                    return response, 400
+
+            else:
+                print("In Else Statement")
+                try:
+                    refund_res = stripe.Refund.create(
+                        charge=stripe_process_id,
+                        amount=int(refundable_amount)
+                    )
+                    print("refund_res: ", refund_res['id'])
+                    amount_should_refund = amount_should_refund - refundable_amount
+                except stripe.error.CardError as e:
+                    # Since it's a decline, stripe.error.CardError will be caught
+                    response['message'] = e.error.message
+                    return response, 400
+
+            num_transactions - num_transactions - 1
+            n = n + 1
+
+            continue
+
+
+
+
+        # STEP 4 WRITE TO DATABASE 
+
+        # UPDATE PAYMENT TABLE
+        # INSERT NEW ROW WITH REFUND AMOUNT AND REFUND ID
+
+        # FIND OLD PAYMENT ID SO ITS EASY TO REFERENCE WHICH PAYMENT WAS BEING REFUNDED
+        query = """ 
+                SELECT payment_id, pay_purchase_id
+                FROM M4ME.payments
+                WHERE pay_purchase_uid = '""" + pur_uid + """';
+                """
+        response = execute(query, 'get', conn)
+        if response['code'] != 280:
+            return {"message": "Payment Insert Error"}, 500
+        print("Get Payment ID response: ", response)
+
+        query = """
+                INSERT INTO M4ME.payments
+                SET payment_uid = '""" + get_new_paymentID(conn) + """',
+                    payment_id = '""" + response['result'][0]['payment_id'] + """',
+                    pay_purchase_uid = '""" + pur_uid + """',
+                    pay_purchase_id = '""" + response['result'][0]['pay_purchase_id'] + """',
+                    payment_time_stamp =  '""" + str(getNow()) + """',
+                    subtotal = '""" + str(refund['meal_refund']) + """',
+                    service_fee = '""" + str(refund['service_fee']) + """',
+                    delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                    driver_tip = '""" + str(refund['driver_tip']) + """',
+                    taxes = '""" + str(refund['taxes']) + """',
+                    amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                    amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                    ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                    charge_id = '""" + str(refund_res['id']) + """';
+                """        
+                
+                         
+        response = execute(query, 'post', conn)
+        print("Payments Update db response: ", response)
+        
+        if response['code'] != 281:
+            return {"message": "Payment Insert Error"}, 500
+
+        return refund_res['id']
+
+        # UPDATE PURCHASE TABLE
+        # query = """
+        #         UPDATE M4ME.purchases
+        #         SET purchase_status = "CANCELLED and REFUNDED"
+        #         where purchase_uid = '""" + pur_uid + """';
+        #         """
+        # response = execute(query, 'post', conn)
+        # print("Purchases Update db response: ", response)
+        # if response['code'] != 281:
+        #     return {"message": "Purchase Insert Error"}, 500
+        # return
+
+class update_db (Resource):
+    def update_purchase(self, purchase_uid):
+        
+        return
+
+    def update_payment(self, payment_uid):
+
+        return
+
+    def insert_purchase(self):
+
+        return
+
+    def insert_payment(self):
+
+        return
+
+        
+
+
+
+
+
+
+# # PROCESS STRIPE REFUND
     # def stripe_refund (self, refund_info, conn):
     #         print("start stripe refund")
     #         refund_amount = refund_info['refund_amount']
@@ -11137,11 +11352,8 @@ class calculator(Resource):
 
 
 
-
-
-
      
-class cancel_purchase(Resource):
+class cancel_purchase_original (Resource):
     def put(self):
         try:
             print("\nIn Cancel Purchase")
@@ -11171,7 +11383,7 @@ class cancel_purchase(Resource):
             print("Customer charge_id: ", charge_id)
             delivery_instructions = pur_details['delivery_instructions']
             print("Customer delivery_instructions: ", delivery_instructions)
-            refund_amount = round(meal_refund + service_fee + delivery_fee + driver_tip + taxes + ambassador_code,2)
+            refund_amount = pur_details['refund_amount']
             print("Refund Amount: ", refund_amount)
 
 
@@ -11201,7 +11413,7 @@ class cancel_purchase(Resource):
 
             refund_id = []
 
-
+            # STEP 4 PROCESS THE REFUND IN STRIPE
             # LEAVING CODE AS IS TO SEE IF THIS WORKS
             # print("res in stripe_refund: ", res)
             if not res[0]['result']:
@@ -12471,7 +12683,7 @@ class update_pay_pur_mobile(Resource):
             response1 = execute(queries1, "post", conn)
             print(response1)
             queries2= '''
-                        INSERT INTO  M4ME.purchases
+                        INSERT INTO M4ME.purchases
                         SET purchase_uid = \'''' + purchase_uid + '''\',
                             purchase_date = \'''' + getNow() + '''\',
                             purchase_id = \'''' + purchaseId + '''\',
@@ -13187,6 +13399,8 @@ api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<
 api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:items_uid>/<string:qty>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>/<string:items_uid>/<string:qty>')
+
+api.add_resource(cancel_purchase_pm, '/api/v2/cancel_purchase_pm/<string:pur_uid>')
 
 
 # Run on below IP address and port
