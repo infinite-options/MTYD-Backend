@@ -10372,18 +10372,19 @@ class change_purchase_pm (Resource):
     def put(self):
         
         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
+        conn = connect()
         data = request.get_json(force=True)
-        print("Input JSON Data: ", data)
+        print("\nIn CHANGE PURCHASE\n", data)
 
         # WHAT THEY HAD
         pur_uid = data["purchase_uid"]
-        print("Input Purchase ID: ", pur_uid)
+        print("CURRENT Purchase ID: ", pur_uid)
 
         # WHAT THEY ARE CHANGING TO
         item_uid = data["items"][0]['item_uid']
-        print("item_uid : ", item_uid)
+        print("NEW item_uid : ", item_uid)
         num_deliveries = data["items"][0]['qty']
-        print("days : ", num_deliveries)
+        print("NEW days : ", num_deliveries)
         # num_meals = data["items"][0]['name']
         # print("meals : ",num_meals)
         # price = data["items"][0]['price']
@@ -10401,23 +10402,198 @@ class change_purchase_pm (Resource):
         print("Amount to be Refunded: ", amount_should_refund)
 
 
-        # STEP 2B CALCULATE EXTRA CHARGE AMOUNT
+        # STEP 2B CALCULATE NEW CHARGE AMOUNT
         print("\nInside Calculate New Charge", pur_uid)
         new_charge = calculator().billing(item_uid, num_deliveries)
-        print("Amount for new Plan: ", new_charge)
-        print("Additional Charge/Refund: ", new_charge - amount_should_refund)
+        print("Returned JSON Object: \n", new_charge)
+        print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
+        print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
+        new_charge = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries']
+        
+        # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
+        # print("Amount for new Plan: ", new_charge)
+        delta = round(new_charge - amount_should_refund,2) - 800
+        print("Additional Charge/Refund: ", delta)
 
         # STEP 3 PROCESS STRIPE
-        if new_charge > amount_should_refund:
+
+        # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
+        print("\nGet Stripe Key")
+        delivery_instructions = refund['delivery_instructions']
+        print(delivery_instructions)
+        stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+        print("Stripe Key: ", stripe.api_key)
+        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+
+
+        if delta > 0:
 
             # GET STRIPE KEY
             # CHARGE STRIPE
 
+            response = requests.get("http://api.open-notify.org/astros.json")
+            print(response.json())
+
+            # response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createPaymentIntent',
+            # # response = requests.post('http://localhost:2000/api/v2/createPaymentIntent',
+            # data = {   
+            #             "currency": "usd",   
+            #             "customer_uid": "100-000125",
+            #             "business_code": "M4METEST",
+            #             "item_uid": "320-000054",
+            #             "num_items": 5,
+            #             "num_deliveries": 9,
+            #             "delivery_discount": 13,
+            #             "payment_summary": {     
+            #                 "mealSubPrice": "45.00",     
+            #                 "discountAmount": "5.85",    
+            #                 "addOns": "0.00",     
+            #                 "tip": "5.00",     
+            #                 "serviceFee": "2.00",     
+            #                 "deliveryFee": "2.00",     
+            #                 "taxRate": 9,     
+            #                 "taxAmount": "3.62",     
+            #                 "ambassadorDiscount": "0.00",     
+            #                 "total": "51.77",     
+            #                 "subtotal": "51.77"   
+            #             } 
+            #         })
+
+            # print(response.json())
+        
+        else:
+            print ("LESS THAN")
+
+            # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
+            print("\nInside Get All Transactions", pur_uid)
+            query = """ 
+                    SELECT charge_id 
+                    FROM M4ME.payments
+                    WHERE pay_purchase_uid = '""" + pur_uid + """'
+                    ORDER BY payment_time_stamp DESC;
+                    """
+            response = execute(query, 'get', conn)
+            if response['code'] != 280:
+                return {"message": "Related Transaction Error"}, 500
+            print("Related Puchase IDs: ", response['result'])
+            num_transactions = len(response['result'])
+            print("Number of Related Puchase IDs: ", num_transactions)
+
+            # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
+            print("\nInside Systematically Stepping Through Transactions")
+            n = 0
+            while num_transactions > 0 and amount_should_refund > 0 :
+                print("Number of Transactions: ", num_transactions)
+                print("Amount to Refund: ",amount_should_refund)
+                stripe_process_id = response['result'][n]['charge_id']
+                print("Stripe Purchase ID: ", stripe_process_id)
+
+                if stripe_process_id[:2] == "pi":
+                    stripe_process_id = stripe.PaymentIntent.retrieve(stripe_process_id).get("charges").get("data")[0].get("id")
+                    print("Update Purchase ID: ", stripe_process_id)
+                refundable_info = stripe.Charge.retrieve(stripe_process_id,)
+                refundable_amount = refundable_info['amount_captured'] - refundable_info['amount_refunded']
+                print("\nRefundable Amount: ", refundable_info)
+                print("\nAmount Captured: ", refundable_info['amount_captured'])
+                print("Amount Refunded: ", refundable_info['amount_refunded'])
+                print("Refundable Amount: ", refundable_amount)
+                print("Amount to be Refunded: ", amount_should_refund)
+
+                if refundable_amount >= amount_should_refund:
+                    # refund it right away => amount should be refund is equal refunded_amount
+                    print("In If Statement")
+
+                    # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+                    refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
+                    amount_should_refund = 0
+                    print("Refund id: ", refund_id['id'])
+                else:
+                    print("In Else Statement")
+                    refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
+                    amount_should_refund = amount_should_refund - refundable_amount
+                    print("Refund id: ", refund_id['id'])
+
+                num_transactions - num_transactions - 1
+                n = n + 1
+
+                # STEP 4 WRITE TO DATABASE 
+
+                # UPDATE PAYMENT TABLE
+                # INSERT NEW ROW WITH REFUND AMOUNT AND REFUND ID
+
+                # FIND OLD PAYMENT ID SO ITS EASY TO REFERENCE WHICH PAYMENT WAS BEING REFUNDED
+                query = """ 
+                        SELECT payment_id, pay_purchase_id
+                        FROM M4ME.payments
+                        WHERE pay_purchase_uid = '""" + pur_uid + """';
+                        """
+                response = execute(query, 'get', conn)
+                if response['code'] != 280:
+                    return {"message": "Payment Insert Error"}, 500
+                print("Get Payment ID response: ", response)
 
 
-        # STEP 4 WRITE TO DATABASE
-    
-            return
+
+                print(get_new_paymentID(conn))
+                print(response['result'][0]['payment_id'])
+                print(pur_uid)
+                print(response['result'][0]['pay_purchase_id'])
+                print(str(getNow()))
+                print(str(refund['meal_refund']))
+                print(str(refund['service_fee']))
+                print(str(refund['delivery_fee']))
+                print(str(refund['driver_tip']))
+                print(str(refund['taxes']))
+                print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
+                print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
+                print(str(refund['ambassador_code']))
+                print("refund_res: ", refund_id['id'])
+
+                # UPDATE PAYMENT TABLE
+                query = """
+                        INSERT INTO M4ME.payments
+                        SET payment_uid = '""" + get_new_paymentID(conn) + """',
+                            payment_id = '""" + response['result'][0]['payment_id'] + """',
+                            pay_purchase_uid = '""" + pur_uid + """',
+                            pay_purchase_id = '""" + response['result'][0]['pay_purchase_id'] + """',
+                            payment_time_stamp =  '""" + str(getNow()) + """',
+                            subtotal = '""" + str(refund['meal_refund']) + """',
+                            service_fee = '""" + str(refund['service_fee']) + """',
+                            delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                            driver_tip = '""" + str(refund['driver_tip']) + """',
+                            taxes = '""" + str(refund['taxes']) + """',
+                            amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                            amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                            ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                            charge_id = '""" + str(refund_id['id']) + """';
+                        """        
+                        
+                                
+                response = execute(query, 'post', conn)
+                print("Payments Update db response: ", response)
+                
+                if response['code'] != 281:
+                    return {"message": "Payment Insert Error"}, 500
+
+                # UPDATE PURCHASE TABLE
+                query = """
+                        UPDATE M4ME.purchases
+                        SET purchase_status = "CANCELLED and REFUNDED"
+                        where purchase_uid = '""" + pur_uid + """';
+                        """
+                response = execute(query, 'post', conn)
+                print("Purchases Update db response: ", response)
+                if response['code'] != 281:
+                    return {"message": "Purchase Insert Error"}, 500
+
+
+
+
+
+
+                continue
+            
+            return refund_id['id']
 
 
 class cancel_purchase (Resource):
@@ -10499,82 +10675,85 @@ class cancel_purchase (Resource):
                 amount_should_refund = amount_should_refund - refundable_amount
                 print("Refund id: ", refund_id['id'])
 
-
             num_transactions - num_transactions - 1
             n = n + 1
 
+            # STEP 4 WRITE TO DATABASE 
+
+            # UPDATE PAYMENT TABLE
+            # INSERT NEW ROW WITH REFUND AMOUNT AND REFUND ID
+
+            # FIND OLD PAYMENT ID SO ITS EASY TO REFERENCE WHICH PAYMENT WAS BEING REFUNDED
+            query = """ 
+                    SELECT payment_id, pay_purchase_id
+                    FROM M4ME.payments
+                    WHERE pay_purchase_uid = '""" + pur_uid + """';
+                    """
+            response = execute(query, 'get', conn)
+            if response['code'] != 280:
+                return {"message": "Payment Insert Error"}, 500
+            print("Get Payment ID response: ", response)
+
+
+
+            print(get_new_paymentID(conn))
+            print(response['result'][0]['payment_id'])
+            print(pur_uid)
+            print(response['result'][0]['pay_purchase_id'])
+            print(str(getNow()))
+            print(str(refund['meal_refund']))
+            print(str(refund['service_fee']))
+            print(str(refund['delivery_fee']))
+            print(str(refund['driver_tip']))
+            print(str(refund['taxes']))
+            print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
+            print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
+            print(str(refund['ambassador_code']))
+            print("refund_res: ", refund_id['id'])
+
+            # UPDATE PAYMENT TABLE
+            query = """
+                    INSERT INTO M4ME.payments
+                    SET payment_uid = '""" + get_new_paymentID(conn) + """',
+                        payment_id = '""" + response['result'][0]['payment_id'] + """',
+                        pay_purchase_uid = '""" + pur_uid + """',
+                        pay_purchase_id = '""" + response['result'][0]['pay_purchase_id'] + """',
+                        payment_time_stamp =  '""" + str(getNow()) + """',
+                        subtotal = '""" + str(refund['meal_refund']) + """',
+                        service_fee = '""" + str(refund['service_fee']) + """',
+                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                        driver_tip = '""" + str(refund['driver_tip']) + """',
+                        taxes = '""" + str(refund['taxes']) + """',
+                        amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                        amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                        charge_id = '""" + str(refund_id['id']) + """';
+                    """        
+                    
+                            
+            response = execute(query, 'post', conn)
+            print("Payments Update db response: ", response)
+            
+            if response['code'] != 281:
+                return {"message": "Payment Insert Error"}, 500
+
+            # UPDATE PURCHASE TABLE
+            query = """
+                    UPDATE M4ME.purchases
+                    SET purchase_status = "CANCELLED and REFUNDED"
+                    where purchase_uid = '""" + pur_uid + """';
+                    """
+            response = execute(query, 'post', conn)
+            print("Purchases Update db response: ", response)
+            if response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
+
+
+
+
+
+
             continue
-
-
-
-
-        # STEP 4 WRITE TO DATABASE 
-
-        # UPDATE PAYMENT TABLE
-        # INSERT NEW ROW WITH REFUND AMOUNT AND REFUND ID
-
-        # FIND OLD PAYMENT ID SO ITS EASY TO REFERENCE WHICH PAYMENT WAS BEING REFUNDED
-        query = """ 
-                SELECT payment_id, pay_purchase_id
-                FROM M4ME.payments
-                WHERE pay_purchase_uid = '""" + pur_uid + """';
-                """
-        response = execute(query, 'get', conn)
-        if response['code'] != 280:
-            return {"message": "Payment Insert Error"}, 500
-        print("Get Payment ID response: ", response)
-
-
-
-        print(get_new_paymentID(conn))
-        print(response['result'][0]['payment_id'])
-        print(pur_uid)
-        print(response['result'][0]['pay_purchase_id'])
-        print(str(getNow()))
-        print(str(refund['meal_refund']))
-        print(str(refund['service_fee']))
-        print(str(refund['delivery_fee']))
-        print(str(refund['driver_tip']))
-        print(str(refund['taxes']))
-        print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
-        print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
-        print(str(refund['ambassador_code']))
-        print("refund_res: ", refund_id['id'])
-        query = """
-                INSERT INTO M4ME.payments
-                SET payment_uid = '""" + get_new_paymentID(conn) + """',
-                    payment_id = '""" + response['result'][0]['payment_id'] + """',
-                    pay_purchase_uid = '""" + pur_uid + """',
-                    pay_purchase_id = '""" + response['result'][0]['pay_purchase_id'] + """',
-                    payment_time_stamp =  '""" + str(getNow()) + """',
-                    subtotal = '""" + str(refund['meal_refund']) + """',
-                    service_fee = '""" + str(refund['service_fee']) + """',
-                    delivery_fee = '""" + str(refund['delivery_fee']) + """',
-                    driver_tip = '""" + str(refund['driver_tip']) + """',
-                    taxes = '""" + str(refund['taxes']) + """',
-                    amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
-                    amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
-                    ambassador_code = '""" + str(refund['ambassador_code']) + """',
-                    charge_id = '""" + str(refund_id['id']) + """';
-                """        
-                
-                         
-        response = execute(query, 'post', conn)
-        print("Payments Update db response: ", response)
-        
-        if response['code'] != 281:
-            return {"message": "Payment Insert Error"}, 500
-
-        # UPDATE PURCHASE TABLE
-        query = """
-                UPDATE M4ME.purchases
-                SET purchase_status = "CANCELLED and REFUNDED"
-                where purchase_uid = '""" + pur_uid + """';
-                """
-        response = execute(query, 'post', conn)
-        print("Purchases Update db response: ", response)
-        if response['code'] != 281:
-            return {"message": "Purchase Insert Error"}, 500
         
         return refund_id['id']
 
