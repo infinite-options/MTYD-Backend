@@ -10375,13 +10375,14 @@ class change_purchase (Resource):
         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
         conn = connect()
         data = request.get_json(force=True)
-        print("\nIn CHANGE PURCHASE\n", data)
+        print("\nSTEP 1:  In CHANGE PURCHASE\n", data)
 
         # WHAT THEY HAD
         pur_uid = data["purchase_uid"]
-        print("CURRENT Purchase ID: ", pur_uid)
+        print("What they have (CURRENT Purchase ID): ", pur_uid)
 
         # WHAT THEY ARE CHANGING TO
+        print("What they are changing to:")
         item_uid = data["items"][0]['item_uid']
         print("NEW item_uid : ", item_uid)
         num_deliveries = data["items"][0]['qty']
@@ -10396,7 +10397,7 @@ class change_purchase (Resource):
 
 
         # STEP 2A CALCULATE REFUND
-        print("\nInside Calculate Refund", pur_uid)
+        print("\nSTEP 2A:  Inside Calculate Refund", pur_uid)
         refund = calculator().refund(pur_uid)
         print("\nPurchase_details from billing: ", refund)
         amount_should_refund = round(refund['refund_amount'],2)
@@ -10404,7 +10405,7 @@ class change_purchase (Resource):
 
 
         # STEP 2B CALCULATE NEW CHARGE AMOUNT
-        print("\nInside Calculate New Charge", pur_uid)
+        print("\nSTEP 2B:  Inside Calculate New Charge", pur_uid)
         new_charge = calculator().billing(item_uid, num_deliveries)
         print("Returned JSON Object: \n", new_charge)
         print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
@@ -10420,7 +10421,7 @@ class change_purchase (Resource):
         # STEP 3 PROCESS STRIPE
 
         # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
-        print("\nGet Stripe Key")
+        print("\nSTEP 3:  Get Stripe Key")
         delivery_instructions = refund['delivery_instructions']
         print(delivery_instructions)
         stripe.api_key = get_stripe_key().get_key(delivery_instructions)
@@ -10502,6 +10503,9 @@ class change_purchase (Resource):
                 print("Refundable Amount: ", refundable_amount)
                 print("Amount to be Refunded: ", amount_should_refund)
 
+                if refundable_amount == 0:
+                    return
+
                 if refundable_amount >= amount_should_refund:
                     # refund it right away => amount should be refund is equal refunded_amount
                     print("In If Statement")
@@ -10519,7 +10523,8 @@ class change_purchase (Resource):
                 num_transactions - num_transactions - 1
                 n = n + 1
 
-                # STEP 4 WRITE TO DATABASE 
+                # STEP 4 WRITE TO DATABASE
+                print("STEP 4:  WRITE TO DB")
 
                 # UPDATE PAYMENT TABLE
                 # INSERT NEW ROW WITH REFUND AMOUNT AND REFUND ID
