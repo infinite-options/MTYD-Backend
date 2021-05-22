@@ -10196,6 +10196,8 @@ class calculator(Resource):
             print("Item_UID: ", items_uid)
             num_deliveries = json.loads(pur_details['result'][0]['items'])[0].get('qty')
             print("Number of Deliveries: ", num_deliveries)
+            payment_id = pur_details['result'][0]['payment_id']
+            print("Payment_id: ", payment_id)
             subtotal = pur_details['result'][0]['subtotal']
             print("Customer Subtotal: ", subtotal)
             amount_discount = pur_details['result'][0]['amount_discount']
@@ -10257,6 +10259,7 @@ class calculator(Resource):
             
             return {"purchase_uid"          :  pur_id,
                     "purchase_id"           :  pur_id,
+                    "payment_id"            :  payment_id,
                     "meal_refund"           :  refund,
                     "service_fee"           :  service_fee,
                     "delivery_fee"          :  delivery_fee,
@@ -10472,7 +10475,7 @@ class change_purchase (Resource):
             query = """ 
                     SELECT charge_id 
                     FROM M4ME.payments
-                    WHERE payment_id = "500-000001"
+                    WHERE payment_id = '""" + refund['payment_id'] + """'
                         AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
                     ORDER BY payment_time_stamp DESC;
                     """
@@ -10710,7 +10713,7 @@ class cancel_purchase (Resource):
         query = """ 
                 SELECT charge_id 
                 FROM M4ME.payments
-                WHERE payment_id = "500-000001"
+                WHERE payment_id = '""" + refund['payment_id'] + """'
                     AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
                 ORDER BY payment_time_stamp DESC;
                 """
@@ -10740,6 +10743,9 @@ class cancel_purchase (Resource):
             print("Amount Refunded: ", refundable_info['amount_refunded'])
             print("Refundable Amount: ", refundable_amount)
             print("Amount to be Refunded: ", amount_should_refund)
+ 
+            if refundable_amount == 0:
+                    return refundable_amount
 
             if refundable_amount >= amount_should_refund:
                 # refund it right away => amount should be refund is equal refunded_amount
@@ -10837,7 +10843,7 @@ class cancel_purchase (Resource):
             continue
         
         return refund_id['id']
-
+        
 
 
 class update_db (Resource):
