@@ -10408,12 +10408,13 @@ class change_purchase_pm (Resource):
         print("Returned JSON Object: \n", new_charge)
         print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
         print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-        new_charge = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries']
+        delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries']
         
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
         # print("Amount for new Plan: ", new_charge)
-        delta = round(new_charge - amount_should_refund,2) - 800
         print("Additional Charge/Refund: ", delta)
+        delta = round(delta - amount_should_refund,2) - 800
+        print("Additional Charge/Refund after discount: ", delta)
 
         # STEP 3 PROCESS STRIPE
 
@@ -10469,7 +10470,8 @@ class change_purchase_pm (Resource):
             query = """ 
                     SELECT charge_id 
                     FROM M4ME.payments
-                    WHERE pay_purchase_uid = '""" + pur_uid + """'
+                    WHERE payment_id = "500-000001"
+                        AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
                     ORDER BY payment_time_stamp DESC;
                     """
             response = execute(query, 'get', conn)
@@ -10531,13 +10533,21 @@ class change_purchase_pm (Resource):
                 if response['code'] != 280:
                     return {"message": "Payment Insert Error"}, 500
                 print("Get Payment ID response: ", response)
+                current_pur_uid = pur_uid
+                current_pur_id = response['result'][0]['pay_purchase_id']
+                current_pay_id = response['result'][0]['payment_id']
+                new_pur_id = get_new_purchaseID(conn)
+                new_pay_id = get_new_paymentID(conn)
 
 
 
-                print(get_new_paymentID(conn))
-                print(response['result'][0]['payment_id'])
-                print(pur_uid)
-                print(response['result'][0]['pay_purchase_id'])
+                print("\nNew Database Input Values:\n")               
+                print("Current Purchase UID: ", pur_uid)
+                print("Current Purchase ID: ", current_pur_id)
+                print("Current Payment ID: ", current_pay_id)
+                print("New Purchase UID: ", new_pur_id)
+                print("New Payment UID: ", new_pay_id)
+
                 print(str(getNow()))
                 print(str(refund['meal_refund']))
                 print(str(refund['service_fee']))
@@ -10549,15 +10559,36 @@ class change_purchase_pm (Resource):
                 print(str(refund['ambassador_code']))
                 print("refund_res: ", refund_id['id'])
 
+
+                date_query = '''
+                            SELECT DISTINCT menu_date FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1
+                            '''
+                response = simple_get_execute(date_query, "Next Delivery Date", conn)
+                
+                # RESPONSE PARSING EXAMPLES
+                start_delivery_date = response
+                print("start_delivery_date: ", start_delivery_date)
+                # start_delivery_date = response[0]
+                # print("start_delivery_date: ", start_delivery_date)
+                # start_delivery_date = response[0]['result']
+                # print("start_delivery_date: ", start_delivery_date)
+                start_delivery_date = response[0]['result'][0]['menu_date']
+                print("start_delivery_date: ", start_delivery_date)
+
                 # UPDATE PAYMENT TABLE
                 query = """
                         INSERT INTO M4ME.payments
-                        SET payment_uid = '""" + get_new_paymentID(conn) + """',
-                            payment_id = '""" + response['result'][0]['payment_id'] + """',
-                            pay_purchase_uid = '""" + pur_uid + """',
-                            pay_purchase_id = '""" + response['result'][0]['pay_purchase_id'] + """',
+                        SET payment_uid = '""" + new_pay_id + """',
+                            payment_id = '""" + current_pay_id + """',
+                            pay_purchase_uid = '""" + new_pur_id + """',
+                            pay_purchase_id = '""" + new_pur_id + """',
                             payment_time_stamp =  '""" + str(getNow()) + """',
+                            start_delivery_date =  '""" + str(start_delivery_date) + """',
                             subtotal = '""" + str(refund['meal_refund']) + """',
+                            amount_discount = '0',
                             service_fee = '""" + str(refund['service_fee']) + """',
                             delivery_fee = '""" + str(refund['delivery_fee']) + """',
                             driver_tip = '""" + str(refund['driver_tip']) + """',
@@ -10575,14 +10606,56 @@ class change_purchase_pm (Resource):
                 if response['code'] != 281:
                     return {"message": "Payment Insert Error"}, 500
 
+                # GET PURCHASE TABLE DATA    
+                query = """ 
+                        SELECT *
+                        FROM M4ME.purchases
+                        WHERE purchase_uid = '""" + pur_uid + """';
+                        """
+                response = execute(query, 'get', conn)
+                if response['code'] != 280:
+                    return {"message": "Purchase Table Lookup Error"}, 500
+                print("Get Purchase UID response: ", response)
+
                 # UPDATE PURCHASE TABLE
                 query = """
                         UPDATE M4ME.purchases
-                        SET purchase_status = "CANCELLED and REFUNDED"
+                        SET purchase_status = "CHANGED"
                         where purchase_uid = '""" + pur_uid + """';
                         """
+                update_response = execute(query, 'post', conn)
+                print("Purchases Update db response: ", update_response)
+                if update_response['code'] != 281:
+                    return {"message": "Purchase Insert Error"}, 500
+
+                # INSERT INTO PURCHASE TABLE
+                items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
+                print(items)
+
+                query = """
+                        INSERT INTO M4ME.purchases
+                        SET purchase_uid = '""" + new_pur_id + """',
+                            purchase_date = '""" + str(getNow()) + """',
+                            purchase_id = '""" + new_pur_id + """',
+                            purchase_status = 'ACTIVE',
+                            pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
+                            pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
+                            delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
+                            delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
+                            delivery_email = '""" + response['result'][0]['delivery_email'] + """',
+                            delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
+                            delivery_address = '""" + response['result'][0]['delivery_address'] + """',
+                            delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
+                            delivery_city = '""" + response['result'][0]['delivery_city'] + """',
+                            delivery_state = '""" + response['result'][0]['delivery_state'] + """',
+                            delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
+                            delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
+                            delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
+                            delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
+                            items = '""" + items + """';
+                        """
                 response = execute(query, 'post', conn)
-                print("Purchases Update db response: ", response)
+                print("New Changed Purchases Added to db response: ", response)
                 if response['code'] != 281:
                     return {"message": "Purchase Insert Error"}, 500
 
@@ -10631,7 +10704,8 @@ class cancel_purchase (Resource):
         query = """ 
                 SELECT charge_id 
                 FROM M4ME.payments
-                WHERE pay_purchase_uid = '""" + pur_uid + """'
+                WHERE payment_id = "500-000001"
+                    AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
                 ORDER BY payment_time_stamp DESC;
                 """
         response = execute(query, 'get', conn)
@@ -10720,6 +10794,7 @@ class cancel_purchase (Resource):
                         pay_purchase_id = '""" + response['result'][0]['pay_purchase_id'] + """',
                         payment_time_stamp =  '""" + str(getNow()) + """',
                         subtotal = '""" + str(refund['meal_refund']) + """',
+                        amount_discount = '0',
                         service_fee = '""" + str(refund['service_fee']) + """',
                         delivery_fee = '""" + str(refund['delivery_fee']) + """',
                         driver_tip = '""" + str(refund['driver_tip']) + """',
