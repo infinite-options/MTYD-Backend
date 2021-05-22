@@ -8151,7 +8151,7 @@ class Copy_Menu(Resource):
 
 # Parva Code  -----------------------------------------------------------------------------------------------------------
 
-class change_purchase(Resource):
+class change_purchase_original(Resource):
     
     def get(self, purchaseID):
         print("change_purchase line 8788")
@@ -10367,7 +10367,7 @@ class calculator(Resource):
 
 
 # JAYDEVA
-class change_purchase_pm (Resource):
+class change_purchase (Resource):
     
     def put(self):
         
