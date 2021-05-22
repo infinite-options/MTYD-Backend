@@ -10408,7 +10408,7 @@ class change_purchase (Resource):
         print("Returned JSON Object: \n", new_charge)
         print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
         print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-        delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries']
+        delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
         
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
         # print("Amount for new Plan: ", new_charge)
@@ -10591,7 +10591,7 @@ class change_purchase (Resource):
                             amount_discount = '0',
                             service_fee = '""" + str(refund['service_fee']) + """',
                             delivery_fee = '""" + str(refund['delivery_fee']) + """',
-                            driver_tip = '""" + str(refund['driver_tip']) + """',
+                            driver_tip = '""" + str(data["driver_tip"]) + """',
                             taxes = '""" + str(refund['taxes']) + """',
                             amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
                             amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
@@ -12815,7 +12815,7 @@ api.add_resource(add_surprise, '/api/v2/add_surprise/<string:p_uid>')
 
 api.add_resource(discount_percentage, '/api/v2/discount_percentage/<string:n_delivery>')
 
-api.add_resource(change_purchase, '/api/v2/change_purchase/<string:purchaseID>')
+api.add_resource(change_purchase, '/api/v2/change_purchase')
 
 api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
 
@@ -12868,7 +12868,7 @@ api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:items_uid>/<string:qty>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>/<string:items_uid>/<string:qty>')
 
-api.add_resource(change_purchase_pm, '/api/v2/change_purchase_pm')
+# api.add_resource(change_purchase_pm, '/api/v2/change_purchase_pm')
 
 api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
 
