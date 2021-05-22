@@ -41,7 +41,8 @@ s3 = boto3.client('s3')
 
 
 app = Flask(__name__)
-cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
+# cors = CORS(app, resources={r'/api/*': {'origins': '*'}})
+cors = CORS(app)
 # Set this to false when deploying to live application
 app.config['DEBUG'] = True
 
