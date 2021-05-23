@@ -10012,7 +10012,7 @@ class predict_autopay_day(Resource):
 
 ### START PRASHANT CODE ################################################################################
 
-# PRASHANT NEXT BILLING DATE ATTEMPT
+# PRASHANT NEXT BILLING DATE
 class predict_next_billing_date(Resource):
 
     def get(self, id):
@@ -10084,39 +10084,38 @@ class predict_next_billing_date(Resource):
 
 class calculator(Resource):
 
-    # GETS ALL INFORMATION RELATED TO A PURCHASE ID INCLUDING PAYMENT AND SUBSCRIPTION INFO        
-    def purchase_engine (self, pur_id):
+    # GETS ALL INFORMATION RELATED TO AN ACTIVE PURCHASE ID INCLUDING PAYMENT AND SUBSCRIPTION INFO        
+    def purchase_engine (self, pur_uid):
 
         try:
             conn = connect()
             # pur_id = '400-000223'
-            print("\nInside purchase_engine calculator", pur_id)
+            print("\nREFUND STEP 1:  Inside purchase_engine calculator", pur_uid)
 
-            # TO RETURN ALL INFO ASSOCIATED WITH A PARTICULAR PURCHASE UID OR PURCHASE ID
-
+            # RETURN ALL INFO ASSOCIATED WITH A PARTICULAR PURCHASE UID OR PURCHASE ID
             query = """
                     SELECT pur.*, pay.*, sub.*
                     FROM purchases pur, payments pay, subscription_items sub
                     WHERE pur.purchase_uid = pay.pay_purchase_uid
                         AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
-                                                FROM purchases WHERE purchase_uid = '""" + pur_id + """')
-                        AND pur.purchase_uid = '""" + pur_id + """'
+                                                FROM purchases WHERE purchase_uid = '""" + pur_uid + """')
+                        AND pur.purchase_uid = '""" + pur_uid + """'
                         AND pur.purchase_status='ACTIVE';  
                     """
             pur_details = execute(query, 'get', conn)
-            # print('\nPurchase Details from Purchase Engine: ', pur_details)
+            print('\nPurchase Details from Purchase Engine: ', pur_details)
             return pur_details
 
         except:
-            raise BadRequest('Request failed, please try again later.')
+            raise BadRequest('Purchase Engine Failure.')
         finally:
             disconnect(conn)
     
     # DETERMINE NUMBER OF ACTUAL DELIVERIES MADE
-    def deliveries_made (self, pur_id):
+    def deliveries_made (self, pur_uid):
         try:
             conn = connect()
-            print("\nInside number of deliveries made", pur_id)
+            print("\nREFUND STEP 2: Inside number of deliveries made", pur_uid)
 
             # GET NUMBER OF ACTUAL DELIVERIES MADE (REMOVING SKIPS)
             query = """
@@ -10138,93 +10137,93 @@ class calculator(Resource):
                     LEFT JOIN M4ME.latest_combined_meal lcm
                     ON lplp.purchase_id = lcm.sel_purchase_id AND
                             md.menu_date = lcm.sel_menu_date
-                    WHERE purchase_uid = '""" + pur_id + """' 
+                    WHERE purchase_uid = '""" + pur_uid + """' 
                         AND menu_date >= lplp.start_delivery_date 	-- AFTER START DATE
                         AND menu_date <= now()) AS lplpmdlcm;		-- BEFORE TODAY
                 """
-
             deliveries = execute(query, 'get', conn)
             print('Deliveries Made: ', deliveries)
 
             return deliveries
 
         except:
-            raise BadRequest('Request failed, please try again later.')
+            raise BadRequest('Deliveries Made Failure.')
         finally:
             disconnect(conn)   
     
     # DETERMINE HOW MUCH SOMEONE SHOULD PAY IF SOMEONE SELECTS A NEW PLAN (WORKS FOR NEW PLAN SELECTION AND CONSUMED MEALS)
     def billing (self, items_uid, qty):
-        print("\nInside billing calculator")
+        print("\nREFUND STEP 3: Inside billing calculator")
         try:
             conn = connect()
             print("Item_UID: ", items_uid)
             qty = str(qty)
             print("Number of Deliveries: ", qty)
 
-            # GET ITEM PRICE
+            # GET ITEM PRICE USING DISCOUNTS TABLE
             query = """
                 SELECT *
                 FROM M4ME.subscription_items, M4ME.discounts
                 WHERE item_uid = '""" + items_uid + """'
                     AND num_deliveries = '""" + qty + """';
                 """
-
             price_details = execute(query, 'get', conn)
-            print('Purchase Details from Purchase Engine: ', price_details)
+            print('Billing Calculator Details: ', price_details)
             return price_details
 
         except:
-            raise BadRequest('Request failed, please try again later.')
+            raise BadRequest('Billing Details Failure.')
         finally:
             disconnect(conn)    
 
     # CALCULATE REFUND
-    def refund (self, pur_id):
+    def refund (self, pur_uid):
 
         try:
             conn = connect()
-            print("\nInside refund calculator", pur_id)
+            print("\nREFUND CALCULATOR START", pur_uid)
             # print("Item_UID: ", items_uid)
             # print("Number of Deliveries: ", qty)
 
             # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID (PURCHASE ENGINE)
-            pur_details = calculator().purchase_engine(pur_id)
-            print("\nPurchase_details from purchase_engine: ", pur_details)
+            pur_details = calculator().purchase_engine(pur_uid)
+            # print("\nPurchase_details from purchase_engine: ", pur_details)
 
-            items_uid = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            payment_id              = pur_details['result'][0]['payment_id']
+            subtotal                = pur_details['result'][0]['subtotal']
+            amount_discount         = pur_details['result'][0]['amount_discount']
+            service_fee             = pur_details['result'][0]['service_fee']
+            delivery_fee            = pur_details['result'][0]['delivery_fee']
+            driver_tip              = pur_details['result'][0]['driver_tip']
+            taxes                   = pur_details['result'][0]['taxes']
+            ambassador_code         = pur_details['result'][0]['ambassador_code']
+            amount_due              = pur_details['result'][0]['amount_due']
+            amount_paid             = pur_details['result'][0]['amount_paid']
+            charge_id               = pur_details['result'][0]['charge_id']
+            delivery_instructions   = pur_details['result'][0]['delivery_instructions']
+
             print("Item_UID: ", items_uid)
-            num_deliveries = json.loads(pur_details['result'][0]['items'])[0].get('qty')
             print("Number of Deliveries: ", num_deliveries)
-            payment_id = pur_details['result'][0]['payment_id']
             print("Payment_id: ", payment_id)
-            subtotal = pur_details['result'][0]['subtotal']
             print("Customer Subtotal: ", subtotal)
-            amount_discount = pur_details['result'][0]['amount_discount']
             print("Customer amount_discount: ", amount_discount)
-            service_fee = pur_details['result'][0]['service_fee']
             print("Customer service_fee: ", service_fee)
-            delivery_fee = pur_details['result'][0]['delivery_fee']
             print("Customer delivery_fee: ", delivery_fee)
-            driver_tip = pur_details['result'][0]['driver_tip']
             print("Customer driver_tip: ", driver_tip)
-            taxes = pur_details['result'][0]['taxes']
             print("Customer taxes ", taxes)
-            ambassador_code = pur_details['result'][0]['ambassador_code']
             print("Customer ambassador_code: ", ambassador_code)
-            amount_due = pur_details['result'][0]['amount_due']
             print("Customer amount_due: ", amount_due)
-            amount_paid = pur_details['result'][0]['amount_paid']
             print("Customer amount_paid: ", amount_paid)
-            charge_id = pur_details['result'][0]['charge_id']
             print("Customer charge_id: ", charge_id)
-            delivery_instructions = pur_details['result'][0]['delivery_instructions']
             print("Customer delivery_instructions: ", delivery_instructions)
 
 
             # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
-            deliveries_made = calculator().deliveries_made(pur_id)
+            deliveries_made = calculator().deliveries_made(pur_uid)
             print("\nReturned from deliveries_made: ", deliveries_made)
+
             completed_deliveries = deliveries_made['result'][0]['num_deliveries']
             print("Num of Completed Deliveries: ", completed_deliveries)
 
@@ -10232,33 +10231,41 @@ class calculator(Resource):
             # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
             if completed_deliveries is None:
                 completed_deliveries = 0
-                print("completed_deliveries: ", completed_deliveries)
                 total_used = 0
+                print("completed_deliveries: ", completed_deliveries)
                 print(total_used)
             else:
                 # completed_deliveries > 0:
                 # print("true")
                 used = calculator().billing(items_uid, completed_deliveries)
                 print("\nConsumed Subscription: ", used)
+
                 item_price = used['result'][0]['item_price']
-                print("Used Price: ", item_price)
                 delivery_discount = used['result'][0]['delivery_discount']
-                print("Used delivery_discount: ", delivery_discount)
                 total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
+
+                print("Used Price: ", item_price)
+                print("Used delivery_discount: ", delivery_discount)
                 print("Total Used: ", total_used)
 
 
             # CALCULATE REFUND AMOUNT  -  NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
+
+            # Need to improve refund calculation here
+            # Add if statement 
+
             refund = round(subtotal - amount_discount - total_used,2)
             print("Meal Refund: ", refund)
 
             print(num_deliveries, completed_deliveries)
+            print(completed_deliveries, num_deliveries)
+            print(completed_deliveries)
             ratio = (int(num_deliveries) - int(completed_deliveries))/int(num_deliveries)
             print (ratio)
 
             
-            return {"purchase_uid"          :  pur_id,
-                    "purchase_id"           :  pur_id,
+            return {"purchase_uid"          :  pur_uid,
+                    "purchase_id"           :  pur_uid,
                     "payment_id"            :  payment_id,
                     "meal_refund"           :  refund,
                     "service_fee"           :  service_fee,
@@ -10271,7 +10278,7 @@ class calculator(Resource):
                     "delivery_instructions" :  delivery_instructions}
 
         except:
-            raise BadRequest('Request failed, please try again later.')
+            raise BadRequest('Refund Calculator Failure.')
         finally:
             disconnect(conn)
 
@@ -10387,9 +10394,9 @@ class change_purchase (Resource):
         # WHAT THEY ARE CHANGING TO
         print("What they are changing to:")
         item_uid = data["items"][0]['item_uid']
-        print("NEW item_uid : ", item_uid)
+        print("  NEW item_uid : ", item_uid)
         num_deliveries = data["items"][0]['qty']
-        print("NEW days : ", num_deliveries)
+        print("  NEW days : ", num_deliveries)
         # num_meals = data["items"][0]['name']
         # print("meals : ",num_meals)
         # price = data["items"][0]['price']
@@ -10400,9 +10407,10 @@ class change_purchase (Resource):
 
 
         # STEP 2A CALCULATE REFUND
-        print("\nSTEP 2A:  Inside Calculate Refund", pur_uid)
+        print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
+        print("Call Refund Calculator")
         refund = calculator().refund(pur_uid)
-        print("\nPurchase_details from billing: ", refund)
+        print("\nRefund Calculator Return: ", refund)
         amount_should_refund = round(refund['refund_amount'],2)
         print("Amount to be Refunded: ", amount_should_refund)
 
@@ -10410,7 +10418,7 @@ class change_purchase (Resource):
         # STEP 2B CALCULATE NEW CHARGE AMOUNT
         print("\nSTEP 2B:  Inside Calculate New Charge", pur_uid)
         new_charge = calculator().billing(item_uid, num_deliveries)
-        print("Returned JSON Object: \n", new_charge)
+        # print("Returned JSON Object: \n", new_charge)
         print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
         print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
         delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
@@ -10422,18 +10430,18 @@ class change_purchase (Resource):
         print("Additional Charge/Refund after discount: ", delta)
 
         # STEP 3 PROCESS STRIPE
-
+        print("\nSTEP 3:  PROCESS STRIPE")
         # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
-        print("\nSTEP 3:  Get Stripe Key")
+        print("\nSTEP 3A:  Get Stripe Key")
         delivery_instructions = refund['delivery_instructions']
         print(delivery_instructions)
         stripe.api_key = get_stripe_key().get_key(delivery_instructions)
         print("Stripe Key: ", stripe.api_key)
         print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
 
-
+        print("\nSTEP 3B:  Charge or Refund Stripe")
         if delta > 0:
-
+            print("\nSTEP 3B:  Charge Stripe")
             # GET STRIPE KEY
             # CHARGE STRIPE
 
@@ -10468,10 +10476,10 @@ class change_purchase (Resource):
             # print(response.json())
         
         else:
-            print ("LESS THAN")
+            print("\nSTEP 3B:  Refund Stripe")
 
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
-            print("\nInside Get All Transactions", pur_uid)
+            print("\nGet All Transactions", pur_uid)
             query = """ 
                     SELECT charge_id 
                     FROM M4ME.payments
