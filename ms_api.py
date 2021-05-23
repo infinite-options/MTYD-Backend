@@ -13,6 +13,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadTimeSignat
 from flask_cors import CORS
 import jwt
 import boto3
+from stripe.api_resources.tax_rate import TaxRate
 from werkzeug.exceptions import BadRequest, NotFound
 
 from dateutil.relativedelta import *
@@ -590,12 +591,12 @@ class stripe_transaction(Resource):
     
     def refund(self, amount, stripe_process_id):
         print("In stripe_transaction REFUND")
-        print("Inputs: ", stripe_process_id, amount)
+        print("Inputs: ", amount, stripe_process_id)
 
         try:
             refund_res = stripe.Refund.create(
                 charge=str(stripe_process_id),
-                amount=int(amount)
+                amount=int(amount *100 )
             )
             print("refund_res: ", refund_res['id'])
             amount_should_refund = 0
@@ -10090,7 +10091,7 @@ class calculator(Resource):
         try:
             conn = connect()
             # pur_id = '400-000223'
-            print("\nREFUND STEP 1:  Inside purchase_engine calculator", pur_uid)
+            print("\nInside purchase_engine calculator", pur_uid)
 
             # RETURN ALL INFO ASSOCIATED WITH A PARTICULAR PURCHASE UID OR PURCHASE ID
             query = """
@@ -10115,7 +10116,7 @@ class calculator(Resource):
     def deliveries_made (self, pur_uid):
         try:
             conn = connect()
-            print("\nREFUND STEP 2: Inside number of deliveries made", pur_uid)
+            print("\nInside deliveries calculator", pur_uid)
 
             # GET NUMBER OF ACTUAL DELIVERIES MADE (REMOVING SKIPS)
             query = """
@@ -10153,11 +10154,11 @@ class calculator(Resource):
     
     # DETERMINE HOW MUCH SOMEONE SHOULD PAY IF SOMEONE SELECTS A NEW PLAN (WORKS FOR NEW PLAN SELECTION AND CONSUMED MEALS)
     def billing (self, items_uid, qty):
-        print("\nREFUND STEP 3: Inside billing calculator")
+        print("\nInside billing calculator")
         try:
             conn = connect()
-            print("Item_UID: ", items_uid)
             qty = str(qty)
+            print("Item_UID: ", items_uid)
             print("Number of Deliveries: ", qty)
 
             # GET ITEM PRICE USING DISCOUNTS TABLE
@@ -10181,7 +10182,7 @@ class calculator(Resource):
 
         try:
             conn = connect()
-            print("\nREFUND CALCULATOR START", pur_uid)
+            print("\nREFUND PART 1:  CALL CALCULATOR", pur_uid)
             # print("Item_UID: ", items_uid)
             # print("Number of Deliveries: ", qty)
 
@@ -10221,6 +10222,7 @@ class calculator(Resource):
 
 
             # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
+            print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
             deliveries_made = calculator().deliveries_made(pur_uid)
             print("\nReturned from deliveries_made: ", deliveries_made)
 
@@ -10229,6 +10231,7 @@ class calculator(Resource):
 
 
             # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
+            print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
             if completed_deliveries is None:
                 completed_deliveries = 0
                 total_used = 0
@@ -10250,30 +10253,50 @@ class calculator(Resource):
 
 
             # CALCULATE REFUND AMOUNT  -  NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
+            print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
 
-            # Need to improve refund calculation here
-            # Add if statement 
+            # Refund Logic
+            # IF Nothing comsume REFUND EVERYTHING
+            # IF Some Meals consumed:
+            #   Subtract Meal Value consumed from Meal Value purchased
+            #   Keep delivery fee and the taxes collected
+            #   Refund a portion of the tip
+            #   Refund a portion of the ambassador code
+            #   Keep service fee (no tax implication)
+            #   Recalculate Taxes 
 
-            refund = round(subtotal - amount_discount - total_used,2)
-            print("Meal Refund: ", refund)
+            if completed_deliveries == 0:
+                print("No Meals Consumed")
 
-            print(num_deliveries, completed_deliveries)
-            print(completed_deliveries, num_deliveries)
-            print(completed_deliveries)
-            ratio = (int(num_deliveries) - int(completed_deliveries))/int(num_deliveries)
-            print (ratio)
+            else: 
+                valueOfMealsPurchased   = round(subtotal - amount_discount,2)
+                valueOfMealsConsumed    = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
+                remainingRatio          = round((int(num_deliveries) - int(completed_deliveries))/int(num_deliveries),2)
+                taxRate                 = .0925
+                    
+                subtotal = valueOfMealsPurchased - valueOfMealsConsumed
 
+                amount_discount         = 0
+                service_fee             = 0
+                delivery_fee            = 0
+                driver_tip              = round(remainingRatio * driver_tip, 2)
+                ambassador_code         = round(remainingRatio * ambassador_code, 2)
+                taxes                   = round((subtotal + delivery_fee) * taxRate,2)
+                amount_due              = round(subtotal + service_fee + delivery_fee + driver_tip  - ambassador_code + taxes,2)
             
             return {"purchase_uid"          :  pur_uid,
                     "purchase_id"           :  pur_uid,
                     "payment_id"            :  payment_id,
-                    "meal_refund"           :  refund,
+                    "completed_deliveries"  :  completed_deliveries,
+                    "meal_refund"           :  subtotal,
+                    "amount_discount"       :  amount_discount,
                     "service_fee"           :  service_fee,
                     "delivery_fee"          :  delivery_fee,
-                    "driver_tip"            :  round(driver_tip * ratio,2),
+                    "driver_tip"            :  driver_tip,
                     "taxes"                 :  taxes,
-                    "ambassador_code"       :  round(ambassador_code * ratio,2),
-                    "refund_amount"         :  refund + round(driver_tip * ratio,2) - round(ambassador_code * ratio,2),
+                    "ambassador_code"       :  ambassador_code,
+                    "amount_due"            :  amount_due,
+                    "amount_paid"           :  amount_paid,
                     "charge_id"             :  charge_id,
                     "delivery_instructions" :  delivery_instructions}
 
@@ -10283,93 +10306,139 @@ class calculator(Resource):
             disconnect(conn)
 
     # CALCULATE REFUND - FOR DEBUG PURPOSES.  SHOULD BE SAME CODE
-    def get (self, pur_id):
+    def get (self, pur_uid):
 
         try:
             conn = connect()
-            print("\nInside refund calculator", pur_id)
+            print("\nREFUND PART 1:  CALL CALCULATOR", pur_uid)
             # print("Item_UID: ", items_uid)
             # print("Number of Deliveries: ", qty)
 
-            # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID
-            pur_details = calculator().purchase_engine(pur_id)
-            print("\nPurchase_details from billing: ", pur_details)
+            # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID (PURCHASE ENGINE)
+            pur_details = calculator().purchase_engine(pur_uid)
+            # print("\nPurchase_details from purchase_engine: ", pur_details)
 
-            items_uid = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            payment_id              = pur_details['result'][0]['payment_id']
+            subtotal                = pur_details['result'][0]['subtotal']
+            amount_discount         = pur_details['result'][0]['amount_discount']
+            service_fee             = pur_details['result'][0]['service_fee']
+            delivery_fee            = pur_details['result'][0]['delivery_fee']
+            driver_tip              = pur_details['result'][0]['driver_tip']
+            taxes                   = pur_details['result'][0]['taxes']
+            ambassador_code         = pur_details['result'][0]['ambassador_code']
+            amount_due              = pur_details['result'][0]['amount_due']
+            amount_paid             = pur_details['result'][0]['amount_paid']
+            charge_id               = pur_details['result'][0]['charge_id']
+            delivery_instructions   = pur_details['result'][0]['delivery_instructions']
+
             print("Item_UID: ", items_uid)
-            num_deliveries = json.loads(pur_details['result'][0]['items'])[0].get('qty')
             print("Number of Deliveries: ", num_deliveries)
-            subtotal = pur_details['result'][0]['subtotal']
+            print("Payment_id: ", payment_id)
             print("Customer Subtotal: ", subtotal)
-            amount_discount = pur_details['result'][0]['amount_discount']
             print("Customer amount_discount: ", amount_discount)
-            service_fee = pur_details['result'][0]['service_fee']
             print("Customer service_fee: ", service_fee)
-            delivery_fee = pur_details['result'][0]['delivery_fee']
             print("Customer delivery_fee: ", delivery_fee)
-            driver_tip = pur_details['result'][0]['driver_tip']
             print("Customer driver_tip: ", driver_tip)
-            taxes = pur_details['result'][0]['taxes']
             print("Customer taxes ", taxes)
-            ambassador_code = pur_details['result'][0]['ambassador_code']
             print("Customer ambassador_code: ", ambassador_code)
-            amount_due = pur_details['result'][0]['amount_due']
             print("Customer amount_due: ", amount_due)
-            amount_paid = pur_details['result'][0]['amount_paid']
             print("Customer amount_paid: ", amount_paid)
-            charge_id = pur_details['result'][0]['charge_id']
             print("Customer charge_id: ", charge_id)
-            delivery_instructions = pur_details['result'][0]['delivery_instructions']
             print("Customer delivery_instructions: ", delivery_instructions)
 
 
-            # CALCULATE NUMBER OF DELIVERIES ALREADY MADE
-            deliveries_made = calculator().deliveries_made(pur_id)
+            # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
+            print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
+            deliveries_made = calculator().deliveries_made(pur_uid)
             print("\nReturned from deliveries_made: ", deliveries_made)
+
             completed_deliveries = deliveries_made['result'][0]['num_deliveries']
             print("Num of Completed Deliveries: ", completed_deliveries)
 
+
+            # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
+            print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
             if completed_deliveries is None:
                 completed_deliveries = 0
-                print("completed_deliveries: ", completed_deliveries)
                 total_used = 0
+                print("completed_deliveries: ", completed_deliveries)
                 print(total_used)
             else:
                 # completed_deliveries > 0:
                 # print("true")
                 used = calculator().billing(items_uid, completed_deliveries)
-                print("\nConsumed Subscription: ", used)
+                # print("\nConsumed Subscription: ", used)
+
                 item_price = used['result'][0]['item_price']
-                print("Used Price: ", item_price)
                 delivery_discount = used['result'][0]['delivery_discount']
-                print("Used delivery_discount: ", delivery_discount)
                 total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
+
+                print("Used Price: ", item_price)
+                print("Used delivery_discount: ", delivery_discount)
                 print("Total Used: ", total_used)
 
 
             # CALCULATE REFUND AMOUNT  -  NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
-            refund = round(subtotal - amount_discount - total_used,2)
-            print("Meal Refund: ", refund)
+            print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
 
-            print(num_deliveries, completed_deliveries)
-            ratio = (int(num_deliveries) - int(completed_deliveries))/int(num_deliveries)
-            print (ratio)
+            # Refund Logic
+            # IF Nothing comsume REFUND EVERYTHING
+            # IF Some Meals consumed:
+            #   Subtract Meal Value consumed from Meal Value purchased
+            #   Keep delivery fee and the taxes collected
+            #   Refund a portion of the tip
+            #   Refund a portion of the ambassador code
+            #   Keep service fee (no tax implication)
+            #   Recalculate Taxes 
 
+            if completed_deliveries == 0:
+                print("No Meals Consumed")
+                print("Customer Subtotal: ", subtotal)
+                print("Customer amount_discount: ", amount_discount)
+                print("Customer service_fee: ", service_fee)
+                print("Customer delivery_fee: ", delivery_fee)
+                print("Customer driver_tip: ", driver_tip)
+                print("Customer taxes ", taxes)
+                print("Customer ambassador_code: ", ambassador_code)
+                print("Customer amount_due: ", amount_due)
+                print("Customer amount_paid: ", amount_paid)
+
+            else: 
+                valueOfMealsPurchased   = round(subtotal - amount_discount,2)
+                valueOfMealsConsumed    = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
+                remainingRatio          = round((int(num_deliveries) - int(completed_deliveries))/int(num_deliveries),2)
+                taxRate                 = .0925
+                    
+                subtotal = valueOfMealsPurchased - valueOfMealsConsumed
+
+                amount_discount         = 0
+                service_fee             = 0
+                delivery_fee            = 0
+                driver_tip              = round(remainingRatio * driver_tip, 2)
+                ambassador_code         = round(remainingRatio * ambassador_code, 2)
+                taxes                   = round((subtotal + delivery_fee) * taxRate,2)
+                amount_due              = round(subtotal + service_fee + delivery_fee + driver_tip  - ambassador_code + taxes,2)
             
-            return {"purchase_uid"          :  pur_id,
-                    "purchase_id"           :  pur_id,
-                    "meal_refund"           :  refund,
+            return {"purchase_uid"          :  pur_uid,
+                    "purchase_id"           :  pur_uid,
+                    "payment_id"            :  payment_id,
+                    "completed_deliveries"  :  completed_deliveries,
+                    "meal_refund"           :  subtotal,
+                    "amount_discount"       :  amount_discount,
                     "service_fee"           :  service_fee,
                     "delivery_fee"          :  delivery_fee,
-                    "driver_tip"            :  round(driver_tip * ratio,2),
+                    "driver_tip"            :  driver_tip,
                     "taxes"                 :  taxes,
-                    "ambassador_code"       :  round(ambassador_code * ratio,2),
-                    "refund_amount"         :  refund + round(driver_tip * ratio,2) - round(ambassador_code * ratio,2),
+                    "ambassador_code"       :  ambassador_code,
+                    "amount_due"            :  amount_due,
+                    "amount_paid"           :  amount_paid,
                     "charge_id"             :  charge_id,
                     "delivery_instructions" :  delivery_instructions}
 
         except:
-            raise BadRequest('Request failed, please try again later.')
+            raise BadRequest('Refund Calculator Failure.')
         finally:
             disconnect(conn)
 
@@ -10411,7 +10480,7 @@ class change_purchase (Resource):
         print("Call Refund Calculator")
         refund = calculator().refund(pur_uid)
         print("\nRefund Calculator Return: ", refund)
-        amount_should_refund = round(refund['refund_amount'],2)
+        amount_should_refund = round(refund['amount_due'],2)
         print("Amount to be Refunded: ", amount_should_refund)
 
 
@@ -10426,7 +10495,7 @@ class change_purchase (Resource):
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
         # print("Amount for new Plan: ", new_charge)
         print("Additional Charge/Refund: ", delta)
-        delta = round(delta - amount_should_refund,2) - 800
+        delta = round(delta - amount_should_refund,2)
         print("Additional Charge/Refund after discount: ", delta)
 
         # STEP 3 PROCESS STRIPE
@@ -10441,7 +10510,7 @@ class change_purchase (Resource):
 
         print("\nSTEP 3B:  Charge or Refund Stripe")
         if delta > 0:
-            print("\nSTEP 3B:  Charge Stripe")
+            print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
             # GET STRIPE KEY
             # CHARGE STRIPE
 
@@ -10476,10 +10545,8 @@ class change_purchase (Resource):
             # print(response.json())
         
         else:
-            print("\nSTEP 3B:  Refund Stripe")
-
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
-            print("\nGet All Transactions", pur_uid)
+            print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
             query = """ 
                     SELECT charge_id 
                     FROM M4ME.payments
@@ -10515,7 +10582,7 @@ class change_purchase (Resource):
                 print("Amount to be Refunded: ", amount_should_refund)
 
                 if refundable_amount == 0:
-                    return
+                    return refundable_amount
 
                 if refundable_amount >= amount_should_refund:
                     # refund it right away => amount should be refund is equal refunded_amount
@@ -10535,48 +10602,26 @@ class change_purchase (Resource):
                 n = n + 1
 
                 # STEP 4 WRITE TO DATABASE
-                print("STEP 4:  WRITE TO DB")
-
-                # UPDATE PAYMENT TABLE
-                # INSERT NEW ROW WITH REFUND AMOUNT AND REFUND ID
-
-                # FIND OLD PAYMENT ID SO ITS EASY TO REFERENCE WHICH PAYMENT WAS BEING REFUNDED
-                query = """ 
-                        SELECT payment_id, pay_purchase_id
-                        FROM M4ME.payments
-                        WHERE pay_purchase_uid = '""" + pur_uid + """';
-                        """
-                response = execute(query, 'get', conn)
-                if response['code'] != 280:
-                    return {"message": "Payment Insert Error"}, 500
-                print("Get Payment ID response: ", response)
-                current_pur_uid = pur_uid
-                current_pur_id = response['result'][0]['pay_purchase_id']
-                current_pay_id = response['result'][0]['payment_id']
+                print("STEP 4:  WRITE TO DATABASE")
                 new_pur_id = get_new_purchaseID(conn)
                 new_pay_id = get_new_paymentID(conn)
 
-
-
-                print("\nNew Database Input Values:\n")               
-                print("Current Purchase UID: ", pur_uid)
-                print("Current Purchase ID: ", current_pur_id)
-                print("Current Payment ID: ", current_pay_id)
-                print("New Purchase UID: ", new_pur_id)
-                print("New Payment UID: ", new_pay_id)
-
+                # UPDATE PAYMENT TABLE
+                # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
+                print(new_pay_id)
+                print(refund['payment_id'])
+                print(new_pur_id)
+                print(new_pur_id)
                 print(str(getNow()))
                 print(str(refund['meal_refund']))
                 print(str(refund['service_fee']))
                 print(str(refund['delivery_fee']))
                 print(str(refund['driver_tip']))
                 print(str(refund['taxes']))
-                print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
-                print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
                 print(str(refund['ambassador_code']))
                 print("refund_res: ", refund_id['id'])
 
-
+                # FIND NEXT START DATE FOR CHANGED PLAN
                 date_query = '''
                             SELECT DISTINCT menu_date FROM M4ME.menu
                             WHERE menu_date > CURDATE()
@@ -10584,14 +10629,6 @@ class change_purchase (Resource):
                             LIMIT 1
                             '''
                 response = simple_get_execute(date_query, "Next Delivery Date", conn)
-                
-                # RESPONSE PARSING EXAMPLES
-                start_delivery_date = response
-                print("start_delivery_date: ", start_delivery_date)
-                # start_delivery_date = response[0]
-                # print("start_delivery_date: ", start_delivery_date)
-                # start_delivery_date = response[0]['result']
-                # print("start_delivery_date: ", start_delivery_date)
                 start_delivery_date = response[0]['result'][0]['menu_date']
                 print("start_delivery_date: ", start_delivery_date)
 
@@ -10599,21 +10636,21 @@ class change_purchase (Resource):
                 query = """
                         INSERT INTO M4ME.payments
                         SET payment_uid = '""" + new_pay_id + """',
-                            payment_id = '""" + current_pay_id + """',
+                            payment_id = '""" + refund['payment_id'] + """',
                             pay_purchase_uid = '""" + new_pur_id + """',
                             pay_purchase_id = '""" + new_pur_id + """',
                             payment_time_stamp =  '""" + str(getNow()) + """',
-                            start_delivery_date =  '""" + str(start_delivery_date) + """',
                             subtotal = '""" + str(refund['meal_refund']) + """',
-                            amount_discount = '0',
+                            amount_discount = '""" + str(refund['amount_discount']) + """',
                             service_fee = '""" + str(refund['service_fee']) + """',
                             delivery_fee = '""" + str(refund['delivery_fee']) + """',
                             driver_tip = '""" + str(data["driver_tip"]) + """',
                             taxes = '""" + str(refund['taxes']) + """',
-                            amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
-                            amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                            amount_due = '""" + str(refund['amount_due']) + """',
+                            amount_paid = '""" + str(-refund['amount_due']) + """',
                             ambassador_code = '""" + str(refund['ambassador_code']) + """',
-                            charge_id = '""" + str(refund_id['id']) + """';
+                            charge_id = '""" + str(refund_id['id']) + """',
+                            start_delivery_date =  '""" + str(start_delivery_date) + """';
                         """        
                         
                                 
@@ -10622,17 +10659,6 @@ class change_purchase (Resource):
                 
                 if response['code'] != 281:
                     return {"message": "Payment Insert Error"}, 500
-
-                # GET PURCHASE TABLE DATA    
-                query = """ 
-                        SELECT *
-                        FROM M4ME.purchases
-                        WHERE purchase_uid = '""" + pur_uid + """';
-                        """
-                response = execute(query, 'get', conn)
-                if response['code'] != 280:
-                    return {"message": "Purchase Table Lookup Error"}, 500
-                print("Get Purchase UID response: ", response)
 
                 # UPDATE PURCHASE TABLE
                 query = """
@@ -10644,6 +10670,18 @@ class change_purchase (Resource):
                 print("Purchases Update db response: ", update_response)
                 if update_response['code'] != 281:
                     return {"message": "Purchase Insert Error"}, 500
+
+                # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
+                # GET PURCHASE TABLE DATA    
+                query = """ 
+                        SELECT *
+                        FROM M4ME.purchases
+                        WHERE purchase_uid = '""" + pur_uid + """';
+                        """
+                response = execute(query, 'get', conn)
+                if response['code'] != 280:
+                    return {"message": "Purchase Table Lookup Error"}, 500
+                print("Get Purchase UID response: ", response)
 
                 # INSERT INTO PURCHASE TABLE
                 items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
@@ -10690,26 +10728,27 @@ class cancel_purchase (Resource):
     
     def put(self):
 
-        data = request.get_json(force=True)
-        print("Input JSON Data: ", data)
-        pur_uid = data["purchase_uid"]
-        print("Input Purchase ID: ", pur_uid)
-        
-        # STEP 1 GET INPUT INFO (WHAT ARE THEY CANCELLING)
+         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
         conn = connect()
-        print("\nInside Cancel Purchase", pur_uid)
+        data = request.get_json(force=True)
+        print("\nSTEP 1:  In CHANGE PURCHASE\n", data)
+        
+        # WHAT THEY HAD
+        pur_uid = data["purchase_uid"]
+        print("What they have (CURRENT Purchase ID): ", pur_uid)
 
         # STEP 2 CALCULATE REFUND
-        print("\nInside Calculate Refund", pur_uid)
+        print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
+        print("Call Refund Calculator")
         refund = calculator().refund(pur_uid)
-        print("\nPurchase_details from billing: ", refund)
-        amount_should_refund = int(round(refund['refund_amount'],2) * 100)
+        print("\nRefund Calculator Return: ", refund)
+        amount_should_refund = round(refund['amount_due'],2)
         print("Amount to be Refunded: ", amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
-
+        print("\nSTEP 3:  PROCESS STRIPE")
         # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
-        print("\nGet Stripe Key")
+        print("\nSTEP 3A:  Get Stripe Key")
         delivery_instructions = refund['delivery_instructions']
         print(delivery_instructions)
         stripe.api_key = get_stripe_key().get_key(delivery_instructions)
@@ -10717,7 +10756,7 @@ class cancel_purchase (Resource):
         print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
 
         # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
-        print("\nInside Get All Transactions", pur_uid)
+        print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
         query = """ 
                 SELECT charge_id 
                 FROM M4ME.payments
@@ -10733,7 +10772,7 @@ class cancel_purchase (Resource):
         print("Number of Related Puchase IDs: ", num_transactions)
 
         # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
-        print("\nInside Systematically Stepping Through Transactions")
+        print("\nSTEP 3C: Systematically Step Through Transactions")
         n = 0
         while num_transactions > 0 and amount_should_refund > 0 :
             print("Number of Transactions: ", num_transactions)
@@ -10772,36 +10811,21 @@ class cancel_purchase (Resource):
             num_transactions - num_transactions - 1
             n = n + 1
 
-            # STEP 4 WRITE TO DATABASE 
+            # STEP 4 WRITE TO DATABASE
+            print("\nSTEP 4:  WRITE TO DATABASE")
 
             # UPDATE PAYMENT TABLE
-            # INSERT NEW ROW WITH REFUND AMOUNT AND REFUND ID
-
-            # FIND OLD PAYMENT ID SO ITS EASY TO REFERENCE WHICH PAYMENT WAS BEING REFUNDED
-            query = """ 
-                    SELECT payment_id, pay_purchase_id
-                    FROM M4ME.payments
-                    WHERE pay_purchase_uid = '""" + pur_uid + """';
-                    """
-            response = execute(query, 'get', conn)
-            if response['code'] != 280:
-                return {"message": "Payment Insert Error"}, 500
-            print("Get Payment ID response: ", response)
-
-
-
+            # INSERT NEW ROW WITH REFUND AMOUNT AND SAME PAYMENT ID
             print(get_new_paymentID(conn))
-            print(response['result'][0]['payment_id'])
+            print(refund['payment_id'])
             print(pur_uid)
-            print(response['result'][0]['pay_purchase_id'])
+            print(refund['purchase_id'])
             print(str(getNow()))
             print(str(refund['meal_refund']))
             print(str(refund['service_fee']))
             print(str(refund['delivery_fee']))
             print(str(refund['driver_tip']))
             print(str(refund['taxes']))
-            print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
-            print(str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']))
             print(str(refund['ambassador_code']))
             print("refund_res: ", refund_id['id'])
 
@@ -10809,22 +10833,21 @@ class cancel_purchase (Resource):
             query = """
                     INSERT INTO M4ME.payments
                     SET payment_uid = '""" + get_new_paymentID(conn) + """',
-                        payment_id = '""" + response['result'][0]['payment_id'] + """',
+                        payment_id = '""" + refund['payment_id'] + """',
                         pay_purchase_uid = '""" + pur_uid + """',
-                        pay_purchase_id = '""" + response['result'][0]['pay_purchase_id'] + """',
+                        pay_purchase_id = '""" + refund['purchase_id'] + """',
                         payment_time_stamp =  '""" + str(getNow()) + """',
                         subtotal = '""" + str(refund['meal_refund']) + """',
-                        amount_discount = '0',
+                        amount_discount = '""" + str(refund['amount_discount']) + """',
                         service_fee = '""" + str(refund['service_fee']) + """',
                         delivery_fee = '""" + str(refund['delivery_fee']) + """',
                         driver_tip = '""" + str(refund['driver_tip']) + """',
                         taxes = '""" + str(refund['taxes']) + """',
-                        amount_due = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
-                        amount_paid = '""" + str(refund['meal_refund'] + refund['service_fee'] + refund['delivery_fee'] +refund['driver_tip'] + refund['taxes']) + """',
+                        amount_due = '""" + str(refund['amount_due']) + """',
+                        amount_paid = '""" + str(-refund['amount_due']) + """',
                         ambassador_code = '""" + str(refund['ambassador_code']) + """',
                         charge_id = '""" + str(refund_id['id']) + """';
                     """        
-                    
                             
             response = execute(query, 'post', conn)
             print("Payments Update db response: ", response)
@@ -10842,11 +10865,6 @@ class cancel_purchase (Resource):
             print("Purchases Update db response: ", response)
             if response['code'] != 281:
                 return {"message": "Purchase Insert Error"}, 500
-
-
-
-
-
 
             continue
         
@@ -12884,7 +12902,7 @@ api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
 
 api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
 
-api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>')
+api.add_resource(calculator, '/api/v2/calculator/<string:pur_uid>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:items_uid>/<string:qty>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>/<string:items_uid>/<string:qty>')
 
