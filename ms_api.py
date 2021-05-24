@@ -10615,6 +10615,62 @@ class change_purchase (Resource):
             
             if response['code'] != 281:
                 return {"message": "Payment Insert Error"}, 500
+
+        # UPDATE PURCHASE TABLE
+            query = """
+                    UPDATE M4ME.purchases
+                    SET purchase_status = "CHANGED"
+                    where purchase_uid = '""" + pur_uid + """';
+                    """
+            update_response = execute(query, 'post', conn)
+            print("Purchases Update db response: ", update_response)
+            if update_response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
+
+            # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
+            # GET PURCHASE TABLE DATA    
+            query = """ 
+                    SELECT *
+                    FROM M4ME.purchases
+                    WHERE purchase_uid = '""" + pur_uid + """';
+                    """
+            response = execute(query, 'get', conn)
+            if response['code'] != 280:
+                return {"message": "Purchase Table Lookup Error"}, 500
+            print("Get Purchase UID response: ", response)
+
+            # INSERT INTO PURCHASE TABLE
+            items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
+            print(items)
+
+            query = """
+                    INSERT INTO M4ME.purchases
+                    SET purchase_uid = '""" + new_pur_id + """',
+                        purchase_date = '""" + str(getNow()) + """',
+                        purchase_id = '""" + new_pur_id + """',
+                        purchase_status = 'ACTIVE',
+                        pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
+                        pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
+                        delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
+                        delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
+                        delivery_email = '""" + response['result'][0]['delivery_email'] + """',
+                        delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
+                        delivery_address = '""" + response['result'][0]['delivery_address'] + """',
+                        delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
+                        delivery_city = '""" + response['result'][0]['delivery_city'] + """',
+                        delivery_state = '""" + response['result'][0]['delivery_state'] + """',
+                        delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
+                        delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
+                        delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
+                        delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
+                        items = '""" + items + """';
+                    """
+            response = execute(query, 'post', conn)
+            print("New Changed Purchases Added to db response: ", response)
+            if response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
+
+
         else:
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
             print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
