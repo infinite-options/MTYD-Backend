@@ -10555,7 +10555,36 @@ class change_purchase (Resource):
 
             print(response.json())
 
-            
+            # STEP 4 WRITE TO DATABASE
+            print("STEP 4:  WRITE TO DATABASE")
+            new_pur_id = get_new_purchaseID(conn)
+            new_pay_id = get_new_paymentID(conn)
+
+            # UPDATE PAYMENT TABLE
+            # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
+            print(new_pay_id)
+            print(refund['payment_id'])
+            print(new_pur_id)
+            print(new_pur_id)
+            print(str(getNow()))
+            print(str(refund['meal_refund']))
+            print(str(refund['service_fee']))
+            print(str(refund['delivery_fee']))
+            print(str(refund['driver_tip']))
+            print(str(refund['taxes']))
+            print(str(refund['ambassador_code']))
+            print("refund_res: ", response.json())
+
+            # FIND NEXT START DATE FOR CHANGED PLAN
+            date_query = '''
+                        SELECT DISTINCT menu_date FROM M4ME.menu
+                        WHERE menu_date > CURDATE()
+                        ORDER BY menu_date ASC
+                        LIMIT 1
+                        '''
+            response = simple_get_execute(date_query, "Next Delivery Date", conn)
+            start_delivery_date = response[0]['result'][0]['menu_date']
+            print("start_delivery_date: ", start_delivery_date)
         
         else:
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
