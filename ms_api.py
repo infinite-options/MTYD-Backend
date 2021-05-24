@@ -10914,6 +10914,7 @@ class cancel_purchase (Resource):
         while num_transactions > 0 and amount_should_refund > 0 :
             print("Number of Transactions: ", num_transactions)
             print("Amount to Refund: ",amount_should_refund)
+            print("Counter is at: ", n)
             stripe_process_id = chargeIDresponse['result'][n]['charge_id']
             print("Stripe Purchase ID: ", stripe_process_id)
 
@@ -10945,23 +10946,28 @@ class cancel_purchase (Resource):
 
                 # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
                 refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
+                stripe_refund = amount_should_refund
                 amount_should_refund = 0
                 print("Refund id: ", refund_id['id'])
             else:
                 print("In Else Statement")
                 refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
+                stripe_refund = refundable_amount
                 amount_should_refund = amount_should_refund - refundable_amount
                 print("Refund id: ", refund_id['id'])
 
             num_transactions = num_transactions - 1
             n = n + 1
+            print (num_transactions, n)
 
             # STEP 4 WRITE TO DATABASE
             print("\nSTEP 4:  WRITE TO DATABASE")
+            # new_pur_id = get_new_purchaseID(conn) - DON'T NEED NEW PURCHASE UID FOR CANCEL
+            new_pay_id = get_new_paymentID(conn)
 
             # UPDATE PAYMENT TABLE
             # INSERT NEW ROW WITH REFUND AMOUNT AND SAME PAYMENT ID
-            print(get_new_paymentID(conn))
+            print(new_pay_id)
             print(refund['payment_id'])
             print(pur_uid)
             print(refund['purchase_id'])
@@ -10977,7 +10983,7 @@ class cancel_purchase (Resource):
             # UPDATE PAYMENT TABLE
             query = """
                     INSERT INTO M4ME.payments
-                    SET payment_uid = '""" + get_new_paymentID(conn) + """',
+                    SET payment_uid = '""" + new_pay_id + """',
                         payment_id = '""" + refund['payment_id'] + """',
                         pay_purchase_uid = '""" + pur_uid + """',
                         pay_purchase_id = '""" + refund['purchase_id'] + """',
@@ -11006,9 +11012,9 @@ class cancel_purchase (Resource):
                     SET purchase_status = "CANCELLED and REFUNDED"
                     where purchase_uid = '""" + pur_uid + """';
                     """
-            response = execute(query, 'post', conn)
-            print("Purchases Update db response: ", response)
-            if response['code'] != 281:
+            cancel_response = execute(query, 'post', conn)
+            print("Purchases Update db response: ", cancel_response)
+            if cancel_response['code'] != 281:
                 return {"message": "Purchase Insert Error"}, 500
 
             continue
