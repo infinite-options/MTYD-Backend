@@ -10192,6 +10192,7 @@ class calculator(Resource):
 
             items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            customer_uid            = pur_details['result'][0]['pur_customer_uid']
             payment_id              = pur_details['result'][0]['payment_id']
             subtotal                = pur_details['result'][0]['subtotal']
             amount_discount         = pur_details['result'][0]['amount_discount']
@@ -10288,6 +10289,7 @@ class calculator(Resource):
                     "purchase_id"           :  pur_uid,
                     "payment_id"            :  payment_id,
                     "completed_deliveries"  :  completed_deliveries,
+                    "customer_uid"          : customer_uid,
                     "meal_refund"           :  subtotal,
                     "amount_discount"       :  amount_discount,
                     "service_fee"           :  service_fee,
@@ -10321,6 +10323,7 @@ class calculator(Resource):
             items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
             payment_id              = pur_details['result'][0]['payment_id']
+            customer_uid            = pur_details['result'][0]['pur_customer_uid']
             subtotal                = pur_details['result'][0]['subtotal']
             amount_discount         = pur_details['result'][0]['amount_discount']
             service_fee             = pur_details['result'][0]['service_fee']
@@ -10425,6 +10428,7 @@ class calculator(Resource):
                     "purchase_id"           :  pur_uid,
                     "payment_id"            :  payment_id,
                     "completed_deliveries"  :  completed_deliveries,
+                    "customer_uid"          : customer_uid,
                     "meal_refund"           :  subtotal,
                     "amount_discount"       :  amount_discount,
                     "service_fee"           :  service_fee,
@@ -10540,30 +10544,18 @@ class change_purchase (Resource):
 
             response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
             # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
-            data = {   
+            json = {   
                         "currency": "usd",   
-                        "customer_uid": "100-000125",
-                        "business_code": "M4METEST",
-                        "item_uid": "320-000054",
-                        "num_items": 5,
-                        "num_deliveries": 9,
-                        "delivery_discount": 13,
-                        "payment_summary": {     
-                            "mealSubPrice": "45.00",     
-                            "discountAmount": "5.85",    
-                            "addOns": "0.00",     
-                            "tip": "5.00",     
-                            "serviceFee": "2.00",     
-                            "deliveryFee": "2.00",     
-                            "taxRate": 9,     
-                            "taxAmount": "3.62",     
-                            "ambassadorDiscount": "0.00",     
-                            "total": "51.77",     
-                            "subtotal": "51.77"   
+                        "customer_uid": refund['customer_uid'],
+                        "business_code": refund['delivery_instructions'],
+                        "payment_summary": {        
+                            "total": - amount_should_refund
                         } 
                     })
 
             print(response.json())
+
+            
         
         else:
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
