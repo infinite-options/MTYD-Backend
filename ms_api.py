@@ -10495,9 +10495,14 @@ class change_purchase (Resource):
         print(new_meal_charge, type(new_meal_charge))
         new_discount = new_charge['result'][0]['delivery_discount']
         print(new_discount, type(new_discount))
+        new_discount = new_meal_charge *new_discount/100
+        print(new_discount, type(new_discount))
         new_driver_tip = float(data["driver_tip"])
         print(new_driver_tip, type(new_driver_tip))
-        delta = new_meal_charge                                                                   + new_driver_tip
+        new_tax = round(.0925*(new_meal_charge  - new_discount + refund['delivery_fee']),2)
+        print(new_tax, type(new_tax))
+        delta = new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax
+        print(delta, type(delta))
         # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
         # print("Amount for new Plan: ", new_charge)
@@ -10653,12 +10658,12 @@ class change_purchase (Resource):
                             pay_purchase_uid = '""" + new_pur_id + """',
                             pay_purchase_id = '""" + new_pur_id + """',
                             payment_time_stamp =  '""" + str(getNow()) + """',
-                            subtotal = '""" + str(refund['meal_refund']) + """',
-                            amount_discount = '""" + str(refund['amount_discount']) + """',
+                            subtotal = '""" + str(new_meal_charge) + """',
+                            amount_discount = '""" + str(new_discount) + """',
                             service_fee = '""" + str(refund['service_fee']) + """',
                             delivery_fee = '""" + str(refund['delivery_fee']) + """',
                             driver_tip = '""" + str(data["driver_tip"]) + """',
-                            taxes = '""" + str(refund['taxes']) + """',
+                            taxes = '""" + str(new_tax) + """',
                             amount_due = '""" + str(stripe_refund) + """',
                             amount_paid = '""" + str(stripe_refund) + """',
                             ambassador_code = '""" + str(refund['ambassador_code']) + """',
