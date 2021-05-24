@@ -10601,11 +10601,13 @@ class change_purchase (Resource):
 
                     # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
                     refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
+                    stripe_refund = amount_should_refund
                     amount_should_refund = 0
                     print("Refund id: ", refund_id['id'])
                 else:
                     print("In Else Statement")
                     refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
+                    stripe_refund = refundable_amount
                     amount_should_refund = amount_should_refund - refundable_amount
                     print("Refund id: ", refund_id['id'])
 
@@ -10657,8 +10659,8 @@ class change_purchase (Resource):
                             delivery_fee = '""" + str(refund['delivery_fee']) + """',
                             driver_tip = '""" + str(data["driver_tip"]) + """',
                             taxes = '""" + str(refund['taxes']) + """',
-                            amount_due = '""" + str(refund['amount_due']) + """',
-                            amount_paid = '""" + str(-refund['amount_due']) + """',
+                            amount_due = '""" + str(stripe_refund) + """',
+                            amount_paid = '""" + str(stripe_refund) + """',
                             ambassador_code = '""" + str(refund['ambassador_code']) + """',
                             charge_id = '""" + str(refund_id['id']) + """',
                             start_delivery_date =  '""" + str(start_delivery_date) + """';
