@@ -10530,35 +10530,40 @@ class change_purchase (Resource):
             # GET STRIPE KEY
             # CHARGE STRIPE
 
-            response = requests.get("http://api.open-notify.org/astros.json")
-            print(response.json())
-
-            # response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createPaymentIntent',
-            # # response = requests.post('http://localhost:2000/api/v2/createPaymentIntent',
-            # data = {   
-            #             "currency": "usd",   
-            #             "customer_uid": "100-000125",
-            #             "business_code": "M4METEST",
-            #             "item_uid": "320-000054",
-            #             "num_items": 5,
-            #             "num_deliveries": 9,
-            #             "delivery_discount": 13,
-            #             "payment_summary": {     
-            #                 "mealSubPrice": "45.00",     
-            #                 "discountAmount": "5.85",    
-            #                 "addOns": "0.00",     
-            #                 "tip": "5.00",     
-            #                 "serviceFee": "2.00",     
-            #                 "deliveryFee": "2.00",     
-            #                 "taxRate": 9,     
-            #                 "taxAmount": "3.62",     
-            #                 "ambassadorDiscount": "0.00",     
-            #                 "total": "51.77",     
-            #                 "subtotal": "51.77"   
-            #             } 
-            #         })
-
+            # response = requests.get("http://api.open-notify.org/astros.json")
             # print(response.json())
+
+            # # Create a new resource
+            # response = requests.post('https://httpbin.org/post', data = {'key':'value'})
+            # # Update an existing resource
+            # requests.put('https://httpbin.org/put', data = {'key':'value'})
+
+            response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
+            # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
+            data = {   
+                        "currency": "usd",   
+                        "customer_uid": "100-000125",
+                        "business_code": "M4METEST",
+                        "item_uid": "320-000054",
+                        "num_items": 5,
+                        "num_deliveries": 9,
+                        "delivery_discount": 13,
+                        "payment_summary": {     
+                            "mealSubPrice": "45.00",     
+                            "discountAmount": "5.85",    
+                            "addOns": "0.00",     
+                            "tip": "5.00",     
+                            "serviceFee": "2.00",     
+                            "deliveryFee": "2.00",     
+                            "taxRate": 9,     
+                            "taxAmount": "3.62",     
+                            "ambassadorDiscount": "0.00",     
+                            "total": "51.77",     
+                            "subtotal": "51.77"   
+                        } 
+                    })
+
+            print(response.json())
         
         else:
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
