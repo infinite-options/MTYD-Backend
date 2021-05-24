@@ -10192,6 +10192,7 @@ class calculator(Resource):
 
             items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            customer_uid            = pur_details['result'][0]['pur_customer_uid']
             payment_id              = pur_details['result'][0]['payment_id']
             subtotal                = pur_details['result'][0]['subtotal']
             amount_discount         = pur_details['result'][0]['amount_discount']
@@ -10287,6 +10288,7 @@ class calculator(Resource):
             return {"purchase_uid"          :  pur_uid,
                     "purchase_id"           :  pur_uid,
                     "payment_id"            :  payment_id,
+                    "customer_uid"          :  customer_uid,
                     "completed_deliveries"  :  completed_deliveries,
                     "meal_refund"           :  subtotal,
                     "amount_discount"       :  amount_discount,
@@ -10320,6 +10322,7 @@ class calculator(Resource):
 
             items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            customer_uid            = pur_details['result'][0]['pur_customer_uid']
             payment_id              = pur_details['result'][0]['payment_id']
             subtotal                = pur_details['result'][0]['subtotal']
             amount_discount         = pur_details['result'][0]['amount_discount']
@@ -10424,6 +10427,7 @@ class calculator(Resource):
             return {"purchase_uid"          :  pur_uid,
                     "purchase_id"           :  pur_uid,
                     "payment_id"            :  payment_id,
+                    "customer_uid"          :  customer_uid,
                     "completed_deliveries"  :  completed_deliveries,
                     "meal_refund"           :  subtotal,
                     "amount_discount"       :  amount_discount,
@@ -10448,7 +10452,7 @@ class calculator(Resource):
 
 # JAYDEVA
 class change_purchase (Resource):
-    
+
     def put(self):
         
         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
@@ -10533,6 +10537,18 @@ class change_purchase (Resource):
             # response = requests.get("http://api.open-notify.org/astros.json")
             # print(response.json())
 
+
+            # response = requests.get("https://mfrbehiqnb.execute-api.us-west-1.amazonaws.com/dev/api/v2/treatments")
+            # https://mfrbehiqnb.execute-api.us-west-1.amazonaws.com/dev/api/v2/treatments
+            # https://mfrbehiqnb.execute-api.us-west-1.amazonaws.com/dev/api/v2/AccountSalt
+
+            # response = requests.post("https://mfrbehiqnb.execute-api.us-west-1.amazonaws.com/dev/api/v2/AccountSalt",
+            # json = {   
+            #             "email" : "d8d@gmail.com"
+            #         })
+
+
+
             # # Create a new resource
             # response = requests.post('https://httpbin.org/post', data = {'key':'value'})
             # # Update an existing resource
@@ -10540,30 +10556,130 @@ class change_purchase (Resource):
 
             response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
             # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
-            data = {   
+            json = {   
                         "currency": "usd",   
-                        "customer_uid": "100-000125",
-                        "business_code": "M4METEST",
-                        "item_uid": "320-000054",
-                        "num_items": 5,
-                        "num_deliveries": 9,
-                        "delivery_discount": 13,
-                        "payment_summary": {     
-                            "mealSubPrice": "45.00",     
-                            "discountAmount": "5.85",    
-                            "addOns": "0.00",     
-                            "tip": "5.00",     
-                            "serviceFee": "2.00",     
-                            "deliveryFee": "2.00",     
-                            "taxRate": 9,     
-                            "taxAmount": "3.62",     
-                            "ambassadorDiscount": "0.00",     
-                            "total": "51.77",     
-                            "subtotal": "51.77"   
+                        "customer_uid": refund['customer_uid'],
+                        "business_code": refund['delivery_instructions'],
+                        "payment_summary": {        
+                            "total": - amount_should_refund
                         } 
                     })
 
             print(response.json())
+
+            # STEP 4 WRITE TO DATABASE
+            print("STEP 4:  WRITE TO DATABASE")
+            new_pur_id = get_new_purchaseID(conn)
+            new_pay_id = get_new_paymentID(conn)
+
+            # UPDATE PAYMENT TABLE
+            # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
+            print(new_pay_id)
+            print(refund['payment_id'])
+            print(new_pur_id)
+            print(new_pur_id)
+            print(str(getNow()))
+            print(str(refund['meal_refund']))
+            print(str(refund['service_fee']))
+            print(str(refund['delivery_fee']))
+            print(str(refund['driver_tip']))
+            print(str(refund['taxes']))
+            print(str(refund['ambassador_code']))
+            print("charge ID: ", response.json())
+
+            # FIND NEXT START DATE FOR CHANGED PLAN
+            print("Enter date query")
+            date_query = '''
+                        SELECT DISTINCT menu_date FROM M4ME.menu
+                        WHERE menu_date > CURDATE()
+                        ORDER BY menu_date ASC
+                        LIMIT 1
+                        '''
+            response = simple_get_execute(date_query, "Next Delivery Date", conn)
+            start_delivery_date = response[0]['result'][0]['menu_date']
+            print("start_delivery_date: ", start_delivery_date)
+
+            # UPDATE PAYMENT TABLE
+            query = """
+                    INSERT INTO M4ME.payments
+                    SET payment_uid = '""" + new_pay_id + """',
+                        payment_id = '""" + refund['payment_id'] + """',
+                        pay_purchase_uid = '""" + new_pur_id + """',
+                        pay_purchase_id = '""" + new_pur_id + """',
+                        payment_time_stamp =  '""" + str(getNow()) + """',
+                        subtotal = '""" + str(new_meal_charge) + """',
+                        amount_discount = '""" + str(new_discount) + """',
+                        service_fee = '""" + str(refund['service_fee']) + """',
+                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                        driver_tip = '""" + str(data["driver_tip"]) + """',
+                        taxes = '""" + str(new_tax) + """',
+                        amount_due = '""" + str(- amount_should_refund) + """',
+                        amount_paid = '""" + str(- amount_should_refund) + """',
+                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                        charge_id = '""" + str(response.json()) + """',
+                        start_delivery_date =  '""" + str(start_delivery_date) + """';
+                    """        
+                    
+                            
+            response = execute(query, 'post', conn)
+            print("Payments Update db response: ", response)
+            
+            if response['code'] != 281:
+                return {"message": "Payment Insert Error"}, 500
+
+            # UPDATE PURCHASE TABLE
+            query = """
+                    UPDATE M4ME.purchases
+                    SET purchase_status = "CHANGED"
+                    where purchase_uid = '""" + pur_uid + """';
+                    """
+            update_response = execute(query, 'post', conn)
+            print("Purchases Update db response: ", update_response)
+            if update_response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
+
+            # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
+            # GET PURCHASE TABLE DATA    
+            query = """ 
+                    SELECT *
+                    FROM M4ME.purchases
+                    WHERE purchase_uid = '""" + pur_uid + """';
+                    """
+            response = execute(query, 'get', conn)
+            if response['code'] != 280:
+                return {"message": "Purchase Table Lookup Error"}, 500
+            print("Get Purchase UID response: ", response)
+
+            # INSERT INTO PURCHASE TABLE
+            items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
+            print(items)
+
+            query = """
+                    INSERT INTO M4ME.purchases
+                    SET purchase_uid = '""" + new_pur_id + """',
+                        purchase_date = '""" + str(getNow()) + """',
+                        purchase_id = '""" + new_pur_id + """',
+                        purchase_status = 'ACTIVE',
+                        pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
+                        pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
+                        delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
+                        delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
+                        delivery_email = '""" + response['result'][0]['delivery_email'] + """',
+                        delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
+                        delivery_address = '""" + response['result'][0]['delivery_address'] + """',
+                        delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
+                        delivery_city = '""" + response['result'][0]['delivery_city'] + """',
+                        delivery_state = '""" + response['result'][0]['delivery_state'] + """',
+                        delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
+                        delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
+                        delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
+                        delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
+                        items = '""" + items + """';
+                    """
+            response = execute(query, 'post', conn)
+            print("New Changed Purchases Added to db response: ", response)
+            if response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
         
         else:
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
