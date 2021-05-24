@@ -10490,14 +10490,25 @@ class change_purchase (Resource):
         # print("Returned JSON Object: \n", new_charge)
         print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
         print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-        delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
-        
+        print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
+        new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
+        print(new_meal_charge, type(new_meal_charge))
+        new_discount = new_charge['result'][0]['delivery_discount']
+        print(new_discount, type(new_discount))
+        new_driver_tip = float(data["driver_tip"])
+        print(new_driver_tip, type(new_driver_tip))
+        delta = new_meal_charge                                                                   + new_driver_tip
+        # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
         # print("Amount for new Plan: ", new_charge)
-        print("Additional Charge/Refund: ", delta)
+        print("New Meal Plan Charges: ", delta)
         delta = round(delta - amount_should_refund,2)
         print("Additional Charge/Refund after discount: ", delta)
 
+        # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
+        # amount_should_refund = round(amount_should_refund - delta,2)
+        # print("Additional Charge/Refund after discount: ", amount_should_refund)
+        
         # STEP 3 PROCESS STRIPE
         print("\nSTEP 3:  PROCESS STRIPE")
         # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
