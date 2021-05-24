@@ -10490,13 +10490,24 @@ class change_purchase (Resource):
         # print("Returned JSON Object: \n", new_charge)
         print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
         print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-        delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
+        print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
+        new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
+        print(type(new_meal_charge))
+        new_discount = new_charge['result'][0]['delivery_discount']
+        print(type(new_discount))
+        new_driver_tip = float(data["driver_tip"])
+        print(type(new_driver_tip))
+        delta = round(new_meal_charge  * (1 - new_discount/100) + new_driver_tip,2)
         
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
         # print("Amount for new Plan: ", new_charge)
-        print("Additional Charge/Refund: ", delta)
-        delta = round(delta - amount_should_refund,2)
-        print("Additional Charge/Refund after discount: ", delta)
+        print("New Meal Plan Charges: ", delta)
+        # delta = round(delta - amount_should_refund,2)
+        # print("Additional Charge/Refund after discount: ", delta)
+
+        # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
+        amount_should_refund = round(amount_should_refund - delta,2)
+        print("Additional Charge/Refund after discount: ", amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
         print("\nSTEP 3:  PROCESS STRIPE")
@@ -10509,7 +10520,7 @@ class change_purchase (Resource):
         print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
 
         print("\nSTEP 3B:  Charge or Refund Stripe")
-        if delta > 0:
+        if amount_should_refund < 0:
             print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
             # GET STRIPE KEY
             # CHARGE STRIPE
@@ -10631,6 +10642,11 @@ class change_purchase (Resource):
                 response = simple_get_execute(date_query, "Next Delivery Date", conn)
                 start_delivery_date = response[0]['result'][0]['menu_date']
                 print("start_delivery_date: ", start_delivery_date)
+                print(type(start_delivery_date))
+                print(type(refund['meal_refund']))
+                print(type(refund['amount_discount']))
+                print(type(refund["driver_tip"]))
+                
 
                 # UPDATE PAYMENT TABLE
                 query = """
@@ -10640,17 +10656,17 @@ class change_purchase (Resource):
                             pay_purchase_uid = '""" + new_pur_id + """',
                             pay_purchase_id = '""" + new_pur_id + """',
                             payment_time_stamp =  '""" + str(getNow()) + """',
-                            subtotal = '""" + str(refund['meal_refund']) + """',
-                            amount_discount = '""" + str(refund['amount_discount']) + """',
+                            subtotal = '""" + str(refund['meal_refund'] - new_meal_charge) + """',
+                            amount_discount = '""" + str(refund['amount_discount'] - new_discount) + """',
                             service_fee = '""" + str(refund['service_fee']) + """',
                             delivery_fee = '""" + str(refund['delivery_fee']) + """',
-                            driver_tip = '""" + str(data["driver_tip"]) + """',
+                            driver_tip = '""" + str(data["driver_tip"] - new_driver_tip) + """',
                             taxes = '""" + str(refund['taxes']) + """',
-                            amount_due = '""" + str(refund['amount_due']) + """',
-                            amount_paid = '""" + str(-refund['amount_due']) + """',
+                            amount_due = '""" + str(amount_should_refund) + """',
+                            amount_paid = '""" + str(-amount_should_refund) + """',
                             ambassador_code = '""" + str(refund['ambassador_code']) + """',
                             charge_id = '""" + str(refund_id['id']) + """',
-                            start_delivery_date =  '""" + str(start_delivery_date) + """';
+                            start_delivery_date =  '""" + start_delivery_date + """';
                         """        
                         
                                 
