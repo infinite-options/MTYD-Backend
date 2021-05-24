@@ -10664,8 +10664,8 @@ class change_purchase (Resource):
                             delivery_fee = '""" + str(refund['delivery_fee']) + """',
                             driver_tip = '""" + str(data["driver_tip"]) + """',
                             taxes = '""" + str(new_tax) + """',
-                            amount_due = '""" + str(stripe_refund) + """',
-                            amount_paid = '""" + str(stripe_refund) + """',
+                            amount_due = '""" + str(delta) + """',
+                            amount_paid = '""" + str(-stripe_refund) + """',
                             ambassador_code = '""" + str(refund['ambassador_code']) + """',
                             charge_id = '""" + str(refund_id['id']) + """',
                             start_delivery_date =  '""" + str(start_delivery_date) + """';
