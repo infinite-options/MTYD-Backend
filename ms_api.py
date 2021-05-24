@@ -10552,8 +10552,9 @@ class change_purchase (Resource):
                             "total": - amount_should_refund
                         } 
                     })
-
+            
             print(response.json())
+            charge_id = response.json()
 
             # STEP 4 WRITE TO DATABASE
             print("STEP 4:  WRITE TO DATABASE")
@@ -10567,13 +10568,14 @@ class change_purchase (Resource):
             print(new_pur_id)
             print(new_pur_id)
             print(str(getNow()))
-            print(str(refund['meal_refund']))
+            print(str(new_meal_charge))
+            print(str(new_discount))
             print(str(refund['service_fee']))
             print(str(refund['delivery_fee']))
-            print(str(refund['driver_tip']))
+            print(str(data["driver_tip"]))
             print(str(refund['taxes']))
             print(str(refund['ambassador_code']))
-            print("refund_res: ", response.json())
+            print("charge_id: ", charge_id)
 
             # FIND NEXT START DATE FOR CHANGED PLAN
             date_query = '''
@@ -10586,6 +10588,33 @@ class change_purchase (Resource):
             start_delivery_date = response[0]['result'][0]['menu_date']
             print("start_delivery_date: ", start_delivery_date)
         
+         # UPDATE PAYMENT TABLE
+            query = """
+                    INSERT INTO M4ME.payments
+                    SET payment_uid = '""" + new_pay_id + """',
+                        payment_id = '""" + refund['payment_id'] + """',
+                        pay_purchase_uid = '""" + new_pur_id + """',
+                        pay_purchase_id = '""" + new_pur_id + """',
+                        payment_time_stamp =  '""" + str(getNow()) + """',
+                        subtotal = '""" + str(new_meal_charge) + """',
+                        amount_discount = '""" + str(new_discount) + """',
+                        service_fee = '""" + str(refund['service_fee']) + """',
+                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                        driver_tip = '""" + str(data["driver_tip"]) + """',
+                        taxes = '""" + str(new_tax) + """',
+                        amount_due = '""" + str(delta) + """',
+                        amount_paid = '""" + str(- amount_should_refund) + """',
+                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                        charge_id = '""" + str(charge_id) + """',
+                        start_delivery_date =  '""" + str(start_delivery_date) + """';
+                    """        
+                    
+                            
+            response = execute(query, 'post', conn)
+            print("Payments Update db response: ", response)
+            
+            if response['code'] != 281:
+                return {"message": "Payment Insert Error"}, 500
         else:
             # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
             print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
