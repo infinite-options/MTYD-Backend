@@ -10502,12 +10502,12 @@ class change_purchase (Resource):
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
         # print("Amount for new Plan: ", new_charge)
         print("New Meal Plan Charges: ", delta)
-        delta = round(delta - amount_should_refund,2)
-        print("Additional Charge/Refund after discount: ", delta)
+        # delta = round(delta - amount_should_refund,2)
+        # print("Additional Charge/Refund after discount: ", delta)
 
         # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
-        # amount_should_refund = round(amount_should_refund - delta,2)
-        # print("Additional Charge/Refund after discount: ", amount_should_refund)
+        amount_should_refund = round(amount_should_refund - delta,2)
+        print("Additional Charge/Refund after discount: ", amount_should_refund, type(amount_should_refund))
         
         # STEP 3 PROCESS STRIPE
         print("\nSTEP 3:  PROCESS STRIPE")
@@ -10520,7 +10520,7 @@ class change_purchase (Resource):
         print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
 
         print("\nSTEP 3B:  Charge or Refund Stripe")
-        if delta > 0:
+        if amount_should_refund < 0:
             print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
             # GET STRIPE KEY
             # CHARGE STRIPE
