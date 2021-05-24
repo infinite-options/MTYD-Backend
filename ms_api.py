@@ -10714,7 +10714,9 @@ class change_purchase (Resource):
                 print("Amount to be Refunded: ", amount_should_refund)
 
                 if refundable_amount == 0:
-                    return refundable_amount
+                    num_transactions = num_transactions - 1
+                    n = n + 1
+                    continue
 
                 if refundable_amount >= amount_should_refund:
                     # refund it right away => amount should be refund is equal refunded_amount
@@ -10899,11 +10901,11 @@ class cancel_purchase (Resource):
                     AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
                 ORDER BY payment_time_stamp DESC;
                 """
-        response = execute(query, 'get', conn)
-        if response['code'] != 280:
+        chargeIDresponse = execute(query, 'get', conn)
+        if chargeIDresponse['code'] != 280:
             return {"message": "Related Transaction Error"}, 500
-        print("Related Puchase IDs: ", response['result'])
-        num_transactions = len(response['result'])
+        print("Related Puchase IDs: ", chargeIDresponse['result'])
+        num_transactions = len(chargeIDresponse['result'])
         print("Number of Related Puchase IDs: ", num_transactions)
 
         # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
@@ -10912,7 +10914,7 @@ class cancel_purchase (Resource):
         while num_transactions > 0 and amount_should_refund > 0 :
             print("Number of Transactions: ", num_transactions)
             print("Amount to Refund: ",amount_should_refund)
-            stripe_process_id = response['result'][n]['charge_id']
+            stripe_process_id = chargeIDresponse['result'][n]['charge_id']
             print("Stripe Purchase ID: ", stripe_process_id)
 
             if stripe_process_id[:2] == "pi":
@@ -10932,7 +10934,10 @@ class cancel_purchase (Resource):
 
  
             if refundable_amount == 0:
-                    return refundable_amount
+                    num_transactions = num_transactions - 1
+                    n = n + 1
+                    continue
+            
 
             if refundable_amount >= amount_should_refund:
                 # refund it right away => amount should be refund is equal refunded_amount
