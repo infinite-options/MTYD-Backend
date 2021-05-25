@@ -599,7 +599,7 @@ class stripe_transaction(Resource):
                 amount=int(amount * 100 )
             )
             print("refund_res: ", refund_res['id'])
-            amount_should_refund = 0
+            amount_should_refund = 0   # Probably should delete.  Code is also unreachable. 
         except stripe.error.CardError as e:
             # Since it's a decline, stripe.error.CardError will be caught
             response['message'] = e.error.message
@@ -10322,8 +10322,8 @@ class calculator(Resource):
 
             items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
-            payment_id              = pur_details['result'][0]['payment_id']
             customer_uid            = pur_details['result'][0]['pur_customer_uid']
+            payment_id              = pur_details['result'][0]['payment_id']
             subtotal                = pur_details['result'][0]['subtotal']
             amount_discount         = pur_details['result'][0]['amount_discount']
             service_fee             = pur_details['result'][0]['service_fee']
@@ -10372,7 +10372,7 @@ class calculator(Resource):
                 # completed_deliveries > 0:
                 # print("true")
                 used = calculator().billing(items_uid, completed_deliveries)
-                # print("\nConsumed Subscription: ", used)
+                print("\nConsumed Subscription: ", used)
 
                 item_price = used['result'][0]['item_price']
                 delivery_discount = used['result'][0]['delivery_discount']
@@ -10398,15 +10398,6 @@ class calculator(Resource):
 
             if completed_deliveries == 0:
                 print("No Meals Consumed")
-                print("Customer Subtotal: ", subtotal)
-                print("Customer amount_discount: ", amount_discount)
-                print("Customer service_fee: ", service_fee)
-                print("Customer delivery_fee: ", delivery_fee)
-                print("Customer driver_tip: ", driver_tip)
-                print("Customer taxes ", taxes)
-                print("Customer ambassador_code: ", ambassador_code)
-                print("Customer amount_due: ", amount_due)
-                print("Customer amount_paid: ", amount_paid)
 
             else: 
                 valueOfMealsPurchased   = round(subtotal - amount_discount,2)
@@ -10442,7 +10433,7 @@ class calculator(Resource):
                     "delivery_instructions" :  delivery_instructions}
 
         except:
-            raise BadRequest('Refund Calculator Failure 2.')
+            raise BadRequest('Refund Calculator Failure 1.')
         finally:
             disconnect(conn)
 
@@ -10499,13 +10490,13 @@ class change_purchase (Resource):
         print(new_meal_charge, type(new_meal_charge))
         new_discount = new_charge['result'][0]['delivery_discount']
         print(new_discount, type(new_discount))
-        new_discount = new_meal_charge *new_discount/100
+        new_discount = round(new_meal_charge * new_discount/100,2)
         print(new_discount, type(new_discount))
         new_driver_tip = float(data["driver_tip"])
         print(new_driver_tip, type(new_driver_tip))
         new_tax = round(.0925*(new_meal_charge  - new_discount + refund['delivery_fee']),2)
         print(new_tax, type(new_tax))
-        delta = new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax
+        delta = round(new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax,2)
         print(delta, type(delta))
         # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
         # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
@@ -10733,7 +10724,7 @@ class change_purchase (Resource):
                     refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
                     purchase_status = 'PARTIAL REFUND'
                     stripe_refund = refundable_amount
-                    amount_should_refund = amount_should_refund - refundable_amount
+                    amount_should_refund = round(amount_should_refund - refundable_amount,2)
                     print("Refund id: ", refund_id['id'])
 
                 num_transactions = num_transactions - 1
@@ -10961,7 +10952,7 @@ class cancel_purchase (Resource):
                 print("In Else Statement")
                 refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
                 stripe_refund = refundable_amount
-                amount_should_refund = amount_should_refund - refundable_amount
+                amount_should_refund = round(amount_should_refund - refundable_amount,2)
                 print("Refund id: ", refund_id['id'])
 
             num_transactions = num_transactions - 1
@@ -11173,175 +11164,175 @@ class update_db (Resource):
 
 
      
-class cancel_purchase_original (Resource):
-    def put(self):
-        try:
-            print("\nIn Cancel Purchase")
-            conn = connect()
-            data = request.get_json(force=True)
-            print("Input JSON Data: ", data)
-            pur_uid = data["purchase_uid"]
-            print("Input Purchase ID: ", pur_uid)
+# class cancel_purchase_original (Resource):
+#     def put(self):
+#         try:
+#             print("\nIn Cancel Purchase")
+#             conn = connect()
+#             data = request.get_json(force=True)
+#             print("Input JSON Data: ", data)
+#             pur_uid = data["purchase_uid"]
+#             print("Input Purchase ID: ", pur_uid)
 
-            # STEP 1 CALL REFUND CALCULATOR TO SEE VALUE LEFT IN MEAL PLAN
-            pur_details = calculator().refund(pur_uid)
-            print("\nPurchase_details from billing: ", pur_details)
+#             # STEP 1 CALL REFUND CALCULATOR TO SEE VALUE LEFT IN MEAL PLAN
+#             pur_details = calculator().refund(pur_uid)
+#             print("\nPurchase_details from billing: ", pur_details)
            
-            meal_refund = pur_details['meal_refund']
-            print("Customer meal_refund: ", meal_refund)
-            service_fee = pur_details['service_fee']
-            print("Customer service_fee: ", service_fee)
-            delivery_fee = pur_details['delivery_fee']
-            print("Customer delivery_fee: ", delivery_fee)
-            driver_tip = pur_details['driver_tip']
-            print("Customer driver_tip: ", driver_tip)
-            taxes = pur_details['taxes']
-            print("Customer taxes ", taxes)
-            ambassador_code = pur_details['ambassador_code']
-            print("Customer ambassador_code: ", ambassador_code)
-            charge_id = pur_details['charge_id']
-            print("Customer charge_id: ", charge_id)
-            delivery_instructions = pur_details['delivery_instructions']
-            print("Customer delivery_instructions: ", delivery_instructions)
-            refund_amount = pur_details['refund_amount']
-            print("Refund Amount: ", refund_amount)
+#             meal_refund = pur_details['meal_refund']
+#             print("Customer meal_refund: ", meal_refund)
+#             service_fee = pur_details['service_fee']
+#             print("Customer service_fee: ", service_fee)
+#             delivery_fee = pur_details['delivery_fee']
+#             print("Customer delivery_fee: ", delivery_fee)
+#             driver_tip = pur_details['driver_tip']
+#             print("Customer driver_tip: ", driver_tip)
+#             taxes = pur_details['taxes']
+#             print("Customer taxes ", taxes)
+#             ambassador_code = pur_details['ambassador_code']
+#             print("Customer ambassador_code: ", ambassador_code)
+#             charge_id = pur_details['charge_id']
+#             print("Customer charge_id: ", charge_id)
+#             delivery_instructions = pur_details['delivery_instructions']
+#             print("Customer delivery_instructions: ", delivery_instructions)
+#             refund_amount = pur_details['refund_amount']
+#             print("Refund Amount: ", refund_amount)
 
 
-            # STEP 2 GET STRIPE KEY TO BE ABLE TO CALL STRIPE
-            print("\nGet Stripe Key")
-            temp_key = ""
-            if stripe.api_key is not None:
-                temp_key = stripe.api_key
-            stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-            print("Stripe Key: ", stripe.api_key)
-            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+#             # STEP 2 GET STRIPE KEY TO BE ABLE TO CALL STRIPE
+#             print("\nGet Stripe Key")
+#             temp_key = ""
+#             if stripe.api_key is not None:
+#                 temp_key = stripe.api_key
+#             stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+#             print("Stripe Key: ", stripe.api_key)
+#             print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
 
 
-            # STEP 3 GET ALL PURCHASES ASSOCIATED WITH TRANSACTION
-            print("\nGet Stripe Payment Intents")
-            query = """
-                SELECT charge_id 
-                FROM M4ME.payments
-                WHERE pay_purchase_id = (
-                    SELECT pay_purchase_id 
-                    FROM M4ME.payments
-                    WHERE pay_purchase_uid = '""" + pur_uid + """')
-                ORDER BY payment_time_stamp DESC;
-            """
-            res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
-            print("Return all stripe pi's: ",res)
+#             # STEP 3 GET ALL PURCHASES ASSOCIATED WITH TRANSACTION
+#             print("\nGet Stripe Payment Intents")
+#             query = """
+#                 SELECT charge_id 
+#                 FROM M4ME.payments
+#                 WHERE pay_purchase_id = (
+#                     SELECT pay_purchase_id 
+#                     FROM M4ME.payments
+#                     WHERE pay_purchase_uid = '""" + pur_uid + """')
+#                 ORDER BY payment_time_stamp DESC;
+#             """
+#             res = simple_get_execute(query, "QUERY ALL CHARGE IDS FOR REFUND", conn)
+#             print("Return all stripe pi's: ",res)
 
-            refund_id = []
+#             refund_id = []
 
-            # STEP 4 PROCESS THE REFUND IN STRIPE
-            # LEAVING CODE AS IS TO SEE IF THIS WORKS
-            # print("res in stripe_refund: ", res)
-            if not res[0]['result']:
-                print("Cannot process refund. No charge id found")
-                return {"message": "Internal Server Error"}, 500
-            else:
-                print ("stripe 2")
-                #print(res[0]['result'][0]["charge_id"])
-                # print(len(res[0]['result']))
-                intx = 0
-                charge_ids = {}
-                inty = 0
-                for intx in range(0,len(res[0]["result"])):
-                    if res[0]["result"][intx]["charge_id"] is not None:
-                        charge_ids[inty] = res[0]["result"][intx]["charge_id"]
-                        inty=inty+1
+#             # STEP 4 PROCESS THE REFUND IN STRIPE
+#             # LEAVING CODE AS IS TO SEE IF THIS WORKS
+#             # print("res in stripe_refund: ", res)
+#             if not res[0]['result']:
+#                 print("Cannot process refund. No charge id found")
+#                 return {"message": "Internal Server Error"}, 500
+#             else:
+#                 print ("stripe 2")
+#                 #print(res[0]['result'][0]["charge_id"])
+#                 # print(len(res[0]['result']))
+#                 intx = 0
+#                 charge_ids = {}
+#                 inty = 0
+#                 for intx in range(0,len(res[0]["result"])):
+#                     if res[0]["result"][intx]["charge_id"] is not None:
+#                         charge_ids[inty] = res[0]["result"][intx]["charge_id"]
+#                         inty=inty+1
                 
-                print(charge_ids)
-                #charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
-                #print("charge id " + charge_ids[intx])
+#                 print(charge_ids)
+#                 #charge_ids = [v for item in res[0]['result'] for v in item.values() if v]
+#                 #print("charge id " + charge_ids[intx])
 
-                refund_amount = 1 if pur_uid == "400-000003" else refund_amount
-                print("\nRefund amount: ", refund_amount)
-                amount_should_refund = round(refund_amount*100,0)
-                print("Amount should refund: ", amount_should_refund)
+#                 refund_amount = 1 if pur_uid == "400-000003" else refund_amount
+#                 print("\nRefund amount: ", refund_amount)
+#                 amount_should_refund = round(refund_amount*100,0)
+#                 print("Amount should refund: ", amount_should_refund)
 
-                # print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
-                inty=inty-1
-                while len(charge_ids) > 0 and amount_should_refund > 0 and charge_ids[inty] is not None:
-                    print("amount should refund: ", amount_should_refund)
-                    print("stripe3")
-                    print(len(charge_ids))
-                    #process_id = charge_ids.pop(0)
-                    process_id = charge_ids[inty]
-                    inty = inty - 1
-                    print(charge_ids)
-                    # print("processing id: ", process_id)
-                    # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
-                    #retrieve info from stripe for specific charge_id:
-
-
-                    print("\nduring stripe: stripe 1")
-                    #print(stripe.PaymentIntent.retrieve("pi_1IjDpmLMju5RPMEv95tJVSX0",))
-                    print(process_id)
-                    if process_id[:2] == "pi":
-                        process_id = stripe.PaymentIntent.retrieve(process_id).get("charges").get("data")[0].get("id")
-                        print("Stripe Process_ID: ", process_id)
-                        #print(refunded_info.get("charges").get("data")[0].get("id"))
+#                 # print("before while loop. Charge_id: {}, its length: {}".format(charge_ids,len(charge_ids)))
+#                 inty=inty-1
+#                 while len(charge_ids) > 0 and amount_should_refund > 0 and charge_ids[inty] is not None:
+#                     print("amount should refund: ", amount_should_refund)
+#                     print("stripe3")
+#                     print(len(charge_ids))
+#                     #process_id = charge_ids.pop(0)
+#                     process_id = charge_ids[inty]
+#                     inty = inty - 1
+#                     print(charge_ids)
+#                     # print("processing id: ", process_id)
+#                     # print("charge_ids: {}, its  length: {}".format(charge_ids, len(charge_ids)))
+#                     #retrieve info from stripe for specific charge_id:
 
 
-                    print("\nbefore retrieve 1")
-                    #refunded_info = stripe.Charge.retrieve("ch_1IfUBGLMju5RPMEveNCUVxn9",)
-                    #print("before retrieve 2")
-                    refunded_info = stripe.Charge.retrieve(process_id,)
-                    # print("Refunded Info: ", refunded_info)
-                    print("stripe 2")
-                    print(refunded_info.get("amount"))
-                    print(refunded_info.get('amount_refunded'))
-                    print("start inputs")
-                    print(refunded_info['amount'])
-                    print(refunded_info['amount_refunded'])
-                    print("end inputs ")
-                    # print("refunded_info: ", refunded_info)
-                    # print("refunded_info.get('amount'): ", refunded_info.get('amount_refunded'))
-                    if refunded_info.get('amount') is not None and refunded_info.get('amount_refunded') is not None:
-                        amount_could_refund = round(float(refunded_info['amount'] - refunded_info['amount_refunded']),0)
-                        print(amount_could_refund)
-                        print(amount_should_refund)
-                        if abs(amount_could_refund-amount_should_refund)<=2:
-                            amount_should_refund = amount_could_refund
-                        # print("amount_could_refund: ", amount_could_refund)
-                        # print("amount_should_refund: ", amount_should_refund)
-                        if amount_should_refund <= amount_could_refund:
-                            # refund it right away => amount should be refund is equal refunded_amount
-                            print("here")
-                            try:
-                                refund_res = stripe.Refund.create(
-                                    charge=process_id,
-                                    amount=int(amount_should_refund)
-                                )
-                            except stripe.error.CardError as e:
-                                # Since it's a decline, stripe.error.CardError will be caught
-                                response['message'] = e.error.message
-                                return response, 400
-                            # print("refund_res: ", refund_res)
-                            amount_should_refund = 0
-                        elif amount_could_refund==0:
-                            print ("problem here")
-                            continue
-                        else:
-                            # refund it and then calculate how much is left for amount_should_refund
-                            try:
-                                refund_res = stripe.Refund.create(
-                                    charge=process_id,
-                                    amount=int(amount_could_refund)
-                                )
-                                # print("before substraction")
-                                # print(type(amount_should_refund))
-                                # print(type(amount_could_refund))
-                                amount_should_refund -= int(amount_could_refund)
-                                # print("amount_should_refund after recalculate: ", amount_should_refund)
-                            except stripe.error.CardError as e:
-                                # Since it's a decline, stripe.error.CardError will be caught
-                                response['message'] = e.error.message
-                                return response, 400
-                        refund_id.append(refund_res.get('id'))
-                        #print("refund id is " + refund_id)
-                return refund_id
+#                     print("\nduring stripe: stripe 1")
+#                     #print(stripe.PaymentIntent.retrieve("pi_1IjDpmLMju5RPMEv95tJVSX0",))
+#                     print(process_id)
+#                     if process_id[:2] == "pi":
+#                         process_id = stripe.PaymentIntent.retrieve(process_id).get("charges").get("data")[0].get("id")
+#                         print("Stripe Process_ID: ", process_id)
+#                         #print(refunded_info.get("charges").get("data")[0].get("id"))
+
+
+#                     print("\nbefore retrieve 1")
+#                     #refunded_info = stripe.Charge.retrieve("ch_1IfUBGLMju5RPMEveNCUVxn9",)
+#                     #print("before retrieve 2")
+#                     refunded_info = stripe.Charge.retrieve(process_id,)
+#                     # print("Refunded Info: ", refunded_info)
+#                     print("stripe 2")
+#                     print(refunded_info.get("amount"))
+#                     print(refunded_info.get('amount_refunded'))
+#                     print("start inputs")
+#                     print(refunded_info['amount'])
+#                     print(refunded_info['amount_refunded'])
+#                     print("end inputs ")
+#                     # print("refunded_info: ", refunded_info)
+#                     # print("refunded_info.get('amount'): ", refunded_info.get('amount_refunded'))
+#                     if refunded_info.get('amount') is not None and refunded_info.get('amount_refunded') is not None:
+#                         amount_could_refund = round(float(refunded_info['amount'] - refunded_info['amount_refunded']),0)
+#                         print(amount_could_refund)
+#                         print(amount_should_refund)
+#                         if abs(amount_could_refund-amount_should_refund)<=2:
+#                             amount_should_refund = amount_could_refund
+#                         # print("amount_could_refund: ", amount_could_refund)
+#                         # print("amount_should_refund: ", amount_should_refund)
+#                         if amount_should_refund <= amount_could_refund:
+#                             # refund it right away => amount should be refund is equal refunded_amount
+#                             print("here")
+#                             try:
+#                                 refund_res = stripe.Refund.create(
+#                                     charge=process_id,
+#                                     amount=int(amount_should_refund)
+#                                 )
+#                             except stripe.error.CardError as e:
+#                                 # Since it's a decline, stripe.error.CardError will be caught
+#                                 response['message'] = e.error.message
+#                                 return response, 400
+#                             # print("refund_res: ", refund_res)
+#                             amount_should_refund = 0
+#                         elif amount_could_refund==0:
+#                             print ("problem here")
+#                             continue
+#                         else:
+#                             # refund it and then calculate how much is left for amount_should_refund
+#                             try:
+#                                 refund_res = stripe.Refund.create(
+#                                     charge=process_id,
+#                                     amount=int(amount_could_refund)
+#                                 )
+#                                 # print("before substraction")
+#                                 # print(type(amount_should_refund))
+#                                 # print(type(amount_could_refund))
+#                                 amount_should_refund -= int(amount_could_refund)
+#                                 # print("amount_should_refund after recalculate: ", amount_should_refund)
+#                             except stripe.error.CardError as e:
+#                                 # Since it's a decline, stripe.error.CardError will be caught
+#                                 response['message'] = e.error.message
+#                                 return response, 400
+#                         refund_id.append(refund_res.get('id'))
+#                         #print("refund id is " + refund_id)
+#                 return refund_id
 
             # RETURN THE RETURN ID
 
@@ -11496,10 +11487,10 @@ class cancel_purchase_original (Resource):
             #     stripe.api_key = temp_key
             # return response2
 
-        except:
-            raise BadRequest("Request failed, please try again later.")
-        finally:
-            disconnect(conn)
+        # except:
+        #     raise BadRequest("Request failed, please try again later.")
+        # finally:
+        #     disconnect(conn)
 
 
 
