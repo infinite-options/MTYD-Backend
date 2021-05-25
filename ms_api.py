@@ -10022,54 +10022,100 @@ class predict_next_billing_date(Resource):
             conn = connect()
             print("Inside predict class", id)
 
-            # CUSTOMER QUERY 2A: LAST DELIVERY DATE - WITH NEXT DELIVERY DATE CALCULATION
+            # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
             query = """
-                SELECT *,
-                    ADDDATE(menu_date, 1) AS next_billing_date
-                FROM ( 
-                    SELECT A.*,
-                        sum(B.delivery) as cum_qty
+
+                SELECT nbd.*,
+                    nms.next_delivery,
+                    nms.final_selection
+                FROM (
+                    SELECT *,
+                        ADDDATE(menu_date, 1) AS next_billing_date
                     FROM ( 
-                        SELECT * ,
-                            IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                            json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                        FROM M4ME.lplp
+                        SELECT A.*,
+                            sum(B.delivery) as cum_qty
+                        FROM ( 
+                            SELECT * ,
+                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                            FROM M4ME.lplp
+                            JOIN (
+                                SELECT DISTINCT menu_date
+                                FROM menu
+                                -- WHERE menu_date > now()
+                                ORDER BY menu_date ASC) AS md
+                            LEFT JOIN M4ME.latest_combined_meal lcm
+                            ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                    md.menu_date = lcm.sel_menu_date
+                            WHERE pur_customer_uid = '""" + id + """'  
+                                    AND purchase_status = "ACTIVE"
+                                    AND menu_date >= start_delivery_date)
+                            AS A
                         JOIN (
-                            SELECT DISTINCT menu_date
-                            FROM menu
-                            -- WHERE menu_date > now()
-                            ORDER BY menu_date ASC) AS md
-                        LEFT JOIN M4ME.latest_combined_meal lcm
-                        ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = '""" + id + """' 
-                                AND purchase_status = "ACTIVE"
-                                AND menu_date >= start_delivery_date)
-                        AS A
-                    JOIN (
-                        SELECT * ,
-                            IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                            json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                        FROM M4ME.lplp
+                            SELECT * ,
+                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                            FROM M4ME.lplp
+                            JOIN (
+                                SELECT DISTINCT menu_date
+                                FROM menu
+                                -- WHERE menu_date > now()
+                                ORDER BY menu_date ASC) AS md
+                            LEFT JOIN M4ME.latest_combined_meal lcm
+                            ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                    md.menu_date = lcm.sel_menu_date
+                            WHERE pur_customer_uid = '""" + id + """'  
+                                    AND purchase_status = "ACTIVE"
+                                    AND menu_date >= start_delivery_date)
+                            AS B
+                        ON A.menu_date >= B.menu_date
+                            AND A.purchase_uid = B.purchase_uid
+                        GROUP BY A.menu_date,
+                            A.purchase_uid
+                        ) AS cum_del
+                    WHERE cum_del.num_deliveries = cum_del.cum_qty
+                        -- AND cum_del.purchase_id = "400-000196"
+                    ORDER BY cum_del.purchase_uid
+                    ) AS nbd
+                JOIN (
+                    SELECT -- *,
+                        menu_date AS next_delivery,
+                        purchase_uid,
+                        purchase_id,
+                        CASE
+                            WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
+                            WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
+                            ELSE "SELECTED"
+                            END 
+                            AS final_selection
+                    FROM (
+                    -- PART A
+                        SELECT *
+                        FROM (
+                            SELECT DISTINCT menu_date 
+                            FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1) as nmd,
+                            (
+                            SELECT purchase_uid, purchase_id -- *
+                            FROM M4ME.lplp
+                            WHERE lplp.pur_customer_uid = '""" + id + """') as pur
+                        ) AS nmdpur
+                    LEFT JOIN (
+                    -- PART B
+                        SELECT *
+                        FROM M4ME.latest_combined_meal lcm
                         JOIN (
-                            SELECT DISTINCT menu_date
-                            FROM menu
-                            -- WHERE menu_date > now()
-                            ORDER BY menu_date ASC) AS md
-                        LEFT JOIN M4ME.latest_combined_meal lcm
-                        ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = '""" + id + """' 
-                                AND purchase_status = "ACTIVE"
-                                AND menu_date >= start_delivery_date)
-                        AS B
-                    ON A.menu_date >= B.menu_date
-                        AND A.purchase_uid = B.purchase_uid
-                    GROUP BY A.menu_date,
-                        A.purchase_uid
-                    ) AS cum_del
-                WHERE cum_del.num_deliveries = cum_del.cum_qty
-                ORDER BY cum_del.purchase_uid;
+                            SELECT DISTINCT menu_date AS dmd 
+                            FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1) AS nmd
+                        WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
+                    ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
+                ) AS nms
+                ON nbd.purchase_id = nms.purchase_id;
             """
 
             next_billing_date = execute(query, 'get', conn)
