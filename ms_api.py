@@ -10666,7 +10666,7 @@ class change_purchase (Resource):
                         items = '""" + items + """';
                     """
             response = execute(query, 'post', conn)
-            print("New Changed Purchases Added to db response: ", response)
+            print("New Changed Purchases Added to db response 1: ", response)
             if response['code'] != 281:
                 return {"message": "Purchase Insert Error"}, 500
 
@@ -10724,12 +10724,14 @@ class change_purchase (Resource):
 
                     # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
                     refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
+                    purchase_status = 'ACTIVE'
                     stripe_refund = amount_should_refund
                     amount_should_refund = 0
                     print("Refund id: ", refund_id['id'])
                 else:
                     print("In Else Statement")
                     refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
+                    purchase_status = 'PARTIAL REFUND'
                     stripe_refund = refundable_amount
                     amount_should_refund = amount_should_refund - refundable_amount
                     print("Refund id: ", refund_id['id'])
@@ -10739,9 +10741,10 @@ class change_purchase (Resource):
                 print (num_transactions, n)
 
                 # STEP 4 WRITE TO DATABASE
-                print("STEP 4:  WRITE TO DATABASE")
+                print("\nSTEP 4:  WRITE TO DATABASE")
                 new_pur_id = get_new_purchaseID(conn)
                 new_pay_id = get_new_paymentID(conn)
+                
 
                 # UPDATE PAYMENT TABLE
                 # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
@@ -10749,6 +10752,7 @@ class change_purchase (Resource):
                 print(refund['payment_id'])
                 print(new_pur_id)
                 print(new_pur_id)
+                print(purchase_status)
                 print(str(getNow()))
                 print(str(refund['meal_refund']))
                 print(str(refund['service_fee']))
@@ -10765,11 +10769,12 @@ class change_purchase (Resource):
                             ORDER BY menu_date ASC
                             LIMIT 1
                             '''
-                response = simple_get_execute(date_query, "Next Delivery Date", conn)
-                start_delivery_date = response[0]['result'][0]['menu_date']
+                sd_response = simple_get_execute(date_query, "Next Delivery Date", conn)
+                start_delivery_date = sd_response[0]['result'][0]['menu_date']
                 print("start_delivery_date: ", start_delivery_date)
 
-                # UPDATE PAYMENT TABLE
+                # INSERT CHANGES INTO PAYMENT TABLE
+                print("\nInsert into Payment Table")
                 query = """
                         INSERT INTO M4ME.payments
                         SET payment_uid = '""" + new_pay_id + """',
@@ -10791,25 +10796,27 @@ class change_purchase (Resource):
                         """        
                         
                                 
-                response = execute(query, 'post', conn)
-                print("Payments Update db response: ", response)
+                pay_insert_response = execute(query, 'post', conn)
+                print("Payments Update db response: ", pay_insert_response)
                 
-                if response['code'] != 281:
+                if pay_insert_response['code'] != 281:
                     return {"message": "Payment Insert Error"}, 500
 
                 # UPDATE PURCHASE TABLE
+                print("\nUpdate Purchases Table")
                 query = """
                         UPDATE M4ME.purchases
                         SET purchase_status = "CHANGED"
                         where purchase_uid = '""" + pur_uid + """';
                         """
-                update_response = execute(query, 'post', conn)
-                print("Purchases Update db response: ", update_response)
-                if update_response['code'] != 281:
+                pur_update_response = execute(query, 'post', conn)
+                print("Purchases Update db response: ", pur_update_response)
+                if pur_update_response['code'] != 281:
                     return {"message": "Purchase Insert Error"}, 500
 
                 # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
-                # GET PURCHASE TABLE DATA    
+                print("\nWrite New Purchases Table")
+                # GET EXISTING PURCHASE TABLE DATA    
                 query = """ 
                         SELECT *
                         FROM M4ME.purchases
@@ -10821,6 +10828,7 @@ class change_purchase (Resource):
                 print("Get Purchase UID response: ", response)
 
                 # INSERT INTO PURCHASE TABLE
+                print("Insert into Purchases Table")
                 items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
                 print(items)
 
@@ -10829,7 +10837,7 @@ class change_purchase (Resource):
                         SET purchase_uid = '""" + new_pur_id + """',
                             purchase_date = '""" + str(getNow()) + """',
                             purchase_id = '""" + new_pur_id + """',
-                            purchase_status = 'ACTIVE',
+                            purchase_status = '""" + purchase_status + """',
                             pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
                             pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
                             delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
@@ -10846,9 +10854,9 @@ class change_purchase (Resource):
                             delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
                             items = '""" + items + """';
                         """
-                response = execute(query, 'post', conn)
-                print("New Changed Purchases Added to db response: ", response)
-                if response['code'] != 281:
+                pur_insert_response = execute(query, 'post', conn)
+                print("New Changed Purchases Added to db response 2: ", pur_insert_response)
+                if pur_insert_response['code'] != 281:
                     return {"message": "Purchase Insert Error"}, 500
 
 
