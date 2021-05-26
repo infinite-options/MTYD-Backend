@@ -439,96 +439,9 @@ class order_amount_calculation(Resource):
                 orderprice=float(orderprice/100)
                 return orderprice
         except:
-            print("Error")
+            print("Order Amount Calculation Error")
         return 2100
 
-
-class order_amount_calculation(Resource):
-    def post(self):
-        # Replace this constant with a calculation of the order's amount
-        # Calculate the order total on the server to prevent
-        # people from directly manipulating the amount on the client    
-        # print("in calculate_order_amount")
-        # print("items: ", items)
-        try:
-            conn = connect()
-            data = request.get_json(force=True)
-            # print(data)
-            item_uid = data['item_uid']
-            # print(item_uid)
-            frequency = data['num_issues']
-            customer_uid = data['customer_uid']
-            # print("before amb")
-            ambassador = data['ambassador'] if data['ambassador'] is not None else None
-            # print("first query")
-            query = '''
-                        SELECT customer_lat, customer_long 
-                        FROM M4ME.customers
-                        WHERE customer_uid = \'''' + customer_uid + '''\';
-                    '''
-            it = execute(query, 'get', conn)
-            # print("before cat")
-            # print(it)
-            # print(it["result"][0]["customer_long"])
-            # print(it["result"][0]["customer_lat"])
-            zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
-            # print(zones["result"][0]["tax_rate"])
-            tax = zones["result"][0]["tax_rate"]
-            service = zones["result"][0]['service_fee']
-            delivery = zones["result"][0]['delivery_fee']
-            tip = data['tip']
-            query2 = '''
-                        SELECT item_price  
-                        FROM M4ME.subscription_items
-                        WHERE item_uid  = \'''' + item_uid + '''\';
-                    '''
-            itm_price = execute(query2, 'get', conn)
-            # print(itm_price)
-            query3 = '''
-                        select delivery_discount 
-                        from discounts
-                        where num_deliveries = \'''' + frequency + '''\';
-                    '''
-            itm_discounts = execute(query3, 'get', conn)
-            # print(itm_discounts)
-            # print("before if")
-            # print(len(ambassador))
-            if len(ambassador)!=0:
-                # print("not here")
-                query4 = '''
-                            select * 
-                            from coupons 
-                            where email_id = \'''' + amabssador + '''\';
-                        '''
-                itm_ambassador = execute(query4, 'get', conn)
-                # print(itm_ambassador)
-                delivery = abs(delivery-itm_ambassador['discount_shipping'])
-                if delivery<=0:
-                    delivery = 0
-                charge = ((itm_price["result"][0]["item_price"]*frequency)*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador['discount_amount'])
-                if charge <=0:
-                    charge = 0
-                order_price = charge*(1+tax/100)+service+delivery+tip
-                return order_price
-            else:
-                # print("here")
-                charge = (itm_price["result"][0]["item_price"]*int(frequency))
-                # print(charge)
-                discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
-                # print(discount)
-                # print(tax)
-                # print(service)
-                # print(delivery)
-                # print(tip)
-                order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
-                # print(order_price)
-                orderprice = round(order_price*100)
-                # print(orderprice)
-                orderprice=float(orderprice/100)
-                return orderprice
-        except:
-            print(101010)
-        return 2100
 
 # REPLACED B CLASS stripe_key BELOW
 # @app.route('/api/stripe-key', methods=['GET'])
@@ -549,24 +462,11 @@ class stripe_key(Resource):
             return {'publicKey': stripe_public_live_key} 
 
 
-# I DON'T THINK THIS IS BEING USED.  COMMENT OUT AND DELETE AFTER TESTING.  IDENTICAL TO CODE BELOW
-# class get_stripe_key(Resource):
-    
-#     def get_key(self, notes):
-#         print("get_stripe_key line 550")
-#         if notes == "M4METEST":
-#             print('TEST')
-#             return stripe_secret_test_key 
-#             # return "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-            
-#         else:
-#             print('LIVE')
-#             return stripe_secret_live_key
-
+# I DON'T THINK THIS IS BEING USED.  NEED TO CHECK BEFORE DELETING
 class get_stripe_key(Resource):
     
     def get_key(self, notes):
-        print("get_stripe_key line 563")
+        print("get_stripe_key line 469")
         if notes == "M4METEST":
             print('TEST')
             #return stripe_secret_test_key 
@@ -581,14 +481,25 @@ class get_stripe_key(Resource):
 
 class stripe_transaction(Resource):
 
-    def purchase(self, amount, key):
+    def purchase(self, customer, key, amount):
         print("In stripe_transaction PURCHASE")
 
-        charge_id = 1
-        response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createPaymentIntent', data = {'key':'value'})
+        stripe_charge_response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
+        # stripe_charge_response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
+        json = {   
+                    "currency": "usd",   
+                    "customer_uid": customer,
+                    "business_code": key,
+                    "payment_summary": {        
+                        "total": - amount
+                    } 
+                })
+        
+        print(stripe_charge_response.json())
+        charge_id = stripe_charge_response.json()
 
         return charge_id
-    
+
     def refund(self, amount, stripe_process_id):
         print("In stripe_transaction REFUND")
         print("Inputs: ", amount, stripe_process_id)
@@ -599,7 +510,7 @@ class stripe_transaction(Resource):
                 amount=int(amount * 100 )
             )
             print("refund_res: ", refund_res['id'])
-            amount_should_refund = 0   # Probably should delete.  Code is also unreachable. 
+            # amount_should_refund = 0   # Probably should delete.  Code is also unreachable. 
         except stripe.error.CardError as e:
             # Since it's a decline, stripe.error.CardError will be caught
             response['message'] = e.error.message
@@ -10593,19 +10504,25 @@ class change_purchase (Resource):
             # # Update an existing resource
             # requests.put('https://httpbin.org/put', data = {'key':'value'})
 
-            response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
-            # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
-            json = {   
-                        "currency": "usd",   
-                        "customer_uid": refund['customer_uid'],
-                        "business_code": refund['delivery_instructions'],
-                        "payment_summary": {        
-                            "total": - amount_should_refund
-                        } 
-                    })
+            # WORKING CODE TO PROCESS STRIPE TRANSACTION
+            # response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
+            # # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
+            # json = {   
+            #             "currency": "usd",   
+            #             "customer_uid": refund['customer_uid'],
+            #             "business_code": refund['delivery_instructions'],
+            #             "payment_summary": {        
+            #                 "total": - amount_should_refund
+            #             } 
+            #         })
             
-            print(response.json())
-            charge_id = response.json()
+            # print(response.json())
+            # charge_id = response.json()
+
+            print("Stripe Transaction Inputs: ", refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
+
+            charge_id = stripe_transaction().purchase(refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
+            print("Return from Stripe Charge Transaction: ", charge_id)
 
             # STEP 4 WRITE TO DATABASE
             print("STEP 4:  WRITE TO DATABASE")
