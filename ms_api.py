@@ -10249,6 +10249,10 @@ class calculator(Resource):
             ambassador_code         = pur_details['result'][0]['ambassador_code']
             amount_due              = pur_details['result'][0]['amount_due']
             amount_paid             = pur_details['result'][0]['amount_paid']
+            cc_num                  = pur_details['result'][0]['cc_num']
+            cc_exp_date             = pur_details['result'][0]['cc_exp_date']
+            cc_cvv                  = pur_details['result'][0]['cc_cvv']
+            cc_zip                  = pur_details['result'][0]['cc_zip']
             charge_id               = pur_details['result'][0]['charge_id']
             delivery_instructions   = pur_details['result'][0]['delivery_instructions']
 
@@ -10345,6 +10349,10 @@ class calculator(Resource):
                     "ambassador_code"       :  ambassador_code,
                     "amount_due"            :  amount_due,
                     "amount_paid"           :  amount_paid,
+                    "cc_num"                :  cc_num,
+                    "cc_exp_date"           :  cc_exp_date,
+                    "cc_cvv"                :  cc_cvv,
+                    "cc_zip"                :  cc_zip,
                     "charge_id"             :  charge_id,
                     "delivery_instructions" :  delivery_instructions}
 
@@ -10353,7 +10361,7 @@ class calculator(Resource):
         finally:
             disconnect(conn)
 
-    # CALCULATE REFUND - FOR DEBUG PURPOSES.  SHOULD BE SAME CODE
+    # CALCULATE REFUND - FOR DEBUG PURPOSES.  CODE IS ACTUALLY USED BY MOBILE.  SHOULD BE SAME CODE AS REFUND ABOVE
     def get (self, pur_uid):
 
         try:
@@ -10379,6 +10387,10 @@ class calculator(Resource):
             ambassador_code         = pur_details['result'][0]['ambassador_code']
             amount_due              = pur_details['result'][0]['amount_due']
             amount_paid             = pur_details['result'][0]['amount_paid']
+            cc_num                  = pur_details['result'][0]['cc_num']
+            cc_exp_date             = pur_details['result'][0]['cc_exp_date']
+            cc_cvv                  = pur_details['result'][0]['cc_cvv']
+            cc_zip                  = pur_details['result'][0]['cc_zip']
             charge_id               = pur_details['result'][0]['charge_id']
             delivery_instructions   = pur_details['result'][0]['delivery_instructions']
 
@@ -10475,15 +10487,17 @@ class calculator(Resource):
                     "ambassador_code"       :  ambassador_code,
                     "amount_due"            :  amount_due,
                     "amount_paid"           :  amount_paid,
+                    "cc_num"                :  cc_num,
+                    "cc_exp_date"           :  cc_exp_date,
+                    "cc_cvv"                :  cc_cvv,
+                    "cc_zip"                :  cc_zip,
                     "charge_id"             :  charge_id,
                     "delivery_instructions" :  delivery_instructions}
 
         except:
-            raise BadRequest('Refund Calculator Failure 1.')
+            raise BadRequest('Refund Calculator Failure 2.')
         finally:
             disconnect(conn)
-
-
     
 
 
@@ -10641,6 +10655,10 @@ class change_purchase (Resource):
                         taxes = '""" + str(new_tax) + """',
                         amount_due = '""" + str(delta) + """',
                         amount_paid = '""" + str(- amount_should_refund) + """',
+                        cc_num = '""" + str(refund['cc_num']) + """',
+                        cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
+                        cc_cvv = '""" + str(refund['cc_cvv']) + """',
+                        cc_zip = '""" + str(refund['cc_zip']) + """',
                         ambassador_code = '""" + str(refund['ambassador_code']) + """',
                         charge_id = '""" + str(charge_id) + """',
                         start_delivery_date =  '""" + str(start_delivery_date) + """';
@@ -10827,6 +10845,10 @@ class change_purchase (Resource):
                             taxes = '""" + str(new_tax) + """',
                             amount_due = '""" + str(delta) + """',
                             amount_paid = '""" + str(-stripe_refund) + """',
+                            cc_num = '""" + str(refund['cc_num']) + """',
+                            cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
+                            cc_cvv = '""" + str(refund['cc_cvv']) + """',
+                            cc_zip = '""" + str(refund['cc_zip']) + """',
                             ambassador_code = '""" + str(refund['ambassador_code']) + """',
                             charge_id = '""" + str(refund_id['id']) + """',
                             start_delivery_date =  '""" + str(start_delivery_date) + """';
