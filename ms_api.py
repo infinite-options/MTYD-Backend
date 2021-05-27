@@ -9934,7 +9934,7 @@ class subscription_history(Resource):
 
             # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
             query = """
-                SELECT -- lplpmdlcm.*,
+                SELECT -- *,
                     purchase_uid,
                     purchase_date,
                     purchase_id,
@@ -9942,28 +9942,53 @@ class subscription_history(Resource):
                     pur_customer_uid,
                     pur_business_uid,
                     items,
+                    meal_uid,
+                    meal_category,
+                    meal_desc,
+                    meal_photo_URL,
                     payment_time_stamp,
                     start_delivery_date,
                     charge_id,
                     last_payment,
-                    sel_menu_date,
+                    sel_menu_date
                     -- lplpmdlcm.*,
-                    IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
                 FROM (
-                SELECT * FROM M4ME.lplp
-                JOIN (
-                    SELECT DISTINCT menu_date
-                    FROM menu
-                    -- WHERE menu_date > now()
-                    ORDER BY menu_date ASC) AS md
-                LEFT JOIN M4ME.latest_combined_meal lcm
-                ON lplp.purchase_id = lcm.sel_purchase_id AND
-                        md.menu_date = lcm.sel_menu_date
-                WHERE pur_customer_uid = '100-000127'
-                        AND md.menu_date > lplp.start_delivery_date
-                        AND purchase_status = "ACTIVE"
-                        ) AS lplpmdlcm
-                ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC;
+                    SELECT *
+                    FROM (	     
+                        # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
+                        SELECT lplpmdlcm.*,
+                            IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS ms
+                        FROM (
+                            SELECT *,
+                            row_number() OVER (ORDER BY purchase_id )  AS row_num
+
+                            FROM M4ME.lplp
+                            JOIN (
+                                SELECT DISTINCT menu_date
+                                FROM M4ME.menu
+                                -- WHERE menu_date > now()
+                                ORDER BY menu_date ASC) AS md
+                        LEFT JOIN M4ME.latest_combined_meal lcm
+                        ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                md.menu_date = lcm.sel_menu_date
+                        WHERE pur_customer_uid = '100-000127'
+                                AND md.menu_date > lplp.start_delivery_date
+                                AND purchase_status = "ACTIVE"
+                                ) AS lplpmdlcm
+                        GROUP BY row_num
+                            ) AS jot,
+                    JSON_TABLE (jot.ms, '$[*]' 
+                        COLUMNS (
+                                jt_id FOR ORDINALITY,
+                                jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                jt_name VARCHAR(255) PATH '$.name',
+                                jt_qty INT PATH '$.qty',
+                                jt_price DOUBLE PATH '$.price')
+                            ) AS jt 
+                    ) AS A
+                LEFT JOIN M4ME.meals
+                ON A.jt_item_uid = meals.meal_uid
+                ORDER BY A.purchase_id ASC, A.menu_date ASC;
             """
 
             subscription_history = execute(query, 'get', conn)
