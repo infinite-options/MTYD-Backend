@@ -9924,6 +9924,61 @@ class predict_autopay_day(Resource):
 
 ### START PRASHANT CODE ################################################################################
 
+class subscription_history(Resource):
+
+    def get(self, id):
+
+        try:
+            conn = connect()
+            print("Inside subscription history", id)
+
+            # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
+            query = """
+                SELECT -- lplpmdlcm.*,
+                    purchase_uid,
+                    purchase_date,
+                    purchase_id,
+                    purchase_status,
+                    pur_customer_uid,
+                    pur_business_uid,
+                    items,
+                    payment_time_stamp,
+                    start_delivery_date,
+                    charge_id,
+                    last_payment,
+                    sel_menu_date,
+                    -- lplpmdlcm.*,
+                    IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
+                FROM (
+                SELECT * FROM M4ME.lplp
+                JOIN (
+                    SELECT DISTINCT menu_date
+                    FROM menu
+                    -- WHERE menu_date > now()
+                    ORDER BY menu_date ASC) AS md
+                LEFT JOIN M4ME.latest_combined_meal lcm
+                ON lplp.purchase_id = lcm.sel_purchase_id AND
+                        md.menu_date = lcm.sel_menu_date
+                WHERE pur_customer_uid = '100-000127'
+                        AND md.menu_date > lplp.start_delivery_date
+                        AND purchase_status = "ACTIVE"
+                        ) AS lplpmdlcm
+                ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC;
+            """
+
+            subscription_history = execute(query, 'get', conn)
+            print("Next Billing Date: ", subscription_history)
+
+            return subscription_history
+
+        except:
+            raise BadRequest('Subscription History Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
 # PRASHANT NEXT BILLING DATE
 class predict_next_billing_date(Resource):
 
@@ -13036,6 +13091,10 @@ api.add_resource(meals_selected_with_billing, '/api/v2/meals_selected_with_billi
 api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
 
 api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
+
+api.add_resource(subscription_history, '/api/v2/subscription_history/<string:id>')
+
+
 
 api.add_resource(calculator, '/api/v2/calculator/<string:pur_uid>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:items_uid>/<string:qty>')
