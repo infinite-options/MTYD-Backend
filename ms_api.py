@@ -9934,7 +9934,7 @@ class subscription_history(Resource):
 
             # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
             query = """
-                SELECT -- *,
+                SELECT -- *
                     purchase_uid,
                     purchase_date,
                     purchase_id,
@@ -9944,6 +9944,8 @@ class subscription_history(Resource):
                     items,
                     meal_uid,
                     meal_category,
+                    meal_name,
+                    jt_qty as meal_qty,
                     meal_desc,
                     meal_photo_URL,
                     payment_time_stamp,
@@ -9971,7 +9973,7 @@ class subscription_history(Resource):
                         LEFT JOIN M4ME.latest_combined_meal lcm
                         ON lplp.purchase_id = lcm.sel_purchase_id AND
                                 md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = '""" + pur_uid + """'
+                        WHERE pur_customer_uid = '100-000127'
                                 AND md.menu_date > lplp.start_delivery_date
                                 AND purchase_status = "ACTIVE"
                                 ) AS lplpmdlcm
