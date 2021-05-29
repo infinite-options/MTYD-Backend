@@ -9926,11 +9926,11 @@ class predict_autopay_day(Resource):
 
 class subscription_history(Resource):
 
-    def get(self, pur_uid):
+    def get(self, cust_uid):
 
         try:
             conn = connect()
-            print("Inside subscription history", id)
+            print("Inside subscription history", cust_uid)
 
             # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
             query = """
@@ -9973,7 +9973,7 @@ class subscription_history(Resource):
                         LEFT JOIN M4ME.latest_combined_meal lcm
                         ON lplp.purchase_id = lcm.sel_purchase_id AND
                                 md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = '100-000127'
+                        WHERE pur_customer_uid = '""" + cust_uid + """'
                                 AND md.menu_date > lplp.start_delivery_date
                                 AND purchase_status = "ACTIVE"
                                 ) AS lplpmdlcm
@@ -13119,7 +13119,7 @@ api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
 
 api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
 
-api.add_resource(subscription_history, '/api/v2/subscription_history/<string:pur_uid>')
+api.add_resource(subscription_history, '/api/v2/subscription_history/<string:cust_uid>')
 
 
 
