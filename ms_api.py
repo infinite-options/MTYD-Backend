@@ -10008,7 +10008,7 @@ class subscription_history(Resource):
                             ) AS jt
                 LEFT JOIN M4ME.meals
                 ON jt_item_uid = meal_uid
-                WHERE menu_date <= NOW()
+                -- WHERE menu_date <= NOW()
                 ORDER BY json_row_num ASC, jt_id ASC;
             """
 
