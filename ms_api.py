@@ -9933,6 +9933,7 @@ class subscription_history(Resource):
             print("Inside subscription history", cust_uid)
 
             # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
+            # STEP 4 FIND MEAL IMAGES
             query = """
                 SELECT -- *
                     purchase_uid,
@@ -9942,55 +9943,73 @@ class subscription_history(Resource):
                     pur_customer_uid,
                     pur_business_uid,
                     items,
+                    ms,
                     meal_uid,
                     meal_category,
                     meal_name,
                     jt_qty as meal_qty,
-                    meal_desc,
+                    -- meal_desc,
                     meal_photo_URL,
                     payment_time_stamp,
                     start_delivery_date,
                     charge_id,
-                    last_payment,
-                    sel_menu_date
-                    -- lplpmdlcm.*,
+                    -- last_payment,
+                    -- sel_menu_date,
+                    IF (sel_menu_date IS NULL, menu_date, sel_menu_date) AS sel_menu_date,
+                    IF (meal_name IS NULL, IF (ms LIKE '%SKIP%', 'SKIP', 'SURPRISE'), meal_name) AS meal_desc
                 FROM (
                     SELECT *
-                    FROM (	     
-                        # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
-                        SELECT lplpmdlcm.*,
-                            IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS ms
+                    FROM (
+                        # STEP 3 JOIN WITH MEAL SELECTIONS
+                        SELECT *,
+                            IF (sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', combined_selection) AS ms,
+                            row_number() OVER (ORDER BY purchase_id, menu_date) AS json_row_num
                         FROM (
-                            SELECT *,
-                            row_number() OVER (ORDER BY purchase_id )  AS row_num
-
-                            FROM M4ME.lplp
-                            JOIN (
-                                SELECT DISTINCT menu_date
-                                FROM M4ME.menu
-                                -- WHERE menu_date > now()
-                                ORDER BY menu_date ASC) AS md
+                            # STEP 2 JOIN WITH ITSELF TO DETERMINE END SUBSCRIPTION DATE
+                            SELECT pay_a.*,
+                                pay_b.row_num AS next_num,
+                                pay_b.pay_purchase_uid AS match_pur_uid,
+                                pay_b.start_delivery_date AS next_subscription_start,
+                                if(pay_a.purchase_uid = pay_b.purchase_uid, pay_b.start_delivery_date, 'ACTIVE') AS end_subscription
+                            FROM (
+                                SELECT *,
+                                    row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
+                                FROM latest_purchase pur
+                                LEFT JOIN payments pay
+                                ON pur.purchase_uid = pay.pay_purchase_id) AS pay_a
+                            LEFT JOIN (
+                                SELECT *,
+                                    row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
+                                FROM latest_purchase pur
+                                LEFT JOIN payments pay
+                                ON pur.purchase_uid = pay.pay_purchase_id) AS pay_b
+                            ON pay_a.row_num + 1 = pay_b.row_num) AS sub_start_end
+                        JOIN (
+                            SELECT DISTINCT menu_date
+                            FROM M4ME.menu
+                            -- WHERE menu_date > now()
+                            ORDER BY menu_date ASC) AS md
                         LEFT JOIN M4ME.latest_combined_meal lcm
-                        ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                md.menu_date = lcm.sel_menu_date
-                        WHERE pur_customer_uid = '""" + cust_uid + """'
-                                AND md.menu_date > lplp.start_delivery_date
-                                AND purchase_status = "ACTIVE"
-                                ) AS lplpmdlcm
-                        GROUP BY row_num
-                            ) AS jot,
-                    JSON_TABLE (jot.ms, '$[*]' 
+                            ON purchase_id = sel_purchase_id
+                            AND menu_date = sel_menu_date
+                        WHERE menu_date >= start_delivery_date
+                            -- AND md.menu_date < sub_start_end.end_subscription
+                            AND menu_date < (CASE WHEN end_subscription = 'ACTIVE' THEN '2031-12-31' ELSE end_subscription END)
+                            AND pur_customer_uid = '""" + cust_uid + """'
+                            AND purchase_status = "ACTIVE") AS ssems        
+                        GROUP BY ssems.json_row_num) AS ssemsg,
+                    JSON_TABLE (ssemsg.ms, '$[*]' 
                         COLUMNS (
                                 jt_id FOR ORDINALITY,
                                 jt_item_uid VARCHAR(255) PATH '$.item_uid',
                                 jt_name VARCHAR(255) PATH '$.name',
                                 jt_qty INT PATH '$.qty',
                                 jt_price DOUBLE PATH '$.price')
-                            ) AS jt 
-                    ) AS A
+                            ) AS jt
                 LEFT JOIN M4ME.meals
-                ON A.jt_item_uid = meals.meal_uid
-                ORDER BY A.purchase_id ASC, A.menu_date ASC;
+                ON jt_item_uid = meal_uid
+                WHERE menu_date <= NOW()
+                ORDER BY json_row_num ASC, jt_id ASC;
             """
 
             subscription_history = execute(query, 'get', conn)
