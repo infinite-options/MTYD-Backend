@@ -10089,7 +10089,7 @@ class predict_next_billing_date(Resource):
                             A.purchase_uid
                         ) AS cum_del
                     WHERE cum_del.num_deliveries = cum_del.cum_qty
-                        -- AND cum_del.purchase_id = "400-000196"
+                        AND delivery = 1
                     ORDER BY cum_del.purchase_uid
                     ) AS nbd
                 JOIN (
