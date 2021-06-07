@@ -482,7 +482,7 @@ class get_stripe_key(Resource):
 class stripe_transaction(Resource):
 
     def purchase(self, customer, key, amount):
-        print("In stripe_transaction PURCHASE")
+        # print("In stripe_transaction PURCHASE")
 
         stripe_charge_response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
         # stripe_charge_response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
@@ -495,14 +495,14 @@ class stripe_transaction(Resource):
                     } 
                 })
         
-        print(stripe_charge_response.json())
+        # print(stripe_charge_response.json())
         charge_id = stripe_charge_response.json()
 
         return charge_id
 
     def refund(self, amount, stripe_process_id):
-        print("In stripe_transaction REFUND")
-        print("Inputs: ", amount, stripe_process_id)
+        # print("In stripe_transaction REFUND")
+        # print("Inputs: ", amount, stripe_process_id)
 
         try:
             refund_res = stripe.Refund.create(
@@ -517,17 +517,6 @@ class stripe_transaction(Resource):
             return response, 400
 
         return refund_res
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -617,9 +606,9 @@ def generate_response(intent):
         return jsonify({'clientSecret': intent['client_secret']})
 
 
-#  END STRIPE FUNCTIONS
+# END STRIPE FUNCTIONS
 
-#  ADDITIONAL STRIPE FUNCTIONS FOR ADDITIONAL CHARGES
+# ADDITIONAL STRIPE FUNCTIONS FOR ADDITIONAL CHARGES
 
 # USE CUSTOMER ID TO RETURN PAYMENT METHOD IDs
 
@@ -9985,7 +9974,7 @@ class predict_next_billing_date(Resource):
                             A.purchase_uid
                         ) AS cum_del
                     WHERE cum_del.num_deliveries = cum_del.cum_qty
-                        -- AND cum_del.purchase_id = "400-000196"
+                        AND delivery = 1
                     ORDER BY cum_del.purchase_uid
                     ) AS nbd
                 JOIN (
@@ -10496,33 +10485,10 @@ class change_purchase (Resource):
             # GET STRIPE KEY
             # CHARGE STRIPE
 
-            # response = requests.get("http://api.open-notify.org/astros.json")
-            # print(response.json())
-
-            # # Create a new resource
-            # response = requests.post('https://httpbin.org/post', data = {'key':'value'})
-            # # Update an existing resource
-            # requests.put('https://httpbin.org/put', data = {'key':'value'})
-
-            # WORKING CODE TO PROCESS STRIPE TRANSACTION
-            # response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
-            # # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
-            # json = {   
-            #             "currency": "usd",   
-            #             "customer_uid": refund['customer_uid'],
-            #             "business_code": refund['delivery_instructions'],
-            #             "payment_summary": {        
-            #                 "total": - amount_should_refund
-            #             } 
-            #         })
-            
-            # print(response.json())
-            # charge_id = response.json()
-
-            print("Stripe Transaction Inputs: ", refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
+            # print("Stripe Transaction Inputs: ", refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
 
             charge_id = stripe_transaction().purchase(refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
-            print("Return from Stripe Charge Transaction: ", charge_id)
+            # print("Return from Stripe Charge Transaction: ", charge_id)
 
             # STEP 4 WRITE TO DATABASE
             print("STEP 4:  WRITE TO DATABASE")
