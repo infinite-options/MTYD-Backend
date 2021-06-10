@@ -238,10 +238,10 @@ def simple_get_execute(query, name_to_show, conn):
         print(string.center(len(string) + 10, "*"))
         print(query_number.center(len(string) + 10, "*"))
         print("*" * (len(string) + 10), "\n")
-        response['message'] = 'Internal Server Error.'
+        response['message'] = 'Internal Server Error Inside simple_get_execute.'
         return response, 500
     elif not res['result']:
-        response['message'] = 'Can not found the requested info.'
+        response['message'] = 'Cannot find the requested info simple_get_execute.'
         return response, 204
     else:
         response['message'] = "Get " + name_to_show + " successful."
@@ -11157,10 +11157,11 @@ def renew_subscription():
                 FROM M4ME.next_billing_date 
                 WHERE next_billing_date < now()
                     AND purchase_status = "ACTIVE"
-                    AND pur_customer_uid != "100-000119";
+                    -- AND pur_customer_uid != "100-000119";
                 """
         renew = execute(query, 'get', conn)
         print("Next Billing Date: ", renew)
+        print("\nNumber of records: ", len(renew['result']))
 
         for subscriptions in renew['result']:
             print("\n", subscriptions)
@@ -11170,95 +11171,87 @@ def renew_subscription():
             # print("\n", subscriptions['items'][65:75])
             # print("\nEnd")
 
-            # WHAT THEY HAD
+            # STEP 1: WHAT THEY HAD
             print("\nSTEP 1: What they had:")
             pur_uid = subscriptions['purchase_uid']
             pur_id  = subscriptions['purchase_id']
+            pay_uid = subscriptions['payment_uid']
+            pay_id  = subscriptions['payment_id']
             print("  Existing purchase ids : ", pur_uid, pur_id)
+            print("  Existing payment ids  : ", pay_uid, pay_id)
 
-            produce = json.loads(subscriptions['items'])
-            print(produce, type(produce))
-            print("  JSON item_uid : ", produce[0]["item_uid"])
+            items = json.loads(subscriptions['items'])
+            print(items, type(items))
+            item_uid = items[0]["item_uid"]
+            num_deliveries = items[0]["qty"]
+            print("  JSON item_uid : ", item_uid)
+            print("  JSON qty      : ", num_deliveries)
 
-            item_uid = subscriptions['items'][65:75]
-            print("  ReNEW item_uid : ", item_uid)
-            num_deliveries = subscriptions['items'][10:11]
-            print("  NEW days : ", num_deliveries)
-
-
+            # STEP 2: CALCULATE THE NEW RENEWAL CHARGE
             print("\nSTEP 2B: Inside Calculate New Charge")
             new_charge = calculator().billing(item_uid, num_deliveries)
             # print("Returned JSON Object: \n", new_charge)
-            print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
-            print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-            print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
-            new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
-            print("New Meal Charge: ", new_meal_charge, type(new_meal_charge))
-            new_discount = new_charge['result'][0]['delivery_discount']
-            print("New Discount: ", new_discount, type(new_discount))
-            new_discount = round(new_meal_charge * new_discount/100,2)
-            print("Actual Discount: ", new_discount, type(new_discount))
+            item_price = new_charge['result'][0]['item_price']
+            num_deliveries = new_charge['result'][0]['num_deliveries']
+            new_meal_charge = float(item_price) * int(num_deliveries)
+            new_discount_percent = new_charge['result'][0]['delivery_discount']
+            new_discount = round(new_meal_charge * new_discount_percent/100,2)
             new_service_fee = float(subscriptions["service_fee"])
-            print("Service Fee: ", new_service_fee, type(new_service_fee))
             new_delivery_fee = float(subscriptions["delivery_fee"])
-            print("Delivery Fee: ", new_delivery_fee, type(new_delivery_fee))
             new_driver_tip = float(subscriptions["driver_tip"])
-            print("Driver Tip: ", new_driver_tip, type(new_driver_tip))
-            new_tax = round(.0925*(new_meal_charge  - new_discount + subscriptions['delivery_fee']),2)
-            print("Actual Tax: ", new_tax, type(new_tax))
+            new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
+            new_ambassador = 0
+            amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
 
+            print("Amount for new Plan: ", item_price)
+            print("Number of Deliveries: ", num_deliveries)
+            print("Delivery Discount: ", new_discount)
+            
+            print("\nNew Meal Charge: ", new_meal_charge, type(new_meal_charge))
+            print("New Discount %: ", new_discount_percent, type(new_discount_percent))
+            print("Actual Discount: ", new_discount, type(new_discount))
+            print("Service Fee: ", new_service_fee, type(new_service_fee))
+            print("Delivery Fee: ", new_delivery_fee, type(new_delivery_fee))
+            print("Driver Tip: ", new_driver_tip, type(new_driver_tip))
+            print("Actual Tax: ", new_tax, type(new_tax))
+            print("New Charge: ", amount_should_charge, type(amount_should_charge))
+
+
+            # STEP 3: CHARGE STRIPE
             print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
                 # GET STRIPE KEY
-                # CHARGE STRIPE
-
             delivery_instructions = subscriptions['delivery_instructions']
             stripe.api_key = get_stripe_key().get_key(delivery_instructions)
             print("Stripe Key: ", stripe.api_key)
             print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
-
-            amount_should_charge = 500
-            amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax,2)
-
+                # CHARGE STRIPE
             print("Stripe Transaction Inputs: ", subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], amount_should_charge)
-
             charge_id = stripe_transaction().purchase(subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], -1 * amount_should_charge)
-            print("Return from Stripe Charge Transaction: ", charge_id)
-            print("Return from Stripe Charge Transaction: ", charge_id['message'])
+            print("Return from Stripe Charge Transaction: ", charge_id)           
             
+            # STEP 4: WRITE TO DATABASE
+            print("STEP 4:  WRITE TO DATABASE")
 
-            # if charge_id['message'] != 'Internal Server Error':
+            # CHECK IF VALID CHARGE ID WAS RETURNED
+            if 'ch_' in str(charge_id):
+                # CHANGE EXISTING SUBSCRIPTION TO RENEWED
 
-            #     # STEP 4 WRITE TO DATABASE
-            #     print("STEP 4:  WRITE TO DATABASE")
-            #     # new_pur_id = get_new_purchaseID(conn)
-            #     new_pay_id = get_new_paymentID(conn)
 
-            #     # UPDATE PAYMENT TABLE
-            #     # INSERT NEW ROW WITH NEW CHARGE AMOUNT AND CHARGE ID BUT EXISTING PURCHASE IDS
-            #     print(new_pay_id)
-            #     print(subscriptions['payment_id'])
-            #     # print(new_pur_id)
-            #     # print(new_pur_id)
-            #     print(str(getNow()))
-            #     print(str(new_meal_charge))
-            #     print(str(new_discount))
-            #     print(str(subscriptions['service_fee']))
-            #     print(str(subscriptions['delivery_fee']))
-            #     print(str(subscriptions["driver_tip"]))
-            #     print(str(subscriptions['taxes']))
-            #     print(str(subscriptions['ambassador_code']))
-            #     print("charge_id: ", charge_id)
+                # INSERT NEW ROW WITH NEW CHARGE AMOUNT AND CHARGE ID BUT EXISTING PURCHASE IDS
+                new_pay_id = get_new_paymentID(conn)
+                print(new_pay_id)
+                print(str(getNow()))
 
-            #     # FIND NEXT START DATE FOR CHANGED PLAN
-            #     date_query = '''
-            #                 SELECT DISTINCT menu_date FROM M4ME.menu
-            #                 WHERE menu_date > CURDATE()
-            #                 ORDER BY menu_date ASC
-            #                 LIMIT 1
-            #                 '''
-            #     response = simple_get_execute(date_query, "Next Delivery Date", conn)
-            #     start_delivery_date = response[0]['result'][0]['menu_date']
-            #     print("start_delivery_date: ", start_delivery_date)
+                # FIND NEXT START DATE FOR CHANGED PLAN
+                date_query = '''
+                            SELECT DISTINCT menu_date FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1
+                            '''
+                response = simple_get_execute(date_query, "Next Delivery Date", conn)
+                start_delivery_date = response[0]['result'][0]['menu_date']
+                print("start_delivery_date: ", start_delivery_date)
             
             # # UPDATE PAYMENT TABLE
             #     query = """
@@ -11354,13 +11347,14 @@ def renew_subscription():
 
 
     except:
+        print('error')
         return 'error occured'
     finally:
         print('done')
 
 if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='wed', second=20, minute=39, hour=13)
+    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='thu', second=10, minute=17, hour=7)
     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds = 3)
     scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
