@@ -11164,7 +11164,7 @@ def renew_subscription():
         print("\nNumber of records: ", len(renew['result']))
 
         for subscriptions in renew['result']:
-            print("\n", subscriptions)
+            print("\nSubscription Record: ", subscriptions)
             # print("\n", subscriptions['purchase_uid'])
             # print("\n", subscriptions['items'])
             # print("\n", subscriptions['items'][10:11])
@@ -11200,10 +11200,10 @@ def renew_subscription():
             new_delivery_fee = float(subscriptions["delivery_fee"])
             new_driver_tip = float(subscriptions["driver_tip"])
             new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
-            new_ambassador = 0
+            new_ambassador = float(subscriptions["ambassador_code"])
             amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
 
-            print("Amount for new Plan: ", item_price)
+            print("\nAmount for new Plan: ", item_price)
             print("Number of Deliveries: ", num_deliveries)
             print("Delivery Discount: ", new_discount)
             
@@ -11214,6 +11214,7 @@ def renew_subscription():
             print("Delivery Fee: ", new_delivery_fee, type(new_delivery_fee))
             print("Driver Tip: ", new_driver_tip, type(new_driver_tip))
             print("Actual Tax: ", new_tax, type(new_tax))
+            print("Ambassador Discount: ", new_ambassador, type(new_ambassador))
             print("New Charge: ", amount_should_charge, type(amount_should_charge))
 
 
@@ -11234,10 +11235,8 @@ def renew_subscription():
 
             # CHECK IF VALID CHARGE ID WAS RETURNED
             if 'ch_' in str(charge_id):
-                # CHANGE EXISTING SUBSCRIPTION TO RENEWED
 
-
-                # INSERT NEW ROW WITH NEW CHARGE AMOUNT AND CHARGE ID BUT EXISTING PURCHASE IDS
+                # PART 1: INSERT NEW ROW WITH NEW CHARGE AMOUNT AND CHARGE ID BUT EXISTING PURCHASE IDS
                 new_pay_id = get_new_paymentID(conn)
                 print(new_pay_id)
                 print(str(getNow()))
@@ -11253,98 +11252,52 @@ def renew_subscription():
                 start_delivery_date = response[0]['result'][0]['menu_date']
                 print("start_delivery_date: ", start_delivery_date)
             
-            # # UPDATE PAYMENT TABLE
-            #     query = """
-            #             INSERT INTO M4ME.payments
-            #             SET payment_uid = '""" + new_pay_id + """',
-            #                 -- payment_id = '""" + subscription['payment_id'] + """',
-            #                 payment_id = '""" + new_pay_id + """',
-            #                 pay_purchase_uid = '""" + pur_uid + """',
-            #                 pay_purchase_id = '""" + pur_id + """',
-            #                 payment_time_stamp =  '""" + str(getNow()) + """',
-            #                 subtotal = '""" + str(new_meal_charge) + """',
-            #                 amount_discount = '""" + str(new_discount) + """',
-            #                 service_fee = '""" + str(new_service_fee) + """',
-            #                 delivery_fee = '""" + str(new_delivery_fee) + """',
-            #                 driver_tip = '""" + str(new_driver_tip) + """',
-            #                 taxes = '""" + str(new_tax) + """',
-            #                 amount_due = '""" + str(amount_should_charge) + """',
-            #                 amount_paid = '""" + str(- amount_should_charge) + """',
-            #                 cc_num = '""" + str(subscriptions['cc_num']) + """',
-            #                 cc_exp_date = '""" + str(subscriptions['cc_exp_date']) + """',
-            #                 cc_cvv = '""" + str(subscriptions['cc_cvv']) + """',
-            #                 cc_zip = '""" + str(subscriptions['cc_zip']) + """',
-            #                 ambassador_code = '""" + str(subscriptions['ambassador_code']) + """',
-            #                 charge_id = '""" + str(charge_id) + """',
-            #                 start_delivery_date =  '""" + str(start_delivery_date) + """';
-            #             """        
+                # UPDATE PAYMENT TABLE
+                query = """
+                        INSERT INTO M4ME.payments
+                        SET payment_uid = '""" + new_pay_id + """',
+                            payment_id = '""" + new_pay_id + """',
+                            pay_purchase_uid = '""" + pur_uid + """',
+                            pay_purchase_id = '""" + pur_id + """',
+                            payment_time_stamp =  '""" + str(getNow()) + """',
+                            subtotal = '""" + str(new_meal_charge) + """',
+                            amount_discount = '""" + str(new_discount) + """',
+                            service_fee = '""" + str(new_service_fee) + """',
+                            delivery_fee = '""" + str(new_delivery_fee) + """',
+                            driver_tip = '""" + str(new_driver_tip) + """',
+                            taxes = '""" + str(new_tax) + """',
+                            amount_due = '""" + str(amount_should_charge) + """',
+                            amount_paid = '""" + str(- amount_should_charge) + """',
+                            cc_num = '""" + str(subscriptions['cc_num']) + """',
+                            cc_exp_date = '""" + str(subscriptions['cc_exp_date']) + """',
+                            cc_cvv = '""" + str(subscriptions['cc_cvv']) + """',
+                            cc_zip = '""" + str(subscriptions['cc_zip']) + """',
+                            ambassador_code = '""" + str(new_ambassador) + """',
+                            charge_id = '""" + str(charge_id) + """',
+                            start_delivery_date =  '""" + str(start_delivery_date) + """';
+                        """        
                         
                                 
-            #     response = execute(query, 'post', conn)
-            #     print("Payments Update db response: ", response)
+                response = execute(query, 'post', conn)
+                print("Payments Update db response: ", response)
                 
-            #     if response['code'] != 281:
-            #         return {"message": "Payment Insert Error"}, 500
+                if response['code'] != 281:
+                    return {"message": "Payment Insert Error"}, 500
             
             # else:
             #     continue
 
-            # # UPDATE PURCHASE TABLE
-            #     query = """
-            #             UPDATE M4ME.purchases
-            #             SET purchase_status = "CHANGED"
-            #             where purchase_uid = '""" + pur_uid + """';
-            #             """
-            #     update_response = execute(query, 'post', conn)
-            #     print("Purchases Update db response: ", update_response)
-            #     if update_response['code'] != 281:
-            #         return {"message": "Purchase Insert Error"}, 500
-
-            #     # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
-            #     # GET PURCHASE TABLE DATA    
-            #     query = """ 
-            #             SELECT *
-            #             FROM M4ME.purchases
-            #             WHERE purchase_uid = '""" + pur_uid + """';
-            #             """
-            #     response = execute(query, 'get', conn)
-            #     if response['code'] != 280:
-            #         return {"message": "Purchase Table Lookup Error"}, 500
-            #     print("Get Purchase UID response: ", response)
-
-            #     # INSERT INTO PURCHASE TABLE
-            #     items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
-            #     print(items)
-
-            #     query = """
-            #             INSERT INTO M4ME.purchases
-            #             SET purchase_uid = '""" + new_pur_id + """',
-            #                 purchase_date = '""" + str(getNow()) + """',
-            #                 purchase_id = '""" + new_pur_id + """',
-            #                 purchase_status = 'ACTIVE',
-            #                 pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
-            #                 pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
-            #                 delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
-            #                 delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
-            #                 delivery_email = '""" + response['result'][0]['delivery_email'] + """',
-            #                 delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
-            #                 delivery_address = '""" + response['result'][0]['delivery_address'] + """',
-            #                 delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
-            #                 delivery_city = '""" + response['result'][0]['delivery_city'] + """',
-            #                 delivery_state = '""" + response['result'][0]['delivery_state'] + """',
-            #                 delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
-            #                 delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
-            #                 delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
-            #                 delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
-            #                 items = '""" + items + """';
-            #             """
-            #     response = execute(query, 'post', conn)
-            #     print("New Changed Purchases Added to db response 1: ", response)
-            #     if response['code'] != 281:
-            #         return {"message": "Purchase Insert Error"}, 500
-
-            #     return charge_id
-
+            # PART 2: CHANGE EXISTING SUBSCRIPTION TO RENEWED - NOT SURE WE NEED TO DO THIS
+            # UPDATE PURCHASE TABLE
+                # query = """
+                #         UPDATE M4ME.purchases
+                #         SET purchase_status = "RENEWED"
+                #         where purchase_uid = '""" + pur_uid + """';
+                #         """
+                # update_response = execute(query, 'post', conn)
+                # print("Purchases Update db response: ", update_response)
+                # if update_response['code'] != 281:
+                #     return {"message": "Purchase Insert Error"}, 500
 
     except:
         print('error')
@@ -11354,7 +11307,7 @@ def renew_subscription():
 
 if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='thu', second=10, minute=17, hour=7)
+    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='thu', second=50, minute=53, hour=7)
     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds = 3)
     scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
