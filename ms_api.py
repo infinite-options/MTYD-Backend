@@ -9939,7 +9939,7 @@ class subscription_history(Resource):
             # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
             # STEP 4 FIND MEAL IMAGES
             query = """
-                SELECT -- *
+                SELECT -- *,
                     purchase_uid,
                     purchase_date,
                     purchase_id,
@@ -9977,20 +9977,22 @@ class subscription_history(Resource):
                                 pay_b.row_num AS next_num,
                                 pay_b.pay_purchase_uid AS match_pur_uid,
                                 pay_b.start_delivery_date AS next_subscription_start,
-                                if(pay_a.purchase_uid = pay_b.purchase_uid, pay_b.start_delivery_date, 'ACTIVE') AS end_subscription
+                                if(pay_a.purchase_uid = pay_b.purchase_uid, pay_b.start_delivery_date, next_billing_date) AS end_subscription
                             FROM (
                                 SELECT *,
                                     row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
                                 FROM latest_purchase pur
                                 LEFT JOIN payments pay
-                                ON pur.purchase_uid = pay.pay_purchase_id) AS pay_a
+                                ON pur.purchase_uid = pay.pay_purchase_uid) AS pay_a
                             LEFT JOIN (
                                 SELECT *,
                                     row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
                                 FROM latest_purchase pur
                                 LEFT JOIN payments pay
-                                ON pur.purchase_uid = pay.pay_purchase_id) AS pay_b
-                            ON pay_a.row_num + 1 = pay_b.row_num) AS sub_start_end
+                                ON pur.purchase_uid = pay.pay_purchase_uid) AS pay_b
+                            ON  pay_a.row_num + 1 = pay_b.row_num
+                            LEFT JOIN M4ME.next_billing_date nbd
+                            ON pay_a.purchase_uid = nbd.purchase_uid) AS sub_start_end
                         JOIN (
                             SELECT DISTINCT menu_date
                             FROM M4ME.menu
@@ -10001,7 +10003,7 @@ class subscription_history(Resource):
                             AND menu_date = sel_menu_date
                         WHERE menu_date >= start_delivery_date
                             -- AND md.menu_date < sub_start_end.end_subscription
-                            AND menu_date < (CASE WHEN end_subscription = 'ACTIVE' THEN '2031-12-31' ELSE end_subscription END)
+                            AND menu_date < end_subscription
                             AND pur_customer_uid = '""" + cust_uid + """'
                             AND purchase_status = "ACTIVE") AS ssems        
                         GROUP BY ssems.json_row_num) AS ssemsg,
@@ -10018,6 +10020,7 @@ class subscription_history(Resource):
                 -- WHERE menu_date <= NOW()
                 ORDER BY json_row_num ASC, jt_id ASC;
             """
+
 
             subscription_history = execute(query, 'get', conn)
             print("Next Billing Date: ", subscription_history)
@@ -11307,8 +11310,8 @@ def renew_subscription():
 
 if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='thu', second=50, minute=53, hour=7)
-    # scheduler.add_job(func=renew_subscription, trigger="interval", seconds = 3)
+    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='sat', second=50, minute=36, hour=13)
+    # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=600)
     scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
