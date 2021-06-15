@@ -1953,6 +1953,7 @@ class Checkout(Resource):
                 if response[1] == 201:
                     response[0]['payment_id'] = paymentId
                     response[0]['purchase_id'] = purchaseId
+                    response[0]['start delievery date'] = start_delivery_date
                 else:
                     if "paymentId" in locals() and "purchaseId" in locals():
                         execute("""DELETE FROM payments WHERE payment_uid = '""" + paymentId + """';""", 'post', conn)
@@ -9939,88 +9940,89 @@ class subscription_history(Resource):
             # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
             # STEP 4 FIND MEAL IMAGES
             query = """
-                SELECT -- *,
-                    purchase_uid,
-                    purchase_date,
-                    purchase_id,
-                    payment_uid,
-                    payment_id,
-                    purchase_status,
-                    pur_customer_uid,
-                    pur_business_uid,
-                    items,
-                    ms,
-                    meal_uid,
-                    meal_category,
-                    meal_name,
-                    jt_qty as meal_qty,
-                    -- meal_desc,
-                    meal_photo_URL,
-                    payment_time_stamp,
-                    start_delivery_date,
-                    end_subscription,
-                    charge_id,
-                    -- last_payment,
-                    -- sel_menu_date,
-                    IF (sel_menu_date IS NULL, menu_date, sel_menu_date) AS sel_menu_date,
-                    IF (meal_name IS NULL, IF (ms LIKE '%SKIP%', 'SKIP', 'SURPRISE'), meal_name) AS meal_desc
+            SELECT -- *,
+                purchase_uid,
+                purchase_date,
+                purchase_id,
+                payment_uid,
+                payment_id,
+                purchase_status,
+                pur_customer_uid,
+                pur_business_uid,
+                items,
+                ms,
+                meal_uid,
+                meal_category,
+                meal_name,
+                jt_qty as meal_qty,
+                -- meal_desc,
+                meal_photo_URL,
+                payment_time_stamp,
+                start_delivery_date,
+                last_delivery,
+                next_billing_date,
+                charge_id,
+                -- last_payment,
+                -- sel_menu_date,
+                IF (sel_menu_date IS NULL, menu_date, sel_menu_date) AS sel_menu_date,
+                IF (meal_name IS NULL, IF (ms LIKE '%SKIP%', 'SKIP', 'SURPRISE'), meal_name) AS meal_desc
+            FROM (
+                SELECT *
                 FROM (
-                    SELECT *
+                    # STEP 3 JOIN WITH MEAL SELECTIONS
+                    SELECT *,
+                        IF (sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', combined_selection) AS ms,
+                        	row_number() OVER (ORDER BY purchase_id, menu_date) AS json_row_num
                     FROM (
-                        # STEP 3 JOIN WITH MEAL SELECTIONS
-                        SELECT *,
-                            IF (sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', combined_selection) AS ms,
-                            row_number() OVER (ORDER BY purchase_id, menu_date) AS json_row_num
+                        # STEP 2 JOIN WITH ITSELF TO DETERMINE END SUBSCRIPTION DATE
+                        SELECT pay_a.*,
+                            pay_b.row_num AS next_num,
+                            pay_b.pay_purchase_uid AS match_pur_uid,
+                            pay_b.start_delivery_date AS next_subscription_start,
+                            last_delivery,
+                            if(pay_a.purchase_uid = pay_b.purchase_uid, pay_b.start_delivery_date, next_billing_date) AS next_billing_date
                         FROM (
-                            # STEP 2 JOIN WITH ITSELF TO DETERMINE END SUBSCRIPTION DATE
-                            SELECT pay_a.*,
-                                pay_b.row_num AS next_num,
-                                pay_b.pay_purchase_uid AS match_pur_uid,
-                                pay_b.start_delivery_date AS next_subscription_start,
-                                if(pay_a.purchase_uid = pay_b.purchase_uid, pay_b.start_delivery_date, next_billing_date) AS end_subscription
-                            FROM (
-                                SELECT *,
-                                    row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
-                                FROM latest_purchase pur
-                                LEFT JOIN payments pay
-                                ON pur.purchase_uid = pay.pay_purchase_uid) AS pay_a
-                            LEFT JOIN (
-                                SELECT *,
-                                    row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
-                                FROM latest_purchase pur
-                                LEFT JOIN payments pay
-                                ON pur.purchase_uid = pay.pay_purchase_uid) AS pay_b
-                            ON  pay_a.row_num + 1 = pay_b.row_num
-                            LEFT JOIN M4ME.next_billing_date nbd
-                            ON pay_a.purchase_uid = nbd.purchase_uid) AS sub_start_end
-                        JOIN (
-                            SELECT DISTINCT menu_date
-                            FROM M4ME.menu
-                            -- WHERE menu_date > now()
-                            ORDER BY menu_date ASC) AS md
-                        LEFT JOIN M4ME.latest_combined_meal lcm
-                            ON purchase_id = sel_purchase_id
-                            AND menu_date = sel_menu_date
-                        WHERE menu_date >= start_delivery_date
-                            -- AND md.menu_date < sub_start_end.end_subscription
-                            AND menu_date < end_subscription
-                            AND pur_customer_uid = '""" + cust_uid + """'
-                            AND purchase_status = "ACTIVE") AS ssems        
-                        GROUP BY ssems.json_row_num) AS ssemsg,
-                    JSON_TABLE (ssemsg.ms, '$[*]' 
-                        COLUMNS (
-                                jt_id FOR ORDINALITY,
-                                jt_item_uid VARCHAR(255) PATH '$.item_uid',
-                                jt_name VARCHAR(255) PATH '$.name',
-                                jt_qty INT PATH '$.qty',
-                                jt_price DOUBLE PATH '$.price')
-                            ) AS jt
-                LEFT JOIN M4ME.meals
-                ON jt_item_uid = meal_uid
-                -- WHERE menu_date <= NOW()
-                ORDER BY json_row_num ASC, jt_id ASC;
+                            SELECT *,
+                                row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
+                            FROM latest_purchase pur
+                            LEFT JOIN payments pay
+                            ON pur.purchase_uid = pay.pay_purchase_uid) AS pay_a
+                        LEFT JOIN (
+                            SELECT *,
+                                row_number() OVER (ORDER BY purchase_id, start_delivery_date) AS row_num
+                            FROM latest_purchase pur
+                            LEFT JOIN payments pay
+                            ON pur.purchase_uid = pay.pay_purchase_uid) AS pay_b
+                        ON  pay_a.row_num + 1 = pay_b.row_num
+                        LEFT JOIN M4ME.next_billing_date nbd
+                        ON pay_a.purchase_uid = nbd.purchase_uid) AS sub_start_end
+                    JOIN (
+                        SELECT DISTINCT menu_date
+                        FROM M4ME.menu
+                        -- WHERE menu_date > now()
+                        ORDER BY menu_date ASC) AS md
+                    LEFT JOIN M4ME.latest_combined_meal lcm
+                        ON purchase_id = sel_purchase_id
+                        AND menu_date = sel_menu_date
+                    WHERE menu_date >= start_delivery_date
+                        -- AND md.menu_date < sub_start_end.end_subscription
+                        AND menu_date <= last_delivery
+                        AND pur_customer_uid = '""" + cust_uid + """'
+                        AND purchase_status = "ACTIVE") AS ssems        
+                    GROUP BY ssems.json_row_num) AS ssemsg,
+                JSON_TABLE (ssemsg.ms, '$[*]' 
+                    COLUMNS (
+                            jt_id FOR ORDINALITY,
+                            jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                            jt_name VARCHAR(255) PATH '$.name',
+                            jt_qty INT PATH '$.qty',
+                            jt_price DOUBLE PATH '$.price')
+                        ) AS jt
+            LEFT JOIN M4ME.meals
+            ON jt_item_uid = meal_uid
+            -- WHERE menu_date <= NOW()
+            ORDER BY json_row_num ASC, jt_id ASC;
             """
-
 
             subscription_history = execute(query, 'get', conn)
             print("Next Billing Date: ", subscription_history)
@@ -11310,7 +11312,7 @@ def renew_subscription():
 
 if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='sat', second=50, minute=36, hour=13)
+    scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='sat', second=20, minute=6, hour=21)
     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=600)
     scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
