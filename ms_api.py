@@ -10965,7 +10965,10 @@ class cancel_purchase (Resource):
          # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
         conn = connect()
         data = request.get_json(force=True)
-        print("\nSTEP 1:  In CHANGE PURCHASE\n", data)
+        print("\nSTEP 1:  In CANCEL PURCHASE\n", data)
+        # print("hello")
+        # print(data['purchase_uid'])
+        # print("goodbye")
         
         # WHAT THEY HAD
         pur_uid = data["purchase_uid"]
@@ -11008,6 +11011,8 @@ class cancel_purchase (Resource):
         # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
         print("\nSTEP 3C: Systematically Step Through Transactions")
         n = 0
+        print("Number of Transactions: ", num_transactions)
+        print("Amount to Refund: ",amount_should_refund)
         while num_transactions > 0 and amount_should_refund > 0 :
             print("Number of Transactions: ", num_transactions)
             print("Amount to Refund: ",amount_should_refund)
@@ -11137,16 +11142,6 @@ class update_db (Resource):
 
         return
 
-
-
-class cancel_purchase (Resource):
-    
-    def put(self):
-
-         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
-        conn = connect()
-        data = request.get_json(force=True)
-        print("\nSTEP 1:  In CHANGE PURCHASE\n", data)
 
 # VISHNU
 # CRON JOB
