@@ -6281,7 +6281,34 @@ class UpdatePassword(Resource):
 #         finally:
 #             disconnect(conn)
 
+class All_Menu_Date(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    # CUSTOMER QUERY 4A: UPCOMING MENUS
+                    SELECT DISTINCT menu_date
+                    FROM M4ME.menu
+                    order by menu_date;
+                    """
 
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Menu selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 class Get_Upcoming_Menu_Date(Resource):
     def get(self):
@@ -10305,7 +10332,7 @@ if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 
     # SCHEDULER FOR TESTING (TO SEE IF IT WORKS) - RUNS EVERY 60 SECONDS
     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60)
-    scheduler.add_job(func=charge_addons, trigger="interval", seconds=60)
+    # scheduler.add_job(func=charge_addons, trigger="interval", seconds=60)
 
     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
     # scheduler.add_job(func=renew_subscription, trigger="cron", minute=6)
@@ -11773,6 +11800,8 @@ api.add_resource(UpdatePassword, '/api/v2/UpdatePassword')
 #api.add_resource(AppleLogin, '/api/v2/AppleLogin', '/')
 
 api.add_resource(AppleLogin, '/api/v2/apple_login', '/')
+
+api.add_resource(All_Menu_Date, '/api/v2/all_menu_dates' )
 
 api.add_resource(Get_Upcoming_Menu_Date, '/api/v2/upcoming_menu_dates' )
 
