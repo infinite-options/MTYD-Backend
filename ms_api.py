@@ -10303,13 +10303,17 @@ if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60*60*12)
     # scheduler.add_job(func=renew_subscription, trigger="cron", second=30)
 
-    # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
-    scheduler.add_job(func=renew_subscription, trigger="cron", minute=6)
-    scheduler.add_job(func=charge_addons, trigger="cron", minute=25)
+    # SCHEDULER FOR TESTING (TO SEE IF IT WORKS) - RUNS EVERY 60 SECONDS
+    # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60)
+    scheduler.add_job(func=charge_addons, trigger="interval", seconds=60)
 
     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
-    scheduler.add_job(func=renew_subscription, trigger="cron", hour=17)
-    scheduler.add_job(func=charge_addons, trigger="cron", hour=18)
+    # scheduler.add_job(func=renew_subscription, trigger="cron", minute=6)
+    # scheduler.add_job(func=charge_addons, trigger="cron", minute=25)
+
+    # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
+    # scheduler.add_job(func=renew_subscription, trigger="cron", hour=17)
+    # scheduler.add_job(func=charge_addons, trigger="cron", hour=18)
 
     scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
