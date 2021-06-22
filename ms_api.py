@@ -463,18 +463,19 @@ class order_amount_calculation(Resource):
 
 class stripe_key(Resource):
     
-    def get(self, desc):          
+    def get(self, desc):
+        print("get_stripe_key line 467")       
         if desc == 'M4METEST':
             return {'publicKey': stripe_public_test_key} 
         else:             
             return {'publicKey': stripe_public_live_key} 
 
 
-# I DON'T THINK THIS IS BEING USED.  NEED TO CHECK BEFORE DELETING
+# NEED TO SEE IF THIS CAN BE COMBINED WITH stripe_key ABOVE.  NOTICE SECRET KEY BELOW
 class get_stripe_key(Resource):
     
     def get_key(self, notes):
-        print("get_stripe_key line 469")
+        print("get_stripe_key line 478")
         if notes == "M4METEST":
             print('TEST')
             #return stripe_secret_test_key 
@@ -2086,7 +2087,7 @@ class Refund_Calculator (Resource):
         finally:
             disconnect(conn)
 
-
+    # Prashant Check if this is used
     def refund_calf(self, p_uid):
         try:
             conn = connect()
@@ -3879,7 +3880,8 @@ class customer_infos(Resource):
                                 customer_phone_num, 
                                 customer_email, 
                                 customer_address, 
-                                customer_city, 
+                                customer_city,
+                                customer_state,
                                 customer_zip, 
                                 cust_notification_approval,
                                 SMS_freq_preference,
@@ -10130,6 +10132,7 @@ def charge_addons():
                     json_extract(billable_addons.meal_selection, '$[0].qty') * json_extract(billable_addons.meal_selection, '$[0].price') * 0.0925 AS addon_taxes,
                     json_extract(billable_addons.meal_selection, '$[0].qty') * json_extract(billable_addons.meal_selection, '$[0].price') * 1.0925 AS addon_total,
                     pur_customer_uid,
+                    purchase_status,
                     purchase_uid,
                     delivery_instructions,
                     charge_id
@@ -10157,6 +10160,8 @@ def charge_addons():
             # print("\n", addon['menu_date'])
             # print("\n", addon['selection_uid'])
             # print("\n", addon['sel_purchase_id'])
+            print("\n", addon['purchase_status'])
+            print("\n", addon['pur_customer_uid'])
             # print("\n", addon['purchase_uid'])
             # print("\n", addon['meal_selection'])
             # print("\n", addon['delivery_instructions'])
@@ -10166,8 +10171,11 @@ def charge_addons():
             # print("\n", addon['charge_id'])
             
 
-            # STEP 1: WHAT THEY HAD
-            # STEP 2: CALCULATE THE NEW RENEWAL CHARGE
+            # STEP 1: IS THE PURCHASE PLAN STILL ACTIVE
+            if  addon['purchase_status'] != "ACTIVE":
+                continue
+
+            # STEP 2: <PLACEHOLDER>
 
             # STEP 3: CHARGE STRIPE
             print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
@@ -10187,9 +10195,11 @@ def charge_addons():
             # CHECK IF VALID CHARGE ID WAS RETURNED
             if 'ch_' in str(charge_id):
 
-                # PART 1: INSERT NEW ROW WITH NEW CHARGE AMOUNT AND CHARGE ID BUT EXISTING PURCHASE IDS
+                # PART 1: INSERT NEW ROW WITH NEW CHARGE AMOUNT, CHARGE ID AND PURCHASE ID
                 new_pay_id = get_new_paymentID(conn)
+                new_pur_id = get_new_purchaseID(conn)
                 print(new_pay_id)
+                print(new_pur_id)
                 print(str(getNow()))
             
                 # UPDATE PAYMENT TABLE
@@ -10197,8 +10207,8 @@ def charge_addons():
                         INSERT INTO M4ME.payments
                         SET payment_uid = '""" + new_pay_id + """',
                             payment_id = '""" + new_pay_id + """',
-                            pay_purchase_uid = '""" + addon['purchase_uid'] + """',
-                            pay_purchase_id = '""" + addon['sel_purchase_id']+ """',
+                            pay_purchase_uid = '""" + new_pur_id + """',
+                            pay_purchase_id = '""" + new_pur_id + """',
                             payment_time_stamp =  '""" + str(getNow()) + """',
                             subtotal = '""" + str(addon['addon_subtotal']) + """',
                             amount_discount = '""" + "0.00" + """',
@@ -10223,6 +10233,57 @@ def charge_addons():
                 
                 if response['code'] != 281:
                     return {"message": "Payment Insert Error"}, 500
+
+
+
+                # WRITE NEW PURCHASE INFO TO PURCHASE TABLE - NOT SURE I NEED THIS (See NOTES table below)
+                # THIS CODE DOES NOT WORK- debug needed
+
+                # print("\nWrite New Purchases Table")
+                # print("\n", addon['sel_purchase_id'])
+                # # GET EXISTING PURCHASE TABLE DATA    
+                # query = """ 
+                #         SELECT *
+                #         FROM M4ME.purchases
+                #         WHERE purchase_uid = '""" + addon['sel_purchase_id'] + """';
+                #         """
+                # response = execute(query, 'get', conn)
+                # if response['code'] != 280:
+                #     return {"message": "Purchase Table Lookup Error"}, 500
+                # print("Get Purchase UID response: ", response)
+
+
+                # # INSERT INTO PURCHASE TABLE
+                # print("Insert into Purchases Table")
+                # # items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
+                # # print(items)
+
+                # query = """
+                #         INSERT INTO M4ME.purchases
+                #         SET purchase_uid = '""" + new_pur_id + """',
+                #             purchase_date = '""" + str(getNow()) + """',
+                #             purchase_id = '""" + new_pur_id + """',
+                #             purchase_status = 'ADD-ON',
+                #             pur_customer_uid = '""" + addon['pur_customer_uid'] + """',
+                #             pur_business_uid = 'ADD-ON',
+                #             delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
+                #             delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
+                #             delivery_email = '""" + response['result'][0]['delivery_email'] + """',
+                #             delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
+                #             delivery_address = '""" + response['result'][0]['delivery_address'] + """',
+                #             delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
+                #             delivery_city = '""" + response['result'][0]['delivery_city'] + """',
+                #             delivery_state = '""" + response['result'][0]['delivery_state'] + """',
+                #             delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
+                #             delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
+                #             delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
+                #             delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
+                #             items = 'ADD-ON';
+                #         """
+                # pur_insert_response = execute(query, 'post', conn)
+                # print("New Changed Purchases Added to db response 2: ", pur_insert_response)
+                # if pur_insert_response['code'] != 281:
+                #     return {"message": "Purchase Insert Error"}, 500
             
             else:
                 continue
@@ -10243,8 +10304,8 @@ if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     # scheduler.add_job(func=renew_subscription, trigger="cron", second=30)
 
     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
-    # scheduler.add_job(func=renew_subscription, trigger="cron", minute=53)
-    # scheduler.add_job(func=charge_addons, trigger="cron", minute=54)
+    scheduler.add_job(func=renew_subscription, trigger="cron", minute=6)
+    scheduler.add_job(func=charge_addons, trigger="cron", minute=25)
 
     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
     scheduler.add_job(func=renew_subscription, trigger="cron", hour=17)
@@ -11458,6 +11519,31 @@ class orders_and_meals(Resource):
 
 #NEW BASE URL 
 #https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
+
+#----------------------------------------- PROGRAM NOTES ---------------------------------------------#
+#  SCENARIO                          PURCHASE_UID     PURCHASE_ID      PAYMENT_UID    PAYMENT_ID      #
+#  NEW PURCHASE                           A                A                 Z             Z          #
+#  RENEW SUBSCRIPTION                     B                A                 Y             Y(3)       #
+#  CHANGE MEAL PLAN                                                                                   #
+#     UPDATE EXISTING MEAL PLAN     UPDATE TO CANCELED & REFUNDED                                     #
+#     IF ADDITIONAL CHARGE                C                C(1)              X             Z(2)       #         
+#     IF ADDITIONAL REFUND                D                D(1)              W             Z(2)       #     
+#  CANCEL                                 UPDATE TO CANCELED                 V             Z(2)       #                 
+#  CHARGE ADDON                   DON'T NEED NEW PURCHASE TRANSACTON         U             U(4)       #
+#                                                                                                     #
+#  NOTES:                                                                                             #
+#  1.  Need new PURCHASE_ID so previous meal selections do not carry over                             #
+#  2.  Keep existing PAYMENT_ID to reference previous payment history                                 #
+#  3.  New PAYMENT_ID to start new payment history                                                    #
+#  4.  NEW PAYMENT_ID since it is a separate standalone transaction (Not sure about this)             #
+#----------------------------------------- PROGRAM NOTES ---------------------------------------------#
+
+
+
+
+
+
+
 
 #--------------------- Signup/ Login page / Change Password ---------------------#
 #api.add_resource(SignUp, '/api/v2/signup')
