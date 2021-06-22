@@ -5726,7 +5726,7 @@ class all_businesses(Resource):
             conn = connect()
 
             query = """
-                    SELECT business_uid, business_name FROM M4ME.businesses; 
+                    SELECT * FROM M4ME.businesses; 
                     """
             items = execute(query, 'get', conn)
             if items['code'] == 280:
