@@ -4823,7 +4823,7 @@ class update_guid_notification(Resource):
 
 
 
-class getItems(Resource): #NED TO FIX
+class getItems(Resource): #NEED TO FIX
     def post(self):
         response = {}
         items = {}
@@ -4966,8 +4966,6 @@ class Refund(Resource): #add column called ref_payment_id
         finally:
             disconnect(conn)
             print('process completed')
-
-
 
 
 
@@ -5740,6 +5738,30 @@ class all_businesses(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+
+    def post(self):
+        try:
+            conn = connect()
+
+            query = """
+                    SELECT * FROM M4ME.businesses; 
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] == 280:
+                items['message'] = 'Business data returned successfully'
+                items['code'] = 200
+            else:
+                items['message'] = 'Check sql query'
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+            
 
 
 class addItems(Resource):
@@ -8810,6 +8832,16 @@ class subscription_history(Resource):
                 purchase_status,
                 pur_customer_uid,
                 pur_business_uid,
+                subtotal, 
+                amount_discount, 
+                service_fee, 
+                delivery_fee, 
+                driver_tip, taxes, 
+                ambassador_code, 
+                amount_due, 
+                amount_paid, 
+                info_is_Addon, 
+                cc_num, 
                 items,
                 ms,
                 meal_uid,
@@ -10321,29 +10353,29 @@ def charge_addons():
     finally:
         print('done')
 
-if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-    scheduler = BackgroundScheduler()
-    # Flask Related question: https://stackoverflow.com/questions/66698860/unable-to-schedule-a-python-job-in-intervals-with-specific-start-time-apschedu/68059278#68059278
-    # SCHEDULER SAMPLES
-    # scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='sun', second=40, minute=44, hour=11)
-    # Schedule Runs every 12 hrs
-    # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60*60*12)
-    # scheduler.add_job(func=renew_subscription, trigger="cron", second=30)
+# if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+#     scheduler = BackgroundScheduler()
+#     # Flask Related question: https://stackoverflow.com/questions/66698860/unable-to-schedule-a-python-job-in-intervals-with-specific-start-time-apschedu/68059278#68059278
+#     # SCHEDULER SAMPLES
+#     # scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='sun', second=40, minute=44, hour=11)
+#     # Schedule Runs every 12 hrs
+#     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60*60*12)
+#     # scheduler.add_job(func=renew_subscription, trigger="cron", second=30)
 
-    # SCHEDULER FOR TESTING (TO SEE IF IT WORKS) - RUNS EVERY 60 SECONDS
-    # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60)
-    # scheduler.add_job(func=charge_addons, trigger="interval", seconds=60)
+#     # SCHEDULER FOR TESTING (TO SEE IF IT WORKS) - RUNS EVERY 60 SECONDS
+#     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60)
+#     # scheduler.add_job(func=charge_addons, trigger="interval", seconds=60)
 
-    # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
-    # scheduler.add_job(func=renew_subscription, trigger="cron", minute=6)
-    # scheduler.add_job(func=charge_addons, trigger="cron", minute=25)
+#     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
+#     # scheduler.add_job(func=renew_subscription, trigger="cron", minute=6)
+#     # scheduler.add_job(func=charge_addons, trigger="cron", minute=25)
 
-    # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
-    # scheduler.add_job(func=renew_subscription, trigger="cron", hour=17)
-    # scheduler.add_job(func=charge_addons, trigger="cron", hour=18)
+#     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
+#     # scheduler.add_job(func=renew_subscription, trigger="cron", hour=17)
+#     # scheduler.add_job(func=charge_addons, trigger="cron", hour=18)
 
-    scheduler.start()
-atexit.register(lambda: scheduler.shutdown())
+#     scheduler.start()
+# atexit.register(lambda: scheduler.shutdown())
 
 
 
