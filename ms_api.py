@@ -10353,6 +10353,129 @@ def charge_addons():
     finally:
         print('done')
 
+
+class meals_ordered_by_date(Resource):
+    def get(self, id):
+        try:
+            conn = connect()
+            query = """
+                    # PM ADMIN QUERY 1A
+                    # WHAT WAS ORDERED BY DATE WITH OPENED JSON OBJECT COMBINED WITH MEAL & RESTAURANT INFO
+                    # MEALS ORDERED BY DATE BY RESTAURANT
+                    SELECT meals_ordered.*,
+                        m.*,
+                        -- b.*
+                        b.platform_fee, b.transaction_fee, b.revenue_sharing, b.profit_sharing, b.business_status,
+                        total_qty * meal_price AS total_revenue,
+                        total_qty * meal_cost AS total_cost,
+                        total_qty * transaction_fee AS M4ME_cost,
+                        total_qty * (meal_price - meal_cost - transaction_fee) AS net_revenue,
+                        total_qty * (meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_profit_sharing,
+                        total_qty * (meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_profit_sharing,
+                        total_qty * meal_cost + total_qty * (meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_business_rev,
+                        total_qty * transaction_fee + total_qty * (meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_rev
+                    FROM (
+                        SELECT -- *,
+                            sel_menu_date,
+                            jt_item_uid,
+                            jt_name,
+                            jt_price,
+                            sum(jt_qty) AS total_qty
+                        FROM (
+                            SELECT *
+                            FROM M4ME.latest_combined_meal AS lcm,
+                            JSON_TABLE (lcm.combined_selection, '$[*]' 
+                                COLUMNS (
+                                        jt_id FOR ORDINALITY,
+                                        jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                        jt_name VARCHAR(255) PATH '$.name',
+                                        jt_qty INT PATH '$.qty',
+                                        jt_price DOUBLE PATH '$.price')
+                                    ) AS jt
+                            WHERE sel_menu_date LIKE CONCAT('""" + id + """',"%"))
+                            AS meals
+                        GROUP BY sel_menu_date, jt_name)
+                        AS meals_ordered
+                    LEFT JOIN M4ME.meals m
+                        ON meals_ordered.jt_item_uid = m.meal_uid
+                    LEFT JOIN M4ME.businesses b
+                        ON m.meal_business = b.business_uid;
+                    """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Meals Ordered by Date Request failed')
+        finally:
+            disconnect(conn)
+
+
+class revenue_by_date(Resource):
+    def get(self, id):
+        try:
+            conn = connect()
+            query = """
+                    # PM ADMIN QUERY 1B - USES 1A
+                    # TOTAL REVENUE FOR SPECIFIC DATE
+                    # REVENUE BY DATE BY RESTAURANT
+                    SELECT
+                        meal_business,
+                        sum(total_qty) AS total_qty,
+                        sum(total_revenue) AS total_revenue,
+                        sum(total_cost) AS total_cost,
+                        sum(M4ME_cost) AS M4ME_cost,
+                        sum(net_revenue) AS net_revenue,
+                        sum(total_profit_sharing) AS total_profit_sharing,
+                        sum(total_M4ME_profit_sharing) AS total_M4ME_profit_sharing,
+                        sum(total_business_rev) AS total_business_rev,
+                        sum(total_M4ME_rev) AS total_M4ME_rev
+                    FROM (
+                        SELECT meals_ordered.*,
+                            m.*,
+                            -- b.*
+                            b.platform_fee, b.transaction_fee, b.revenue_sharing, b.profit_sharing, b.business_status,
+                            total_qty * meal_price AS total_revenue,
+                            total_qty * meal_cost AS total_cost,
+                            total_qty * transaction_fee AS M4ME_cost,
+                            total_qty * (meal_price - meal_cost - transaction_fee) AS net_revenue,
+                            total_qty * (meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_profit_sharing,
+                            total_qty * (meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_profit_sharing,
+                            total_qty * meal_cost + total_qty * (meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_business_rev,
+                            total_qty * transaction_fee + total_qty * (meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_rev
+                        FROM (
+                            SELECT -- *,
+                                sel_menu_date,
+                                jt_item_uid,
+                                jt_name,
+                                jt_price,
+                                sum(jt_qty) AS total_qty
+                            FROM (
+                                SELECT *
+                                FROM M4ME.latest_combined_meal AS lcm,
+                                JSON_TABLE (lcm.combined_selection, '$[*]' 
+                                    COLUMNS (
+                                            jt_id FOR ORDINALITY,
+                                            jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                            jt_name VARCHAR(255) PATH '$.name',
+                                            jt_qty INT PATH '$.qty',
+                                            jt_price DOUBLE PATH '$.price')
+                                        ) AS jt
+                                WHERE sel_menu_date LIKE CONCAT('""" + id + """',"%"))
+                                AS meals
+                            GROUP BY sel_menu_date, jt_name)
+                            AS meals_ordered
+                        LEFT JOIN M4ME.meals m
+                            ON meals_ordered.jt_item_uid = m.meal_uid
+                        LEFT JOIN M4ME.businesses b
+                            ON m.meal_business = b.business_uid)
+                    AS rev
+                    GROUP BY meal_business;
+                    """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Meals Ordered by Date Request failed')
+        finally:
+            disconnect(conn)
+
+# ONLY FOR TESTING CRON JOBS - WILL NOT WORK WHEN DEPLOYED ON ZAPPA            
 # if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 #     scheduler = BackgroundScheduler()
 #     # Flask Related question: https://stackoverflow.com/questions/66698860/unable-to-schedule-a-python-job-in-intervals-with-specific-start-time-apschedu/68059278#68059278
@@ -11965,6 +12088,12 @@ api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
 api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
 
 api.add_resource(subscription_history, '/api/v2/subscription_history/<string:cust_uid>')
+
+api.add_resource(meals_ordered_by_date, '/api/v2/meals_ordered_by_date/<string:id>')
+
+api.add_resource(revenue_by_date, '/api/v2/revenue_by_date/<string:id>')
+
+
 
 # api.add_resource(charge_addons, '/api/v2/charge_addons')
 
