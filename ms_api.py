@@ -2700,7 +2700,7 @@ class Ingredients (Resource):
             query = """
                     #  ADMIN QUERY 4: 
                     #  MEALS & MENUS  5. CREATE NEW INGREDIENT:
-                    SELECT DISTINCT ingredient_uid, ingredient_desc FROM M4ME.ingredients
+                    SELECT DISTINCT * FROM M4ME.ingredients
                     LEFT JOIN M4ME.inventory
                         ON ingredient_uid = inventory_ingredient_id
                     LEFT JOIN M4ME.conversion_units
