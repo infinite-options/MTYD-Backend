@@ -10475,6 +10475,65 @@ class revenue_by_date(Resource):
         finally:
             disconnect(conn)
 
+class ingredients_needed_by_date(Resource):
+    def get(self, id):
+        try:
+            conn = connect()
+            query = """
+                    # PM ADMIN QUERY 2 - USES 1A
+                    # INGREDIENTS FOR WHAT WAS ORDERED BY DATE WITH OPENED JSON OBJECT COMBINED WITH MEAL & RESTAURANT INFO
+                    # INGREDIENTS FOR MEALS ORDERED BY DATE BY RESTAURANT
+                    SELECT
+                        ing.*,
+                        meal_business,
+                        sum(ingredient_qty) AS total_ingredient_qty
+                    FROM (
+                        SELECT meals_ordered.*,
+                            m.*,
+                            -- b.*
+                            b.platform_fee, b.transaction_fee, b.revenue_sharing, b.profit_sharing, b.business_status,
+                            r.*,
+                            i.*,
+                            total_qty * recipe_ingredient_qty AS ingredient_qty
+                        FROM (
+                            SELECT -- *,
+                                sel_menu_date,
+                                jt_item_uid,
+                                jt_name,
+                                jt_price,
+                                sum(jt_qty) AS total_qty
+                            FROM (
+                                SELECT *
+                                FROM M4ME.latest_combined_meal AS lcm,
+                                JSON_TABLE (lcm.combined_selection, '$[*]' 
+                                    COLUMNS (
+                                            jt_id FOR ORDINALITY,
+                                            jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                            jt_name VARCHAR(255) PATH '$.name',
+                                            jt_qty INT PATH '$.qty',
+                                            jt_price DOUBLE PATH '$.price')
+                                        ) AS jt
+                                WHERE sel_menu_date LIKE CONCAT('""" + id + """',"%"))
+                                AS meals
+                            GROUP BY sel_menu_date, jt_name)
+                            AS meals_ordered
+                        LEFT JOIN M4ME.meals m
+                            ON meals_ordered.jt_item_uid = m.meal_uid
+                        LEFT JOIN M4ME.businesses b
+                            ON m.meal_business = b.business_uid
+                        LEFT JOIN M4ME.recipes r
+                            ON jt_item_uid = r.recipe_meal_id
+                        LEFT JOIN M4ME.ingredients i
+                            ON r.recipe_ingredient_id = i.ingredient_uid)
+                        AS ing
+                    GROUP BY ingredient_uid;
+                    """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Meals Ordered by Date Request failed')
+        finally:
+            disconnect(conn)
+
 # ONLY FOR TESTING CRON JOBS - WILL NOT WORK WHEN DEPLOYED ON ZAPPA            
 # if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 #     scheduler = BackgroundScheduler()
@@ -12092,6 +12151,8 @@ api.add_resource(subscription_history, '/api/v2/subscription_history/<string:cus
 api.add_resource(meals_ordered_by_date, '/api/v2/meals_ordered_by_date/<string:id>')
 
 api.add_resource(revenue_by_date, '/api/v2/revenue_by_date/<string:id>')
+
+api.add_resource(ingredients_needed_by_date, '/api/v2/ingredients_needed_by_date/<string:id>')
 
 
 
