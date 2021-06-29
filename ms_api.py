@@ -8904,7 +8904,8 @@ class subscription_history(Resource):
                         -- AND md.menu_date < sub_start_end.end_subscription
                         AND menu_date <= last_delivery
                         AND pur_customer_uid = '""" + cust_uid + """'
-                        AND purchase_status = "ACTIVE") AS ssems        
+                        -- AND purchase_status = "ACTIVE" -- removing "ACTIVE" Requirement to see if it helps with showing past payments
+                        ) AS ssems        
                     GROUP BY ssems.json_row_num) AS ssemsg,
                 JSON_TABLE (ssemsg.ms, '$[*]' 
                     COLUMNS (
