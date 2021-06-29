@@ -2498,11 +2498,13 @@ class create_update_meals(Resource):
     def post(self):
         lists={}
         items = {}
+        print("\nInside create_update_meals")
         try:
             conn = connect()
             # data = request.get_json(force=True)
 
             meal_category = request.form.get('meal_category')
+            meal_business = request.form.get('meal_business')
             meal_name = request.form.get('meal_name') if request.form.get('meal_name') is not None else 'NULL'
             meal_desc = request.form.get('meal_desc') if request.form.get('meal_desc') is not None else 'NULL'
             meal_hint = request.form.get('meal_hint') if request.form.get('meal_hint') is not None else 'NULL'
@@ -2538,6 +2540,7 @@ class create_update_meals(Resource):
                     INSERT INTO meals
                     SET meal_uid = '""" + meal_uid + """',
                         meal_category = '""" + meal_category + """',
+                        meal_business = '""" + meal_business + """',
                         meal_name = '""" + meal_name + """',
                         meal_desc = '""" + meal_desc + """',
                         meal_hint = '""" + meal_hint + """',
