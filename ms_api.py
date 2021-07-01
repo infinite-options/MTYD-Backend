@@ -10369,7 +10369,7 @@ class meals_ordered_by_date(Resource):
                     SELECT meals_ordered.*,
                         m.*,
                         -- b.*
-                        b.platform_fee, b.transaction_fee, b.revenue_sharing, b.profit_sharing, b.business_status,
+                        b.business_name, b.platform_fee, b.transaction_fee, b.revenue_sharing, b.profit_sharing, b.business_status,
                         total_qty * meal_price AS total_revenue,
                         total_qty * meal_cost AS total_cost,
                         total_qty * transaction_fee AS M4ME_cost,
