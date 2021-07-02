@@ -10538,6 +10538,26 @@ class ingredients_needed_by_date(Resource):
         finally:
             disconnect(conn)
 
+
+class alert_message(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT * FROM M4ME.alert_messages;
+                    """
+            items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+            
+            return items
+        
+        except:
+            raise BadRequest('Alert Message Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 # ONLY FOR TESTING CRON JOBS - WILL NOT WORK WHEN DEPLOYED ON ZAPPA            
 # if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 #     scheduler = BackgroundScheduler()
@@ -12158,7 +12178,7 @@ api.add_resource(revenue_by_date, '/api/v2/revenue_by_date/<string:id>')
 
 api.add_resource(ingredients_needed_by_date, '/api/v2/ingredients_needed_by_date/<string:id>')
 
-
+api.add_resource(alert_message, '/api/v2/alert_message')
 
 # api.add_resource(charge_addons, '/api/v2/charge_addons')
 
