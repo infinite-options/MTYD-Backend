@@ -2401,6 +2401,7 @@ class Meals (Resource):
             if meal_uid[1] != 200:
                 return meal_uid
             meal_uid = meal_uid[0]['result']
+            meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE'
             print("5")
             query = """
                     INSERT INTO meals
@@ -2416,7 +2417,8 @@ class Meals (Resource):
                         meal_fiber = '""" + meal_fiber + """',
                         meal_sugar = '""" + meal_sugar + """',
                         meal_fat = '""" + meal_fat + """',
-                        meal_sat = '""" + meal_sat + """';
+                        meal_sat = '""" + meal_sat + """',
+                        meal_status = '""" + meal_status + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
             #item_photo_url = helper_upload_meal_img(item_photo, key)
@@ -2446,6 +2448,7 @@ class Meals (Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
+            meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE'
 
             query = """
                     UPDATE meals
@@ -2460,7 +2463,8 @@ class Meals (Resource):
                         meal_fiber = '""" + meal_fiber + """',
                         meal_sugar = '""" + meal_sugar + """',
                         meal_fat = '""" + meal_fat + """',
-                        meal_sat = '""" + meal_sat + """'
+                        meal_sat = '""" + meal_sat + """',
+                        meal_status = '""" + meal_status + """'
                     WHERE meal_uid = '""" + meal_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
@@ -2519,6 +2523,7 @@ class create_update_meals(Resource):
             meal_sugar = request.form.get('meal_sugar') if request.form.get('meal_sugar') is not None else 'NULL'
             meal_fat = request.form.get('meal_fat') if request.form.get('meal_fat') is not None else 'NULL'
             meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
+            meal_status = request.form.get('meal_status') if request.form.get('meal_sat') is not None else 'ACTIVE'
             #meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
             meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
@@ -2551,7 +2556,8 @@ class create_update_meals(Resource):
                         meal_fiber = '""" + meal_fiber + """',
                         meal_sugar = '""" + meal_sugar + """',
                         meal_fat = '""" + meal_fat + """',
-                        meal_sat = '""" + meal_sat + """';
+                        meal_sat = '""" + meal_sat + """',
+                        meal_status = '""" + meal_status + """';
                     """
             print("2.5")
             response = simple_post_execute([query], [__class__.__name__], conn)
@@ -2594,6 +2600,7 @@ class create_update_meals(Resource):
             meal_sugar = request.form.get('meal_sugar') if request.form.get('meal_sugar') is not None else 'NULL'
             meal_fat = request.form.get('meal_fat') if request.form.get('meal_fat') is not None else 'NULL'
             meal_sat = request.form.get('meal_sat') if request.form.get('meal_sat') is not None else 'NULL'
+            meal_status = request.form.get('meal_status') if request.form.get('meal_sat') is not None else 'ACTIVE'
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
             meal_uid = request.form.get('meal_uid') 
             #meal_uid = "840-010046"
@@ -2621,7 +2628,8 @@ class create_update_meals(Resource):
                         meal_fiber = '""" + meal_fiber + """',
                         meal_sugar = '""" + meal_sugar + """',
                         meal_fat = '""" + meal_fat + """',
-                        meal_sat = '""" + meal_sat + """'
+                        meal_sat = '""" + meal_sat + """',
+                        meal_status = '""" + meal_status + """'
                     where meal_uid = '""" + meal_uid + """';
                     """
             print("2.5")
@@ -5005,7 +5013,7 @@ class business_details_update(Resource):
                     business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
                     business_delivery_hours = str(data['business_delivery_hours'])
                     business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
-
+                    print("0")
                     query = """
                                UPDATE M4ME.businesses
                                SET 
@@ -5042,8 +5050,10 @@ class business_details_update(Resource):
                                business_password = \'""" + data["business_password"] + """\'
                                WHERE business_uid = \'""" + data["business_uid"] + """\' ;
                              """
+                    print("1")
                     print(query)
                     item = execute(query, 'post', conn)
+                    print("2")
                     print(item)
                     if item['code'] == 281:
                         item['code'] = 200
