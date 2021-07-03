@@ -10373,53 +10373,75 @@ class meals_ordered_by_date(Resource):
         try:
             conn = connect()
             query = """
-                    # PM ADMIN QUERY 1A - WORKS
-                    # WHAT WAS ORDERED BY DATE WITH OPENED JSON OBJECT COMBINED WITH MEAL & RESTAURANT INFO
-                    # MEALS ORDERED BY DATE BY RESTAURANT
-                    SELECT meals_ordered.*,
-                        m.*,
-                        -- b.*,
-                        -- menu.*,
-                        b.business_name, platform_fee, b.transaction_fee, b.revenue_sharing, b.profit_sharing, b.business_status,
-                        menu.menu_category, menu.menu_type, menu.default_meal,
-                        total_qty * m.meal_price AS total_revenue,
-                        total_qty * meal_cost AS total_cost,
-                        total_qty * transaction_fee AS M4ME_cost,
-                        total_qty * (m.meal_price - meal_cost - transaction_fee) AS net_revenue,
-                        total_qty * (m.meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_profit_sharing,
-                        total_qty * (m.meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_profit_sharing,
-                        total_qty * meal_cost + total_qty * (m.meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_business_rev,
-                        total_qty * transaction_fee + total_qty * (m.meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_rev
-                    FROM (
-                        SELECT -- *,
-                            sel_menu_date,
-                            jt_item_uid,
-                            jt_name,
-                            jt_price,
-                            sum(jt_qty) AS total_qty
-                        FROM (
-                            SELECT *
-                            FROM M4ME.latest_combined_meal AS lcm,
-                            JSON_TABLE (lcm.combined_selection, '$[*]' 
-                                COLUMNS (
-                                        jt_id FOR ORDINALITY,
-                                        jt_item_uid VARCHAR(255) PATH '$.item_uid',
-                                        jt_name VARCHAR(255) PATH '$.name',
-                                        jt_qty INT PATH '$.qty',
-                                        jt_price DOUBLE PATH '$.price')
-                                    ) AS jt
-                            WHERE sel_menu_date LIKE CONCAT('""" + id + """',"%"))
-                            AS meals
-                        GROUP BY sel_menu_date, jt_name)
-                        AS meals_ordered
-                    LEFT JOIN M4ME.meals m
-                        ON meals_ordered.jt_item_uid = m.meal_uid
-                    LEFT JOIN M4ME.businesses b
-                        ON m.meal_business = b.business_uid
-                    LEFT JOIN M4ME.menu
-                        ON m.meal_uid = menu.menu_meal_id
-                        AND sel_menu_date = menu_date
-                    GROUP BY meal_uid;
+                    SELECT -- *,
+                        menu_uid, menu_date, menu_category, menu_type, meal_cat, default_meal,
+                        meal_category, meal_uid, meal_name, meal_cost, meal_price, meal_price_addon, meal_status,
+                        business_uid, business_name, business_image,    
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty) AS total_qty,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * meal_price) AS total_revenue,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * meal_cost) AS total_cost,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * transaction_fee) AS M4ME_cost,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * (meal_price - meal_cost - transaction_fee)) AS net_revenue,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * (meal_price - meal_cost - transaction_fee)) * (1 - profit_sharing) AS total_profit_sharing,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * (meal_price - meal_cost - transaction_fee)) * profit_sharing AS total_M4ME_profit_sharing,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * meal_cost + sum_jt_qty * (meal_price - meal_cost - transaction_fee) * (1 - profit_sharing)) AS total_business_rev,
+                        IF (sum_jt_qty IS NULL, 0, sum_jt_qty * transaction_fee + sum_jt_qty * (meal_price - meal_cost - transaction_fee) * profit_sharing) AS total_M4ME_rev
+                    FROM(
+                        -- CALCULATE MEALS ORDERED
+                        -- START WITH MENU
+                        SELECT *
+                            -- IF (ordered_qty IS NULL, 0, ordered_qty) AS total_qty
+                        FROM M4ME.menu
+                        -- JOIN MEAL INFO
+                        LEFT JOIN M4ME.meals m
+                            ON menu_meal_id = meal_uid
+                        -- JOIN BUSINESS INFO
+                        LEFT JOIN M4ME.businesses b
+                            ON meal_business = b.business_uid
+                        -- LEFT JOIN MEALS ORDERED
+                        LEFT JOIN
+                            (-- STEP 2: CALCULATE TOTAL MEALS ORDERED INCLUDING SURPRISES
+                                SELECT -- *,
+                                    jt_item_uid, jt_name, jt_qty, jt_price,
+                                    sum(jt_qty) AS sum_jt_qty
+                                FROM (
+                                    -- STEP 1:  INCLUDE ALL SURPRISES
+                                    SELECT *,
+                                        json_unquote(json_extract(items, '$[0].qty')) AS num_deliveries,
+                                        LEFT(json_unquote(json_extract(items, '$[0].name')),1) as num_meals,
+                                        IF (sel_purchase_id IS NULL, CONCAT('[{"qty": "', LEFT(json_unquote(json_extract(items, '$[0].name')),1), '", "name": "SURPRISE", "price": "", "item_uid": ""}]'), combined_selection) AS meals_selected
+                                    FROM (
+                                        -- ACTIVE PLANS AND THEIR MEAL SELECTIONS
+                                        SELECT * FROM M4ME.lplp
+                                        JOIN (
+                                            SELECT DISTINCT menu_date
+                                            FROM menu
+                                            ORDER BY menu_date ASC) AS md
+                                        LEFT JOIN M4ME.latest_combined_meal
+                                        ON lplp.purchase_id = sel_purchase_id AND
+                                                md.menu_date = sel_menu_date
+                                        WHERE menu_date LIKE CONCAT("2021-07-05","%")
+                                                AND purchase_status = "ACTIVE"
+                                                -- AND pur_customer_uid = "100-000001" 
+                                    ) AS lplpmdlcm
+                                    GROUP BY purchase_id  -- NEED TO GROUP BY TO ALLOW JSON FUNCTIONS TO WORK
+                                    ORDER BY purchase_id ASC
+                                ) AS lms,
+                                JSON_TABLE (lms.meals_selected, '$[*]' 
+                                -- JSON_TABLE (lcm.combined_selection, '$[*]' 
+                                    COLUMNS (
+                                            jt_id FOR ORDINALITY,
+                                            jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                            jt_name VARCHAR(255) PATH '$.name',
+                                            jt_qty INT PATH '$.qty',
+                                            jt_price DOUBLE PATH '$.price')
+                                        ) AS jt
+                                GROUP BY jt_name
+                            ) AS meals_ordered
+                            ON menu_meal_id = jt_item_uid
+                        WHERE menu.menu_date = "2021-07-05"
+                        GROUP BY menu_meal_id
+                        ) AS mo;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
         except:
@@ -10434,69 +10456,74 @@ class revenue_by_date(Resource):
             conn = connect()
             query = """
                     # PM ADMIN QUERY 1B - USES 1A
-						# TOTAL REVENUE FOR SPECIFIC DATE
-						# REVENUE BY DATE BY RESTAURANT
-						SELECT
-							meal_business,
-							sum(total_qty) AS total_qty,
-							sum(total_revenue) AS total_revenue,
-							sum(total_cost) AS total_cost,
-							sum(M4ME_cost) AS M4ME_cost,
-							sum(net_revenue) AS net_revenue,
-							sum(total_profit_sharing) AS total_profit_sharing,
-							sum(total_M4ME_profit_sharing) AS total_M4ME_profit_sharing,
-							sum(total_business_rev) AS total_business_rev,
-							sum(total_M4ME_rev) AS total_M4ME_rev
-						FROM (
-							# PM ADMIN QUERY 1A - WORKS
-							# WHAT WAS ORDERED BY DATE WITH OPENED JSON OBJECT COMBINED WITH MEAL & RESTAURANT INFO
-							# MEALS ORDERED BY DATE BY RESTAURANT
-							SELECT meals_ordered.*,
-								m.*,
-								-- b.*,
-								-- menu.*,
-								b.business_name, platform_fee, b.transaction_fee, b.revenue_sharing, b.profit_sharing, b.business_status,
-                                menu.menu_category, menu.menu_type, menu.default_meal,
-								total_qty * m.meal_price AS total_revenue,
-								total_qty * meal_cost AS total_cost,
-								total_qty * transaction_fee AS M4ME_cost,
-								total_qty * (m.meal_price - meal_cost - transaction_fee) AS net_revenue,
-								total_qty * (m.meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_profit_sharing,
-								total_qty * (m.meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_profit_sharing,
-								total_qty * meal_cost + total_qty * (m.meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_business_rev,
-								total_qty * transaction_fee + total_qty * (m.meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_rev
-							FROM (
-								SELECT -- *,
-									sel_menu_date,
-									jt_item_uid,
-									jt_name,
-									jt_price,
-									sum(jt_qty) AS total_qty
-								FROM (
-									SELECT *
-									FROM M4ME.latest_combined_meal AS lcm,
-									JSON_TABLE (lcm.combined_selection, '$[*]' 
-										COLUMNS (
-												jt_id FOR ORDINALITY,
-												jt_item_uid VARCHAR(255) PATH '$.item_uid',
-												jt_name VARCHAR(255) PATH '$.name',
-												jt_qty INT PATH '$.qty',
-												jt_price DOUBLE PATH '$.price')
-											) AS jt
-									WHERE sel_menu_date LIKE CONCAT('""" + id + """',"%"))
-									AS meals
-								GROUP BY sel_menu_date, jt_name)
-								AS meals_ordered
-							LEFT JOIN M4ME.meals m
-								ON meals_ordered.jt_item_uid = m.meal_uid
-							LEFT JOIN M4ME.businesses b
-								ON m.meal_business = b.business_uid
-							LEFT JOIN M4ME.menu
-								ON m.meal_uid = menu.menu_meal_id
-								AND sel_menu_date = menu_date
-							GROUP BY meal_uid)
-						AS rev
-						GROUP BY meal_business;
+                    # TOTAL REVENUE FOR SPECIFIC DATE
+                    # REVENUE BY DATE BY RESTAURANT
+                    SELECT
+                        business_name,
+                        sum(total_qty) AS total_qty,
+                        sum(total_revenue) AS total_revenue,
+                        sum(total_cost) AS total_cost,
+                        sum(M4ME_cost) AS M4ME_cost,
+                        sum(net_revenue) AS net_revenue,
+                        sum(total_profit_sharing) AS total_profit_sharing,
+                        sum(total_M4ME_profit_sharing) AS total_M4ME_profit_sharing,
+                        sum(total_business_rev) AS total_business_rev,
+                        sum(total_M4ME_rev) AS total_M4ME_rev
+                    FROM (
+                        # PM ADMIN QUERY 1A - WORKS
+                        # MENU ITEMS FOR A SPECIFIC DATE WITH NUM OF MEALS ORDERED
+
+                        SELECT -- *,
+                            menu_uid, menu_date, menu_category, menu_type, meal_cat, default_meal,
+                            meal_category, meal_uid, meal_name, meal_cost, meal_price, meal_price_addon, meal_status,
+                            business_uid, business_name, business_image, 
+                            IF (total_qty IS NULL, 0, total_qty) AS total_qty,
+                            IF (total_qty IS NULL, 0, total_qty) * meal_price AS total_revenue,
+                            IF (total_qty IS NULL, 0, total_qty) * meal_cost AS total_cost,
+                            IF (total_qty IS NULL, 0, total_qty) * transaction_fee AS M4ME_cost,
+                            IF (total_qty IS NULL, 0, total_qty) * (meal_price - meal_cost - transaction_fee) AS net_revenue,
+                            IF (total_qty IS NULL, 0, total_qty) * (meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_profit_sharing,
+                            IF (total_qty IS NULL, 0, total_qty) * (meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_profit_sharing,
+                            IF (total_qty IS NULL, 0, total_qty) * meal_cost + total_qty * (meal_price - meal_cost - transaction_fee) * (1 - profit_sharing) AS total_business_rev,
+                            IF (total_qty IS NULL, 0, total_qty) * transaction_fee + total_qty * (meal_price - meal_cost - transaction_fee) * profit_sharing AS total_M4ME_rev
+                        FROM (
+                            -- START WITH MENU
+                            SELECT *
+                            FROM M4ME.menu menu
+                            -- IDENTIFY MEALS
+                            LEFT JOIN M4ME.meals m
+                                ON menu_meal_id = meal_uid
+                            -- INSERT BUSINESS INFO
+                            LEFT JOIN M4ME.businesses b
+                            ON m.meal_business = b.business_uid
+                            WHERE menu_date = "2021-07-02"
+                            GROUP BY meal_uid)
+                                AS mm
+                        LEFT JOIN (
+                            SELECT -- *,
+                                sel_menu_date,
+                                jt_item_uid,
+                                jt_name,
+                                jt_price,
+                                sum(jt_qty) AS total_qty
+                            FROM (
+                                SELECT *
+                                FROM M4ME.latest_combined_meal AS lcm,
+                                JSON_TABLE (lcm.combined_selection, '$[*]' 
+                                    COLUMNS (
+                                            jt_id FOR ORDINALITY,
+                                            jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                            jt_name VARCHAR(255) PATH '$.name',
+                                            jt_qty INT PATH '$.qty',
+                                            jt_price DOUBLE PATH '$.price')
+                                        ) AS jt
+                                WHERE sel_menu_date LIKE CONCAT("2021-07-02","%"))
+                                AS meals
+                            GROUP BY sel_menu_date, jt_name)
+                            AS meals_ordered
+                        ON menu_meal_id = jt_item_uid)
+                    AS rev
+                    GROUP BY business_uid;
                     """
             return simple_get_execute(query, __class__.__name__, conn)
         except:
