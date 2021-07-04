@@ -5042,7 +5042,7 @@ class business_details_update(Resource):
                                business_license = \'""" + data["business_license"] + """\',
                                business_USDOT = \'""" + data["business_USDOT"] + """\',
                                bus_notification_approval = \'""" + data["bus_notification_approval"] + """\',
-                               bus_notification_device_id = \'""" + data["bus_notification_device_id"] + """\',
+                               -- bus_notification_device_id = \'""" + data["bus_notification_device_id"] + """\',
                                can_cancel = \'""" + data["can_cancel"] + """\',
                                delivery = \'""" + data["delivery"] + """\',
                                reusable = \'""" + data["reusable"] + """\',
