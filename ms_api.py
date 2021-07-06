@@ -268,6 +268,7 @@ def simple_post_execute(queries, names, conn):
         return "Error. Queries and Names should have the same length."
     for i in range(len(queries)):
         print("Start query execution")
+        print(queries[i])
         res = execute(queries[i], 'post', conn)
         print("End query execution")
         if res['code'] != 281:
@@ -2247,7 +2248,7 @@ class Menu (Resource):
                         menu_meal_id = '""" + menu_meal_id + """',
                         default_meal = '""" + default_meal + """',
                         delivery_days = """ + delivery_days + """,
-                        meal_price = '""" + meal_price + """';
+                        menu_meal_price = '""" + meal_price + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
             if response[1] != 201:
@@ -2290,7 +2291,7 @@ class Menu (Resource):
                         menu_meal_id = '""" + menu_meal_id + """',
                         default_meal = '""" + default_meal + """',
                         delivery_days = '""" + delivery_days + """',
-                        meal_price = '""" + meal_price + """'
+                        menu_meal_price = '""" + meal_price + """'
                     where menu_uid = '""" + menu_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
