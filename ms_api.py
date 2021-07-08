@@ -7934,17 +7934,19 @@ class Copy_Menu(Resource):
         try:
             conn = connect()
             dates = request.get_json(force=True)
+            print("Dates: ", dates)
             copyFromDate = dates['date1']
             copyToDate = dates['date2']
             query = """ SELECT * FROM M4ME.menu WHERE menu_date = \'""" + copyFromDate + """\'; """
             items = execute(query, 'get', conn)
             records = items['result']
+            print("Results: ", records)
             
             for i in range(len(records)):
                 newIdQuery = """ call M4ME.new_menu_uid(); """
                 newId = execute(newIdQuery, 'get', conn)
                 newMenuUid = newId['result'][0]['new_id']
-                #print(newMenuUid)
+                print(newMenuUid)
                 date = copyToDate
                 #print(date)
                 category = records[i]['menu_category']
@@ -7958,12 +7960,12 @@ class Copy_Menu(Resource):
                 defaultMeal = records[i]['default_meal']
                 #print(defaultMeal)
                 deliveryDays = records[i]['delivery_days']
-                #print(deliveryDays)
-                price = records[i]['meal_price']
-                #print(price)
+                print(deliveryDays)
+                price = records[i]['menu_meal_price']
+                print(price)
                 postQuery = """ INSERT INTO 
                                 M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, 
-                                           menu_meal_id, default_meal, delivery_days, meal_price) 
+                                           menu_meal_id, default_meal, delivery_days, menu_meal_price) 
                                 VALUES (\'""" + str(newMenuUid) + """\', \'""" + str(date) + """\', \'""" + str(category) + """\', 
                                         \'""" + str(menuType) + """\', \'""" + str(cat) + """\', \'""" + str(menuMealId) + """\', 
                                         \'""" + str(defaultMeal) + """\', \'""" + str(deliveryDays) + """\', \'""" + str(price) + """\'); """
