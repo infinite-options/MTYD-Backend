@@ -10452,6 +10452,60 @@ class meals_ordered_by_date(Resource):
         finally:
             disconnect(conn)
 
+class menu_with_orders_by_date(Resource):
+    def get(self, id):
+        try:
+            conn = connect()
+            query = """
+                    SELECT * FROM M4ME.menu
+                    LEFT JOIN (
+                        SELECT *,
+                            SUM(jt_qty) AS sum_jt_qty
+                        FROM (
+                            SELECT *,
+                                "ADD-ON" AS sel_type
+                            FROM M4ME.latest_addons_selection AS aos,
+                            JSON_TABLE (aos.meal_selection, '$[*]' 
+                            -- JSON_TABLE (lms.combined_selection, '$[*]' 
+                                COLUMNS (
+                                        jt_id FOR ORDINALITY,
+                                        jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                        jt_name VARCHAR(255) PATH '$.name',
+                                        jt_qty INT PATH '$.qty',
+                                        jt_price DOUBLE PATH '$.price')
+                                    ) AS jt
+                            -- COMBINING ADDONS WITH MEAL SELECTIONS
+                            -- NOT SURE HOW THIS WORKS SINCE ONCE COLUMN NAME IS DIFFERENT (last_menu_affected != last_menu_date) 
+                            UNION
+                            SELECT *,
+                                    "SELECTION" as sel_type
+                                FROM M4ME.latest_meal_selection AS lms,
+                                JSON_TABLE (lms.meal_selection, '$[*]' 
+                                -- JSON_TABLE (lms.combined_selection, '$[*]' 
+                                    COLUMNS (
+                                            jt_id FOR ORDINALITY,
+                                            jt_item_uid VARCHAR(255) PATH '$.item_uid',
+                                            jt_name VARCHAR(255) PATH '$.name',
+                                            jt_qty INT PATH '$.qty',
+                                            jt_price DOUBLE PATH '$.price')
+                                        ) AS jt 
+                            ) as uaosms
+                        GROUP BY jt_item_uid,
+                            sel_menu_date,
+                            sel_type
+                        ) AS suaosms
+                        ON menu_meal_id = jt_item_uid
+                            AND menu_date = sel_menu_date
+                        WHERE menu_date LIKE CONCAT('""" + id + """',"%")
+                        -- WHERE menu_date LIKE CONCAT('2021-08-02',"%")
+                            AND ((meal_cat = "Add-On" AND (sel_type = "ADD-ON" OR sel_type IS NULL))
+                            OR (meal_cat != "Add-On" AND (sel_type != "ADD-ON" OR sel_type IS NULL)));
+                    """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Menu with Orders Request failed')
+        finally:
+            disconnect(conn)
 
 class revenue_by_date(Resource):
     def get(self, id):
@@ -12286,6 +12340,10 @@ api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<
 api.add_resource(subscription_history, '/api/v2/subscription_history/<string:cust_uid>')
 
 api.add_resource(meals_ordered_by_date, '/api/v2/meals_ordered_by_date/<string:id>')
+
+api.add_resource(menu_with_orders_by_date, '/api/v2/menu_with_orders_by_date/<string:id>')
+
+
 
 api.add_resource(revenue_by_date, '/api/v2/revenue_by_date/<string:id>')
 
