@@ -7164,9 +7164,10 @@ class update_zones(Resource):
                 print(uid)
                 z_businesses = str(data['z_businesses'])
                 z_businesses = "'" + z_businesses.replace("'", "\"") + "'"
+                status = data['status'] if data.get('status') is not None else 'ACTIVE' 
                 query = """
                         INSERT INTO M4ME.zones 
-                        (zone_uid, z_business_uid, area, zone, zone_name, z_businesses, z_delivery_day, z_delivery_time, z_accepting_day, z_accepting_time, service_fee, delivery_fee, tax_rate, LB_long, LB_lat, LT_long, LT_lat, RT_long, RT_lat, RB_long, RB_lat)
+                        (zone_uid, z_business_uid, area, zone, zone_name, z_businesses, z_delivery_day, z_delivery_time, z_accepting_day, z_accepting_time, service_fee, delivery_fee, tax_rate, LB_long, LB_lat, LT_long, LT_lat, RT_long, RT_lat, RB_long, RB_lat, zone_status)
                          VALUES(
                          \'""" + uid + """\',
                           \'""" + data['z_business_uid'] + """\',
@@ -7188,7 +7189,8 @@ class update_zones(Resource):
                             \'""" + data['RT_long'] + """\',
                             \'""" + data['RT_lat'] + """\',
                             \'""" + data['RB_long'] + """\',
-                            \'""" + data['RB_lat'] + """\')
+                            \'""" + data['RB_lat'] + """\',
+                            \'""" + status + """\')
                         """
                 #print('QUERY--', query)
                 items = execute(query, 'post', conn)
@@ -7199,6 +7201,7 @@ class update_zones(Resource):
             elif action == 'update':
                 z_businesses = str(data['z_businesses'])
                 z_businesses = "'" + z_businesses.replace("'", "\"") + "'"
+                status = data['status'] if data.get('status') is not None else 'ACTIVE'
                 query = """
                         UPDATE M4ME.zones
                         SET
@@ -7221,7 +7224,8 @@ class update_zones(Resource):
                         RT_long = \'""" + data['RT_long'] + """\',
                         RT_lat = \'""" + data['RT_lat'] + """\',
                         RB_long = \'""" + data['RB_long'] + """\',
-                        RB_lat = \'""" + data['RB_lat'] + """\'
+                        RB_lat = \'""" + data['RB_lat'] + """\',
+                        zone_status = \'""" + status + """\'
                         WHERE zone_uid = \'""" + data['zone_uid'] + """\';
                         """
 
