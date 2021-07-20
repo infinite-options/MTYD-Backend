@@ -92,6 +92,10 @@ def getNow(): return datetime.strftime(datetime.now(),"%Y-%m-%d %H:%M:%S")
 # NOTIFICATIONS
 from NotificationHub import Notification
 from NotificationHub import NotificationHub
+# For Push notification
+isDebug = False
+NOTIFICATION_HUB_KEY = os.environ.get('NOTIFICATION_HUB_KEY')
+NOTIFICATION_HUB_NAME = os.environ.get('NOTIFICATION_HUB_NAME')
 
 # Twilio settings
 from twilio.rest import Client
