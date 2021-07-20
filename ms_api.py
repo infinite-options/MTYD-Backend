@@ -89,10 +89,15 @@ def getToday(): return datetime.strftime(datetime.now(), "%Y-%m-%d")
 def getNow(): return datetime.strftime(datetime.now(),"%Y-%m-%d %H:%M:%S")
 
 
+# NOTIFICATIONS
+from NotificationHub import Notification
+from NotificationHub import NotificationHub
 
+# Twilio settings
+from twilio.rest import Client
 
-
-
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 
 
 
