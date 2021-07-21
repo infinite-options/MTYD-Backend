@@ -5331,11 +5331,11 @@ class Send_Notification(Resource):
             uids_array = uids.split(',')
             output = []
             for uid in uids_array:
-                print(uid)
+                # print(uid)
                 if role == 'customer':
                     query = """SELECT cust_guid_device_id_notification FROM M4ME.customers WHERE customer_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
-                    print(items)
+                    # print(items)
                     if items['code'] != 280:
                         items['message'] = "check sql query"
                         items['code'] = 404
@@ -5345,7 +5345,7 @@ class Send_Notification(Resource):
 
                 else:
 
-                    query = """SELECT bus_guid_device_id_notification FROM sf.businesses WHERE business_uid = \'""" + uid + """\';"""
+                    query = """SELECT bus_guid_device_id_notification FROM M4ME.businesses WHERE business_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
 
                     if items['code'] != 280:
@@ -5356,32 +5356,28 @@ class Send_Notification(Resource):
                     json_val = items['result'][0]['bus_guid_device_id_notification']
 
                 if json_val != 'null':
-                    print("in deconstruct")
-                    print(type(json_val))
-                    print(json_val)
+                    # print("in deconstruct")
+                    # print(type(json_val))
+                    # print(json_val)
                     input_val = json.loads(json_val)
-                    print(type(input_val))
-                    print(input_val)
+                    # print(type(input_val))
+                    # print(input_val)
                     for vals in input_val:
-                        print('vals--', vals)
-                        print(type(vals))
+                        # print('vals--', vals)
+                        # print(type(vals))
                         if vals == None:
                             continue
-                        print('guid--', vals['guid'])
-                        print('notification---', vals['notification'])
+                        # print('guid--', vals['guid'])
+                        # print('notification---', vals['notification'])
                         if vals['notification'] == 'TRUE':
                             output.append('guid_' + vals['guid'])
             output = ",".join(output)
-            print('output-----', output)
+            # print('output-----', output)
             return output
         print('IN---')
 
-        # hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
-        hub = NotificationHub(
-            "Endpoint=sb://m4me-notification-namespace.servicebus.windows.net/;SharedAccessKeyName=DefaultFullSharedAccessSignature;SharedAccessKey=wKVQcuZdAXRuciA59rKflyCsZXnILdTu+FBtpz39cKQ=",
-            "M4Me-Notification-Hub",
-            isDebug
-        )
+        hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
+
 
 
         print('role----', role)
