@@ -5323,6 +5323,7 @@ class customer_info(Resource):
 class Send_Notification(Resource):
 
     def post(self, role):
+        print("In Send_Notification:", role)
 
         def deconstruct(uids, role):
             print('IN decon')
@@ -5330,10 +5331,11 @@ class Send_Notification(Resource):
             uids_array = uids.split(',')
             output = []
             for uid in uids_array:
+                print(uid)
                 if role == 'customer':
-                    query = """SELECT cust_guid_device_id_notification FROM sf.customers WHERE customer_uid = \'""" + uid + """\';"""
+                    query = """SELECT cust_guid_device_id_notification FROM M4ME.customers WHERE customer_uid = \'""" + uid + """\';"""
                     items = execute(query, 'get', conn)
-
+                    print(items)
                     if items['code'] != 280:
                         items['message'] = "check sql query"
                         items['code'] = 404
@@ -5374,7 +5376,12 @@ class Send_Notification(Resource):
             return output
         print('IN---')
 
-        hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
+        # hub = NotificationHub(NOTIFICATION_HUB_KEY, NOTIFICATION_HUB_NAME, isDebug)
+        hub = NotificationHub(
+            "Endpoint=sb://m4me-notification-namespace.servicebus.windows.net/;SharedAccessKeyName=DefaultFullSharedAccessSignature;SharedAccessKey=wKVQcuZdAXRuciA59rKflyCsZXnILdTu+FBtpz39cKQ=",
+            "M4Me-Notification-Hub",
+            isDebug
+        )
 
 
         print('role----', role)
