@@ -10473,13 +10473,14 @@ class menu_with_orders_by_date(Resource):
         try:
             conn = connect()
             query = """
+                    # MENU WITH ORDERS BY DATE
                     SELECT * FROM M4ME.menu
                     LEFT JOIN (
                         SELECT *,
                             SUM(jt_qty) AS sum_jt_qty
                         FROM (
                             SELECT *,
-                                "ADD-ON" AS sel_type
+                                CONVERT("Add-On" USING latin1) as sel_type
                             FROM M4ME.latest_addons_selection AS aos,
                             JSON_TABLE (aos.meal_selection, '$[*]' 
                             -- JSON_TABLE (lms.combined_selection, '$[*]' 
@@ -10494,7 +10495,7 @@ class menu_with_orders_by_date(Resource):
                             -- NOT SURE HOW THIS WORKS SINCE ONCE COLUMN NAME IS DIFFERENT (last_menu_affected != last_menu_date) 
                             UNION
                             SELECT *,
-                                    "SELECTION" as sel_type
+                                    CONVERT("Entree" USING latin1) as sel_type
                                 FROM M4ME.latest_meal_selection AS lms,
                                 JSON_TABLE (lms.meal_selection, '$[*]' 
                                 -- JSON_TABLE (lms.combined_selection, '$[*]' 
@@ -10512,8 +10513,9 @@ class menu_with_orders_by_date(Resource):
                         ) AS suaosms
                         ON menu_meal_id = jt_item_uid
                             AND menu_date = sel_menu_date
+                            AND meal_cat = sel_type
                         WHERE menu_date LIKE CONCAT('""" + id + """',"%")
-                        -- WHERE menu_date LIKE CONCAT('2021-08-02',"%")
+                        -- WHERE menu_date LIKE CONCAT('2021-08-13',"%")
                             AND ((meal_cat = "Add-On" AND (sel_type = "ADD-ON" OR sel_type IS NULL))
                             OR (meal_cat != "Add-On" AND (sel_type != "ADD-ON" OR sel_type IS NULL)));
                     """
