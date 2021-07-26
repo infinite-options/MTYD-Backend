@@ -10474,7 +10474,16 @@ class menu_with_orders_by_date(Resource):
             conn = connect()
             query = """
                     # MENU WITH ORDERS BY DATE
-                    SELECT * FROM M4ME.menu
+                    SELECT -- *
+                        menu.*,
+                        meals.meal_name, meals.meal_photo_URL,
+                        b.business_name,
+                        suaosms.*
+                    FROM M4ME.menu
+                    LEFT JOIN M4ME.meals
+                        ON menu_meal_id = meal_uid
+                    LEFT JOIN M4ME.businesses b
+                        ON meal_business = business_uid
                     LEFT JOIN (
                         SELECT *,
                             SUM(jt_qty) AS sum_jt_qty
@@ -10514,8 +10523,8 @@ class menu_with_orders_by_date(Resource):
                         ON menu_meal_id = jt_item_uid
                             AND menu_date = sel_menu_date
                             AND meal_cat = sel_type
-                        WHERE menu_date LIKE CONCAT('""" + id + """',"%")
-                        -- WHERE menu_date LIKE CONCAT('2021-08-13',"%")
+                        -- WHERE menu_date LIKE CONCAT('""" + id + """',"%")
+                        WHERE menu_date LIKE CONCAT('2021-08-06',"%")
                             AND ((meal_cat = "Add-On" AND (sel_type = "ADD-ON" OR sel_type IS NULL))
                             OR (meal_cat != "Add-On" AND (sel_type != "ADD-ON" OR sel_type IS NULL)));
                     """
