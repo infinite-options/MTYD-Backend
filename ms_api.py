@@ -1274,6 +1274,7 @@ class AppleLogin (Resource):
                     sub = data['sub']
                     query = """
                     SELECT customer_uid,
+                        role,
                         customer_last_name,
                         customer_first_name,
                         customer_email,
@@ -1288,6 +1289,8 @@ class AppleLogin (Resource):
                     """
                     items = execute(query, 'get', conn)
                     print(items)
+                    test = items['result'][0]['role']
+                    print(test)
 
                     if items['code'] != 280:
                         items['message'] = "Internal error"
@@ -1373,9 +1376,51 @@ class AppleLogin (Resource):
 
                     else:
                         print('successful redirect to farms')
-                        return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+
+                        if items['result'][0]['role'] == "ADMIN":
+                            return redirect("https://mealsfor.me/admin/order-ingredients")
+
+                        else: 
+                            pur_query = """
+                                SELECT *
+                                FROM M4ME.purchases
+                                WHERE pur_customer_uid = "100-000040"
+                                AND purchase_status = "ACTIVE";
+                            """
+                            pur_items = execute(pur_query, 'get', conn)
+
+                            if not pur_items['result']:
+                                items['message'] = "No Meals Plans"
+                                items['code'] = 404
+                                return redirect("https://cnn.com")
+
+                            else:
+                                return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
 
 
+                        # if items['result'][0]['role'] == "CUSTOMER":
+                        #     # return redirect("https://cnn.com")
+
+
+                        #     pur_query = """
+                        #         SELECT *
+                        #         FROM M4ME.purchases
+                        #         WHERE pur_customer_uid = "100-000040"
+                        #         AND purchase_status = "ACTIVE";
+                        #     """
+                        #     pur_items = execute(pur_query, 'get', conn)
+
+                        #     if not pur_items['result']:
+                        #         items['message'] = "No Meals Plans"
+                        #         items['code'] = 404
+                        #         return redirect("https://cnn.com")
+
+                        #     else:
+                        #         return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+
+
+                        # else:
+                        #     return redirect("https://mealsfor.me/admin/order-ingredients")
 
                 else:
                     items['message'] = "Social_id not returned by Apple LOGIN"
