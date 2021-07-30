@@ -2,6 +2,7 @@
 # mealsfor.me
 # https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev/api/v2/<enter_endpoint_details>
 
+# Testing zappa update
 
 # SECTION 1:  IMPORT FILES AND FUNCTIONS
 #pip3 install shapely
@@ -1255,7 +1256,9 @@ class Login(Resource):
 
 
 class AppleLogin (Resource):
-    def post(self):
+    # def post(self):
+    def post(self, mode):
+        print("in AppleLogin post")
         response = {}
         items = {}
         try:
@@ -1274,6 +1277,7 @@ class AppleLogin (Resource):
                     sub = data['sub']
                     query = """
                     SELECT customer_uid,
+                        role,
                         customer_last_name,
                         customer_first_name,
                         customer_email,
@@ -1373,7 +1377,31 @@ class AppleLogin (Resource):
 
                     else:
                         print('successful redirect to farms')
-                        return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+                        return redirect("cnn.com")
+                        if items['result'][0]['role'] == 'ADMIN':
+                            return redirect("https://mealsfor.me/admin/order-ingredients")
+                        else:
+                            pur_query = """
+                                SELECT *
+                                FROM M4ME.purchases
+                                WHERE pur_customer_uid = "100-000001"
+                                AND purchase_status = "ACTIVE";
+                            """
+                            pur_items = execute(pur_query, 'get', conn)
+                            if not pur_items['result']:
+                                # return redirect("https://mealsfor.me/choose-plan")
+                                return redirect("cnn.com")
+                            else:
+                                # return redirect("https://mealsfor.me/select-meal")
+                                return redirect("google.com")
+
+
+                        # if mode == test:
+                        #     return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+                        # else:
+                        #     return redirect("http://localhost:3000/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+                        # return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+                        # return redirect("http://localhost:3000/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
 
 
 
