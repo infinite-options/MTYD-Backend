@@ -2238,6 +2238,7 @@ class Menu (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
+            print("Received data: ", data)
 
             menu_date = data['menu_date']
             menu_category = data['menu_category']
@@ -2245,13 +2246,14 @@ class Menu (Resource):
             meal_cat = data['meal_cat']
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
-            delivery_days = "'[" + ", ".join([str(item) for item in data['delivery_days']]) + "]'"
+            delivery_days = "'" + data['delivery_days'] + "'"
             meal_price = data['meal_price']
             print("1")
             menu_uid = get_new_id("CALL new_menu_uid", "get_new_menu_ID", conn)
             if menu_uid[1] != 200:
                 return menu_uid
             menu_uid = menu_uid[0]['result']
+            print(menu_uid)
 
             query = """
                     INSERT INTO menu
@@ -10529,8 +10531,8 @@ class menu_with_orders_by_date(Resource):
                         ON menu_meal_id = jt_item_uid
                             AND menu_date = sel_menu_date
                             AND meal_cat = sel_type
-                        -- WHERE menu_date LIKE CONCAT('""" + id + """',"%")
-                        WHERE menu_date LIKE CONCAT('2021-08-06',"%")
+                        WHERE menu_date LIKE CONCAT('""" + id + """',"%")
+                        -- WHERE menu_date LIKE CONCAT('2021-08-06',"%")
                             AND ((meal_cat = "Add-On" AND (sel_type = "ADD-ON" OR sel_type IS NULL))
                             OR (meal_cat != "Add-On" AND (sel_type != "ADD-ON" OR sel_type IS NULL)));
                     """
