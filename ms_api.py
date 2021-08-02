@@ -374,28 +374,32 @@ class order_amount_calculation(Resource):
             data = request.get_json(force=True)
             print(data)
             item_uid = data['item_uid']
-            print(item_uid)
+            # print(item_uid)
             frequency = data['num_issues']
             customer_uid = data['customer_uid']
-            print("before amb")
+            # print("before amb")
             ambassador = data['ambassador'] if data['ambassador'] is not None else None
-            print("first query")
+            # print("first query")
+
+
+            # FIND CUSTOMER LONG AND LAT
             query = '''
                         SELECT customer_lat, customer_long 
                         FROM M4ME.customers
                         WHERE customer_uid = \'''' + customer_uid + '''\';
                     '''
             it = execute(query, 'get', conn)
-            print("before categoricalOptions")
-            print(it)
-            print(it["result"][0]["customer_long"])
-            print(it["result"][0]["customer_lat"])
+            # print("before categoricalOptions")
+            # print(it)
+            # print(it["result"][0]["customer_long"])
+            # print(it["result"][0]["customer_lat"])
 
+            # FIND FEES ASSOCIATED WITH THEIR ZONE
             # ANOTHER WAY TO CALL A CLASS WITHOUT HAVING TO MODIFY THE CLASS
             zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
-            print("\nReturn from Categorical Options")
-            print(zones)
-            print(zones["result"][0]["tax_rate"])
+            # print("\nReturn from Categorical Options")
+            # print(zones)
+            # print(zones["result"][0]["tax_rate"])
 
             # GET FEES (THESE FORMULAS DO NOT TAKE INTO ACCOUNT DIFFERENT FEES BASED ON DIFFERENT ZONES)
             tax = zones["result"][0]["tax_rate"]
@@ -426,7 +430,6 @@ class order_amount_calculation(Resource):
             print("before Ambassador if")
             print(ambassador, len(ambassador))
             if len(ambassador)!=0:
-                # print("not here")
                 query4 = '''
                             select * 
                             from coupons 
@@ -434,7 +437,6 @@ class order_amount_calculation(Resource):
                                 AND notes = 'Ambassador';
                         '''
                 itm_ambassador = execute(query4, 'get', conn)
-                print("test")
                 print("\nAmbassador Info: ", itm_ambassador)
 
                 if len(itm_ambassador["result"]) == 0:
@@ -460,14 +462,6 @@ class order_amount_calculation(Resource):
                     print("Frequency: ",frequency, type(frequency))
                     print("Plan Discount: ",itm_discounts["result"][0]["delivery_discount"]/100)
 
-
-                    # charge = ((itm_price["result"][0]["item_price"]*int(frequency)))
-                    # print("Charge 1: ", charge)
-                    # charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100))
-                    # print("Charge 2: ", charge)
-                    # print("Ambassador Discount Amount: ", itm_ambassador["result"][0]['discount_amount'], type(itm_ambassador["result"][0]['discount_amount']))
-                    # charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador["result"][0]['discount_amount'])
-                    # print("Charge 3: ", charge)
                     charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador["result"][0]['discount_amount']) * (1-itm_ambassador["result"][0]['discount_percent']/100)
                     # print("Charge 4: ", charge)
                     if charge <=0:
@@ -479,24 +473,29 @@ class order_amount_calculation(Resource):
                     order_price = round(charge*(1+tax/100)+ service + delivery + tip, 2)
                     print("Order Price: ", order_price)
 
-                return order_price
-
             else:
                 print("here")
-                charge = (itm_price["result"][0]["item_price"]*int(frequency))
-                print(charge)
-                discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
-                print(discount)
-                print(tax)
-                print(service)
-                print(delivery)
-                print(tip)
-                order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
-                print(order_price)
-                orderprice = round(order_price*100)
-                print(orderprice)
-                orderprice=float(orderprice/100)
-                return orderprice
+                # charge = (itm_price["result"][0]["item_price"]*int(frequency))
+                # print(charge)
+                # discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
+                # print(discount)
+                # print(tax)
+                # print(service)
+                # print(delivery)
+                # print(tip)
+                # order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
+                # print(order_price)
+                # orderprice = round(order_price*100)
+                # print(orderprice)
+                # orderprice=float(orderprice/100)
+
+                charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100))
+                print("Charge 2: ", charge)
+                print(tax, type(tax), service, type(service), tip, type(tip), delivery, type(delivery))
+                order_price = round(charge*(1+tax/100)+ service + delivery + tip, 2)
+                print("Order Price: ", order_price)
+
+            return order_price
         except:
             print("Order Amount Calculation Error")
         return 2100
