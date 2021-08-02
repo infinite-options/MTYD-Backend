@@ -1422,9 +1422,13 @@ class AppleLogin (Resource):
                     else:
                         print('successful redirect to farms')
 
-                        hashedCustomer_uid = sha512((items['result'][0]['customer_uid']).encode()).hexdigest()
+                        hexedCustomer_uid = hex(items['result'][0]['customer_uid'])
+                        # print(hexedCustomer_uid)
+
+                        # hashedCustomer_uid = sha512((items['result'][0]['customer_uid']).encode()).hexdigest()
                         # hashedCustomer_uid = sha512((items['result'][0]['customer_uid']+ "17").encode()).hexdigest()
-                        return redirect("https://mealsfor.me/choose-plan?customer_uid=" + hashedCustomer_uid)
+                        # return redirect("https://mealsfor.me/choose-plan?customer_uid=" + hashedCustomer_uid)
+                        return redirect("https://mealsfor.me/choose-plan?customer_uid=" + hexedCustomer_uid)
 
 
                         # return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
