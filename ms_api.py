@@ -1422,8 +1422,9 @@ class AppleLogin (Resource):
                     else:
                         print('successful redirect to farms')
 
-                        hexedCustomer_uid = hex(items['result'][0]['customer_uid'])
-                        # print(hexedCustomer_uid)
+                        s= items['result'][0]['customer_uid'].encode('utf-8')
+                        print(s.hex())
+                        hexedCustomer_uid = s.hex()
 
                         # hashedCustomer_uid = sha512((items['result'][0]['customer_uid']).encode()).hexdigest()
                         # hashedCustomer_uid = sha512((items['result'][0]['customer_uid']+ "17").encode()).hexdigest()
@@ -10814,6 +10815,80 @@ class alert_message(Resource):
         finally:
             disconnect(conn)
 
+
+class test_endpoint(Resource):
+
+    # TEST DATABASE QUERY
+    # def get(self):
+    #     try:
+            
+    #         
+    #         conn = connect()
+    #         query = """
+    #                 SELECT * FROM M4ME.alert_messages;
+    #                 """
+    #         items = execute(query, 'get', conn)
+
+    #         if items['code'] != 280:
+    #             items['message'] = 'check sql query'
+            
+    #         return items
+        
+    #     except:
+    #         raise BadRequest('Alert Message Request failed, please try again later.')
+    #     finally:
+    #         disconnect(conn)
+
+    # TEST CALCULATION
+    def get(self):
+        try:
+            hexedCustomer_uid = hex(1000)
+            print(hexedCustomer_uid)
+
+
+            s= '100-000015'.encode('utf-8')
+            print(s.hex())
+            hex_value = s.hex()
+
+            s_value = bytes.fromhex(hex_value).decode('utf-8') 
+            print(s_value)
+
+#             print("1")
+#             hex_string = "0xAA"
+#             print(hex_string, type(hex_string))
+#             an_integer = int(hex_string, 16)
+#             print(an_integer)
+#             print(an_integer * 10)
+#             hex_value = hex(an_integer)
+#             print("1")
+#             print(hex_value)
+
+# s= 'Sample String'.encode('utf-8')
+# print(s.hex())
+
+
+# hex_string = "0xAA"
+
+# an_integer = int(hex_string, 16)
+# an_integer is a decimal value
+
+# hex_value = hex(an_integer)
+# print(hex_value)
+
+
+            return hex_value
+        except:
+            print("error")
+        finally:
+            #disconnect(conn)
+            print("done")
+
+
+
+
+
+
+
 # ONLY FOR TESTING CRON JOBS - WILL NOT WORK WHEN DEPLOYED ON ZAPPA            
 # if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 #     scheduler = BackgroundScheduler()
@@ -12451,7 +12526,7 @@ api.add_resource(calculator, '/api/v2/calculator/<string:pur_uid>')
 
 api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
 
-
+api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 
 
 # Run on below IP address and port
