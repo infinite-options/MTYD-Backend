@@ -356,104 +356,145 @@ stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
 stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
-#stripe.api_key = stripe_secret_test_key
-
 #use below for local testing
 #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-
-
 
 STRIPE_PUBLISHABLE_KEY=stripe_public_test_key
 stripe.api_key = stripe_secret_test_key
 stripe.api_version = None
 
-# @app.route('/', methods=['GET'])
-# def get_example():
-#     print("in /")
-#     # Display checkout page
-#     return render_template('index.html')
 
+# PAYMENT CLASSES
+# NEED TO CALCULATE ORDER AMOUNT ON THE BACKEND TO PREVENT PEOPLE FROM MANIPULATING THE AMOUNT ON THE CLIENT SIDE
 class order_amount_calculation(Resource):
-    def post(self):
-        # Replace this constant with a calculation of the order's amount
-        # Calculate the order total on the server to prevent
-        # people from directly manipulating the amount on the client    
+    def post(self):   
         # print("in calculate_order_amount")
-        # print("items: ", items)
         try:
             conn = connect()
             data = request.get_json(force=True)
-            # print(data)
+            print(data)
             item_uid = data['item_uid']
-            # print(item_uid)
+            print(item_uid)
             frequency = data['num_issues']
             customer_uid = data['customer_uid']
-            # print("before amb")
+            print("before amb")
             ambassador = data['ambassador'] if data['ambassador'] is not None else None
-            # print("first query")
+            print("first query")
             query = '''
                         SELECT customer_lat, customer_long 
                         FROM M4ME.customers
                         WHERE customer_uid = \'''' + customer_uid + '''\';
                     '''
             it = execute(query, 'get', conn)
-            # print("before cat")
-            # print(it)
-            # print(it["result"][0]["customer_long"])
-            # print(it["result"][0]["customer_lat"])
+            print("before categoricalOptions")
+            print(it)
+            print(it["result"][0]["customer_long"])
+            print(it["result"][0]["customer_lat"])
+
+            # ANOTHER WAY TO CALL A CLASS WITHOUT HAVING TO MODIFY THE CLASS
             zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
-            # print(zones["result"][0]["tax_rate"])
+            print("\nReturn from Categorical Options")
+            print(zones)
+            print(zones["result"][0]["tax_rate"])
+
+            # GET FEES (THESE FORMULAS DO NOT TAKE INTO ACCOUNT DIFFERENT FEES BASED ON DIFFERENT ZONES)
             tax = zones["result"][0]["tax_rate"]
             service = zones["result"][0]['service_fee']
             delivery = zones["result"][0]['delivery_fee']
-            tip = data['tip']
+            tip = int(data['tip'])
+            print(tax, service, delivery, tip)
+
+            # GET ITEM PRICE
             query2 = '''
                         SELECT item_price  
                         FROM M4ME.subscription_items
                         WHERE item_uid  = \'''' + item_uid + '''\';
                     '''
             itm_price = execute(query2, 'get', conn)
-            # print(itm_price)
+            print("\nItem Info: ", itm_price)
+
+            # GET DISCOUNT
             query3 = '''
                         select delivery_discount 
                         from discounts
                         where num_deliveries = \'''' + frequency + '''\';
                     '''
             itm_discounts = execute(query3, 'get', conn)
-            # print(itm_discounts)
-            # print("before if")
-            # print(len(ambassador))
+            print("\nItem Discounts: ", itm_discounts)
+
+            # GET AMBASSADOR DISCOUNT
+            print("before Ambassador if")
+            print(ambassador, len(ambassador))
             if len(ambassador)!=0:
                 # print("not here")
                 query4 = '''
                             select * 
                             from coupons 
-                            where email_id = \'''' + amabssador + '''\';
+                            where email_id = \'''' + ambassador + '''\'
+                                AND notes = 'Ambassador';
                         '''
                 itm_ambassador = execute(query4, 'get', conn)
-                # print(itm_ambassador)
-                delivery = abs(delivery-itm_ambassador['discount_shipping'])
-                if delivery<=0:
-                    delivery = 0
-                charge = ((itm_price["result"][0]["item_price"]*frequency)*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador['discount_amount'])
-                if charge <=0:
-                    charge = 0
-                order_price = charge*(1+tax/100)+service+delivery+tip
+                print("test")
+                print("\nAmbassador Info: ", itm_ambassador)
+
+                if len(itm_ambassador["result"]) == 0:
+                    print("Not a valid Ambassador Code")
+                    charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100))
+                    print("Charge 2: ", charge)
+                    print(tax, type(tax), service, type(service), tip, type(tip), delivery, type(delivery))
+                    order_price = round(charge*(1+tax/100)+ service + delivery + tip, 2)
+                    print("Order Price: ", order_price)
+
+                else:
+                    print("Ambassador Discount Percent: ", itm_ambassador["result"][0]['discount_percent'], type(itm_ambassador["result"][0]['discount_percent']))
+                    print("Ambassador Discount Amount: ", itm_ambassador["result"][0]['discount_amount'], type(itm_ambassador["result"][0]['discount_amount']))
+                    print("Ambassador Discount Shipping: ", itm_ambassador["result"][0]['discount_shipping'])
+
+                    print("delivery: ", delivery)
+                    delivery = delivery-itm_ambassador["result"][0]['discount_shipping']
+                    if delivery<=0:
+                        delivery = 0
+                    print("delivery: ", delivery)
+
+                    print("Item Price: ",itm_price["result"][0]["item_price"], type(itm_price["result"][0]["item_price"]))
+                    print("Frequency: ",frequency, type(frequency))
+                    print("Plan Discount: ",itm_discounts["result"][0]["delivery_discount"]/100)
+
+
+                    # charge = ((itm_price["result"][0]["item_price"]*int(frequency)))
+                    # print("Charge 1: ", charge)
+                    # charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100))
+                    # print("Charge 2: ", charge)
+                    # print("Ambassador Discount Amount: ", itm_ambassador["result"][0]['discount_amount'], type(itm_ambassador["result"][0]['discount_amount']))
+                    # charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador["result"][0]['discount_amount'])
+                    # print("Charge 3: ", charge)
+                    charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador["result"][0]['discount_amount']) * (1-itm_ambassador["result"][0]['discount_percent']/100)
+                    # print("Charge 4: ", charge)
+                    if charge <=0:
+                        charge = 0
+                    print("Final Charge: ", charge)
+
+                    # print(tax, type(tax), service, type(service), tip, type(tip), delivery, type(delivery))
+
+                    order_price = round(charge*(1+tax/100)+ service + delivery + tip, 2)
+                    print("Order Price: ", order_price)
+
                 return order_price
+
             else:
-                # print("here")
+                print("here")
                 charge = (itm_price["result"][0]["item_price"]*int(frequency))
-                # print(charge)
+                print(charge)
                 discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
-                # print(discount)
-                # print(tax)
-                # print(service)
-                # print(delivery)
-                # print(tip)
+                print(discount)
+                print(tax)
+                print(service)
+                print(delivery)
+                print(tip)
                 order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
-                # print(order_price)
+                print(order_price)
                 orderprice = round(order_price*100)
-                # print(orderprice)
+                print(orderprice)
                 orderprice=float(orderprice/100)
                 return orderprice
         except:
@@ -551,6 +592,14 @@ class stripe_transaction(Resource):
 
 
 # FOR TESTING PURPOSES ONLY
+
+# @app.route('/', methods=['GET'])
+# def get_example():
+#     print("in /")
+#     # Display checkout page
+#     return render_template('index.html')
+
+
 @app.route('/api/v2/customer', methods=['GET'])
 def stripe_customer():
     stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
@@ -7615,10 +7664,11 @@ class categoricalOptions(Resource):
                 point = Point(float(long),float(lat))
                 polygon = Polygon([(LB_long, LB_lat), (LT_long, LT_lat), (RT_long, RT_lat), (RB_long, RB_lat)])
                 res = polygon.contains(point)
-                print(res)
+                print("zone_uid", vals['zone_uid'], res, vals['zone_name'])
 
                 if res:
                     zones.append(vals['zone'])
+                    print("in loop zones: ", zones)
 
 
             print('ZONES-----', zones)
@@ -7654,6 +7704,7 @@ class categoricalOptions(Resource):
                     WHERE zone IN """ + str(tuple(zones)) + """;
                     """
             items = execute(query, 'get', conn)
+            print(items)
 
             if items['code'] != 280:
                 items['message'] = 'check sql query'
