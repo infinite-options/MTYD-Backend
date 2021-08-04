@@ -356,34 +356,23 @@ stripe_secret_test_key = os.environ.get('stripe_secret_test_key')
 stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
-#stripe.api_key = stripe_secret_test_key
-
 #use below for local testing
 #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-
-
 
 STRIPE_PUBLISHABLE_KEY=stripe_public_test_key
 stripe.api_key = stripe_secret_test_key
 stripe.api_version = None
 
-# @app.route('/', methods=['GET'])
-# def get_example():
-#     print("in /")
-#     # Display checkout page
-#     return render_template('index.html')
 
+# PAYMENT CLASSES
+# NEED TO CALCULATE ORDER AMOUNT ON THE BACKEND TO PREVENT PEOPLE FROM MANIPULATING THE AMOUNT ON THE CLIENT SIDE
 class order_amount_calculation(Resource):
-    def post(self):
-        # Replace this constant with a calculation of the order's amount
-        # Calculate the order total on the server to prevent
-        # people from directly manipulating the amount on the client    
+    def post(self):   
         # print("in calculate_order_amount")
-        # print("items: ", items)
         try:
             conn = connect()
             data = request.get_json(force=True)
-            # print(data)
+            print(data)
             item_uid = data['item_uid']
             # print(item_uid)
             frequency = data['num_issues']
@@ -391,71 +380,122 @@ class order_amount_calculation(Resource):
             # print("before amb")
             ambassador = data['ambassador'] if data['ambassador'] is not None else None
             # print("first query")
+
+
+            # FIND CUSTOMER LONG AND LAT
             query = '''
                         SELECT customer_lat, customer_long 
                         FROM M4ME.customers
                         WHERE customer_uid = \'''' + customer_uid + '''\';
                     '''
             it = execute(query, 'get', conn)
-            # print("before cat")
+            # print("before categoricalOptions")
             # print(it)
             # print(it["result"][0]["customer_long"])
             # print(it["result"][0]["customer_lat"])
+
+            # FIND FEES ASSOCIATED WITH THEIR ZONE
+            # ANOTHER WAY TO CALL A CLASS WITHOUT HAVING TO MODIFY THE CLASS
             zones = categoricalOptions().get(it["result"][0]["customer_long"], it["result"][0]["customer_lat"])
+            # print("\nReturn from Categorical Options")
+            # print(zones)
             # print(zones["result"][0]["tax_rate"])
+
+            # GET FEES (THESE FORMULAS DO NOT TAKE INTO ACCOUNT DIFFERENT FEES BASED ON DIFFERENT ZONES)
             tax = zones["result"][0]["tax_rate"]
             service = zones["result"][0]['service_fee']
             delivery = zones["result"][0]['delivery_fee']
-            tip = data['tip']
+            tip = int(data['tip'])
+            print(tax, service, delivery, tip)
+
+            # GET ITEM PRICE
             query2 = '''
                         SELECT item_price  
                         FROM M4ME.subscription_items
                         WHERE item_uid  = \'''' + item_uid + '''\';
                     '''
             itm_price = execute(query2, 'get', conn)
-            # print(itm_price)
+            print("\nItem Info: ", itm_price)
+
+            # GET DISCOUNT
             query3 = '''
                         select delivery_discount 
                         from discounts
                         where num_deliveries = \'''' + frequency + '''\';
                     '''
             itm_discounts = execute(query3, 'get', conn)
-            # print(itm_discounts)
-            # print("before if")
-            # print(len(ambassador))
+            print("\nItem Discounts: ", itm_discounts)
+
+            # GET AMBASSADOR DISCOUNT
+            print("before Ambassador if")
+            print(ambassador, len(ambassador))
             if len(ambassador)!=0:
-                # print("not here")
                 query4 = '''
                             select * 
                             from coupons 
-                            where email_id = \'''' + amabssador + '''\';
+                            where email_id = \'''' + ambassador + '''\'
+                                AND notes = 'Ambassador';
                         '''
                 itm_ambassador = execute(query4, 'get', conn)
-                # print(itm_ambassador)
-                delivery = abs(delivery-itm_ambassador['discount_shipping'])
-                if delivery<=0:
-                    delivery = 0
-                charge = ((itm_price["result"][0]["item_price"]*frequency)*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador['discount_amount'])
-                if charge <=0:
-                    charge = 0
-                order_price = charge*(1+tax/100)+service+delivery+tip
-                return order_price
+                print("\nAmbassador Info: ", itm_ambassador)
+
+                if len(itm_ambassador["result"]) == 0:
+                    print("Not a valid Ambassador Code")
+                    charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100))
+                    print("Charge 2: ", charge)
+                    print(tax, type(tax), service, type(service), tip, type(tip), delivery, type(delivery))
+                    order_price = round(charge*(1+tax/100)+ service + delivery + tip, 2)
+                    print("Order Price: ", order_price)
+
+                else:
+                    print("Ambassador Discount Percent: ", itm_ambassador["result"][0]['discount_percent'], type(itm_ambassador["result"][0]['discount_percent']))
+                    print("Ambassador Discount Amount: ", itm_ambassador["result"][0]['discount_amount'], type(itm_ambassador["result"][0]['discount_amount']))
+                    print("Ambassador Discount Shipping: ", itm_ambassador["result"][0]['discount_shipping'])
+
+                    print("delivery: ", delivery)
+                    delivery = delivery-itm_ambassador["result"][0]['discount_shipping']
+                    if delivery<=0:
+                        delivery = 0
+                    print("delivery: ", delivery)
+
+                    print("Item Price: ",itm_price["result"][0]["item_price"], type(itm_price["result"][0]["item_price"]))
+                    print("Frequency: ",frequency, type(frequency))
+                    print("Plan Discount: ",itm_discounts["result"][0]["delivery_discount"]/100)
+
+                    charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100)-itm_ambassador["result"][0]['discount_amount']) * (1-itm_ambassador["result"][0]['discount_percent']/100)
+                    # print("Charge 4: ", charge)
+                    if charge <=0:
+                        charge = 0
+                    print("Final Charge: ", charge)
+
+                    # print(tax, type(tax), service, type(service), tip, type(tip), delivery, type(delivery))
+
+                    order_price = round(charge*(1+tax/100)+ service + delivery + tip, 2)
+                    print("Order Price: ", order_price)
+
             else:
-                # print("here")
-                charge = (itm_price["result"][0]["item_price"]*int(frequency))
+                print("here")
+                # charge = (itm_price["result"][0]["item_price"]*int(frequency))
                 # print(charge)
-                discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
+                # discount = (1-itm_discounts["result"][0]["delivery_discount"]/100)
                 # print(discount)
                 # print(tax)
                 # print(service)
                 # print(delivery)
                 # print(tip)
-                order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
+                # order_price = (charge*discount)*(1+tax/100)+service+(delivery)+float(tip)
                 # print(order_price)
-                orderprice = round(order_price*100)
+                # orderprice = round(order_price*100)
                 # print(orderprice)
-                orderprice=float(orderprice/100)
-                return orderprice
+                # orderprice=float(orderprice/100)
+
+                charge = ((itm_price["result"][0]["item_price"]*int(frequency))*(1-itm_discounts["result"][0]["delivery_discount"]/100))
+                print("Charge 2: ", charge)
+                print(tax, type(tax), service, type(service), tip, type(tip), delivery, type(delivery))
+                order_price = round(charge*(1+tax/100)+ service + delivery + tip, 2)
+                print("Order Price: ", order_price)
+
+            return order_price
         except:
             print("Order Amount Calculation Error")
         return 2100
@@ -551,6 +591,14 @@ class stripe_transaction(Resource):
 
 
 # FOR TESTING PURPOSES ONLY
+
+# @app.route('/', methods=['GET'])
+# def get_example():
+#     print("in /")
+#     # Display checkout page
+#     return render_template('index.html')
+
+
 @app.route('/api/v2/customer', methods=['GET'])
 def stripe_customer():
     stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
@@ -1274,7 +1322,6 @@ class AppleLogin (Resource):
                     sub = data['sub']
                     query = """
                     SELECT customer_uid,
-                        role,
                         customer_last_name,
                         customer_first_name,
                         customer_email,
@@ -1289,8 +1336,6 @@ class AppleLogin (Resource):
                     """
                     items = execute(query, 'get', conn)
                     print(items)
-                    test = items['result'][0]['role']
-                    print(test)
 
                     if items['code'] != 280:
                         items['message'] = "Internal error"
@@ -1377,50 +1422,19 @@ class AppleLogin (Resource):
                     else:
                         print('successful redirect to farms')
 
-                        if items['result'][0]['role'] == "ADMIN":
-                            return redirect("https://mealsfor.me/admin/order-ingredients")
+                        s= items['result'][0]['customer_uid'].encode('utf-8')
+                        print(s.hex())
+                        hexedCustomer_uid = s.hex()
 
-                        else: 
-                            pur_query = """
-                                SELECT *
-                                FROM M4ME.purchases
-                                WHERE pur_customer_uid = "100-000040"
-                                AND purchase_status = "ACTIVE";
-                            """
-                            pur_items = execute(pur_query, 'get', conn)
-
-                            if not pur_items['result']:
-                                items['message'] = "No Meals Plans"
-                                items['code'] = 404
-                                return redirect("https://cnn.com")
-
-                            else:
-                                return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
+                        # hashedCustomer_uid = sha512((items['result'][0]['customer_uid']).encode()).hexdigest()
+                        # hashedCustomer_uid = sha512((items['result'][0]['customer_uid']+ "17").encode()).hexdigest()
+                        # return redirect("https://mealsfor.me/choose-plan?customer_uid=" + hashedCustomer_uid)
+                        return redirect("https://mealsfor.me/choose-plan?customer_uid=" + hexedCustomer_uid)
 
 
-                        # if items['result'][0]['role'] == "CUSTOMER":
-                        #     # return redirect("https://cnn.com")
+                        # return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
 
 
-                        #     pur_query = """
-                        #         SELECT *
-                        #         FROM M4ME.purchases
-                        #         WHERE pur_customer_uid = "100-000040"
-                        #         AND purchase_status = "ACTIVE";
-                        #     """
-                        #     pur_items = execute(pur_query, 'get', conn)
-
-                        #     if not pur_items['result']:
-                        #         items['message'] = "No Meals Plans"
-                        #         items['code'] = 404
-                        #         return redirect("https://cnn.com")
-
-                        #     else:
-                        #         return redirect("https://mealsfor.me/choose-plan?customer_uid=" + items['result'][0]['customer_uid'])
-
-
-                        # else:
-                        #     return redirect("https://mealsfor.me/admin/order-ingredients")
 
                 else:
                     items['message'] = "Social_id not returned by Apple LOGIN"
@@ -2277,6 +2291,7 @@ class Menu (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
+            print("Received data: ", data)
 
             menu_date = data['menu_date']
             menu_category = data['menu_category']
@@ -2284,13 +2299,14 @@ class Menu (Resource):
             meal_cat = data['meal_cat']
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
-            delivery_days = "'[" + ", ".join([str(item) for item in data['delivery_days']]) + "]'"
+            delivery_days = "'" + data['delivery_days'] + "'"
             meal_price = data['meal_price']
             print("1")
             menu_uid = get_new_id("CALL new_menu_uid", "get_new_menu_ID", conn)
             if menu_uid[1] != 200:
                 return menu_uid
             menu_uid = menu_uid[0]['result']
+            print(menu_uid)
 
             query = """
                     INSERT INTO menu
@@ -2487,15 +2503,18 @@ class Meals (Resource):
             disconnect(conn)
 
     def put(self):
+        # print("in Meals PUT")
         try:
             conn = connect()
             data = request.get_json(force=True)
+            print("Input JSON Object: ", data)
             meal_uid = data['meal_uid']
             meal_category = data['meal_category']
             meal_name = data['meal_name']
             meal_desc = data['meal_desc']
             meal_hint = "'" + data['meal_hint'] + "'" if data['meal_hint'] else 'NULL'
-            meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
+            # print("Before Photo Input")
+            meal_photo_url = "'" + data['meal_photo_url'] + "'" if data['meal_photo_url'] else 'NULL'
             meal_calories = data['meal_calories']
             meal_protein = data['meal_protein']
             meal_carbs = data['meal_carbs']
@@ -2503,7 +2522,14 @@ class Meals (Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
-            meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE'
+            # print("Before Status Input")
+            # meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE' - changed 08/03/2021
+            meal_status = data['meal_status'] if data.get('meal_status') is not None else 'ACTIVE'
+            print("After Input")
+
+            print(meal_photo_url, type(meal_photo_url))
+            print(meal_status, type(meal_status))
+            print(meal_hint, type(meal_hint))
 
             query = """
                     UPDATE meals
@@ -3397,12 +3423,13 @@ class Edit_Meal(Resource):
 
 
 
-class MealCreation(Resource):
+class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECATED
+    print("Meal Creation Endpoint")
     def listIngredients(self, result):
         response = {}
         print("1")
         for meal in result:
-            key = meal['meal_id']
+            key = meal['meal_uid']
             if key not in response:
                 response[key] = {}
                 response[key]['meal_name'] = meal['meal_name']
@@ -3411,7 +3438,7 @@ class MealCreation(Resource):
             ingredient['name'] = meal['ingredient_desc']
             ingredient['qty'] = meal['recipe_ingredient_qty']
             ingredient['units'] = meal['recipe_unit']
-            ingredient['ingredient_id'] = meal['ingredient_id']
+            ingredient['ingredient_id'] = meal['ingredient_uid']
             ingredient['measure_id'] = meal['recipe_measure_id']
             response[key]['ingredients'].append(ingredient)
 
@@ -3419,38 +3446,36 @@ class MealCreation(Resource):
         print("2")
     
     def get(self):
+        print("In Get")
         response = {}
         items = {}
         try:
             conn = connect()
 
-            query = """SELECT
-                            m.meal_id,
-                            m.meal_name,
-                            ingredient_id,
-                            ingredient_desc,
-                            recipe_ingredient_qty,
-                            recipe_unit,
-                            recipe_measure_id
-                            FROM
-                            meals m
-                            left JOIN
-                            recipes r
-                            ON
-                            recipe_meal_id = meal_id
-                            left JOIN
-                            ingredients
-                            ON
-                            ingredient_id = recipe_ingredient_id
-                            left join
-                            conversion_units
-                            ON                    
-                            recipe_measure_id = measure_unit_uid
-                            order by recipe_meal_id;"""
+            query = """
+            SELECT
+                m.meal_uid,
+                m.meal_name,
+                ingredient_uid,
+                ingredient_desc,
+                recipe_ingredient_qty,
+                recipe_unit,
+                recipe_measure_id
+            FROM meals m
+            LEFT JOIN recipes r
+                ON recipe_meal_id = meal_uid
+            LEFT JOIN ingredients
+                ON ingredient_uid = recipe_ingredient_id
+            LEFT join conversion_units
+                ON recipe_measure_id = measure_unit_uid
+            ORDER BY recipe_meal_id;
+            """
 
             sql = execute(query, 'get', conn)
+            print(sql)
 
             items = self.listIngredients(sql['result'])
+            print(items)
 
             response['message'] = 'Request successful.'
             response['result'] = items
@@ -3466,29 +3491,16 @@ class MealCreation(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-
-            # Post JSON needs to be in this format
-                    #   data = {
-                    #       'meal_id': '700-000001',
-                    #       'ingredient_id': '110-000002',
-                    #       'ingredient_qty': 3,
-                    #       'measure_id': '130-000004'
-                    #   }
             #print("1")
 
-            # get_user_id_query = "CALL new_customer_uid();"
-            # print(get_user_id_query)
-            # NewUserIDresponse = execute(get_user_id_query, 'get', conn)
-            # print(NewUserIDresponse)
             get_recipe_query = "CALL new_recipe_uid();"
-            #print("2")
-            #print(get_recipe_query)
+            print("2")
             recipe_uid = execute(get_recipe_query, 'get', conn)
-            #print(recipe_uid)
+            print(recipe_uid)
             NewRecipeID = recipe_uid['result'][0]['new_id']
-            #print(NewRecipeID)
+            print(NewRecipeID)
 
-            #print("5")
+            print("5")
             query = """
                 INSERT INTO recipes 
                 SET
@@ -3501,33 +3513,9 @@ class MealCreation(Resource):
                 ON DUPLICATE KEY UPDATE
                     recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
                     recipe_measure_id = \'""" + data['measure_id'] + "\';"
-            #print("6")
-            #print(data)
-            #original code
-            # query = """
-            #     INSERT INTO recipes (
-            #         recipe_meal_id,
-            #         recipe_ingredient_id,
-            #         recipe_ingredient_qty,
-            #         recipe_measure_id )
-            #     VALUES (
-            #         \'""" + data['meal_id'] + """\',
-            #         \'""" + data['ingredient_id'] + """\',
-            #         \'""" + data['ingredient_qty'] + """\',
-            #         \'""" + data['measure_id'] + """\')
-            #     ON DUPLICATE KEY UPDATE
-            #         recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
-            #         recipe_measure_id = \'""" + data['measure_id'] + "\';"
-            #print("7")
+
             response = simple_post_execute([query], [__class__.__name__], conn)
-            #print("8")
-            #items = self.listIngredients(sql['result'])
-            #print(items)
             response = 'Request successful.'
-            #print("9")
-            
-            #response['result'] = items
-            #print("10")
             return response, 200
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -7652,10 +7640,11 @@ class categoricalOptions(Resource):
                 point = Point(float(long),float(lat))
                 polygon = Polygon([(LB_long, LB_lat), (LT_long, LT_lat), (RT_long, RT_lat), (RB_long, RB_lat)])
                 res = polygon.contains(point)
-                print(res)
+                print("zone_uid", vals['zone_uid'], res, vals['zone_name'])
 
                 if res:
                     zones.append(vals['zone'])
+                    print("in loop zones: ", zones)
 
 
             print('ZONES-----', zones)
@@ -7691,6 +7680,7 @@ class categoricalOptions(Resource):
                     WHERE zone IN """ + str(tuple(zones)) + """;
                     """
             items = execute(query, 'get', conn)
+            print(items)
 
             if items['code'] != 280:
                 items['message'] = 'check sql query'
@@ -10568,8 +10558,8 @@ class menu_with_orders_by_date(Resource):
                         ON menu_meal_id = jt_item_uid
                             AND menu_date = sel_menu_date
                             AND meal_cat = sel_type
-                        -- WHERE menu_date LIKE CONCAT('""" + id + """',"%")
-                        WHERE menu_date LIKE CONCAT('2021-08-06',"%")
+                        WHERE menu_date LIKE CONCAT('""" + id + """',"%")
+                        -- WHERE menu_date LIKE CONCAT('2021-08-06',"%")
                             AND ((meal_cat = "Add-On" AND (sel_type = "ADD-ON" OR sel_type IS NULL))
                             OR (meal_cat != "Add-On" AND (sel_type != "ADD-ON" OR sel_type IS NULL)));
                     """
@@ -10796,6 +10786,80 @@ class alert_message(Resource):
             raise BadRequest('Alert Message Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+
+class test_endpoint(Resource):
+
+    # TEST DATABASE QUERY
+    # def get(self):
+    #     try:
+            
+    #         
+    #         conn = connect()
+    #         query = """
+    #                 SELECT * FROM M4ME.alert_messages;
+    #                 """
+    #         items = execute(query, 'get', conn)
+
+    #         if items['code'] != 280:
+    #             items['message'] = 'check sql query'
+            
+    #         return items
+        
+    #     except:
+    #         raise BadRequest('Alert Message Request failed, please try again later.')
+    #     finally:
+    #         disconnect(conn)
+
+    # TEST CALCULATION
+    def get(self):
+        try:
+            hexedCustomer_uid = hex(1000)
+            print(hexedCustomer_uid)
+
+
+            s= '100-000015'.encode('utf-8')
+            print(s.hex())
+            hex_value = s.hex()
+
+            s_value = bytes.fromhex(hex_value).decode('utf-8') 
+            print(s_value)
+
+#             print("1")
+#             hex_string = "0xAA"
+#             print(hex_string, type(hex_string))
+#             an_integer = int(hex_string, 16)
+#             print(an_integer)
+#             print(an_integer * 10)
+#             hex_value = hex(an_integer)
+#             print("1")
+#             print(hex_value)
+
+# s= 'Sample String'.encode('utf-8')
+# print(s.hex())
+
+
+# hex_string = "0xAA"
+
+# an_integer = int(hex_string, 16)
+# an_integer is a decimal value
+
+# hex_value = hex(an_integer)
+# print(hex_value)
+
+
+            return hex_value
+        except:
+            print("error")
+        finally:
+            #disconnect(conn)
+            print("done")
+
+
+
+
+
+
 
 # ONLY FOR TESTING CRON JOBS - WILL NOT WORK WHEN DEPLOYED ON ZAPPA            
 # if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
@@ -12434,7 +12498,7 @@ api.add_resource(calculator, '/api/v2/calculator/<string:pur_uid>')
 
 api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
 
-
+api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 
 
 # Run on below IP address and port
