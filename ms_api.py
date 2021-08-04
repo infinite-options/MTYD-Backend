@@ -2503,15 +2503,18 @@ class Meals (Resource):
             disconnect(conn)
 
     def put(self):
+        # print("in Meals PUT")
         try:
             conn = connect()
             data = request.get_json(force=True)
+            print("Input JSON Object: ", data)
             meal_uid = data['meal_uid']
             meal_category = data['meal_category']
             meal_name = data['meal_name']
             meal_desc = data['meal_desc']
             meal_hint = "'" + data['meal_hint'] + "'" if data['meal_hint'] else 'NULL'
-            meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
+            # print("Before Photo Input")
+            meal_photo_url = "'" + data['meal_photo_url'] + "'" if data['meal_photo_url'] else 'NULL'
             meal_calories = data['meal_calories']
             meal_protein = data['meal_protein']
             meal_carbs = data['meal_carbs']
@@ -2519,7 +2522,14 @@ class Meals (Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
-            meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE'
+            # print("Before Status Input")
+            # meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE' - changed 08/03/2021
+            meal_status = data['meal_status'] if data.get('meal_status') is not None else 'ACTIVE'
+            print("After Input")
+
+            print(meal_photo_url, type(meal_photo_url))
+            print(meal_status, type(meal_status))
+            print(meal_hint, type(meal_hint))
 
             query = """
                     UPDATE meals
@@ -3413,12 +3423,13 @@ class Edit_Meal(Resource):
 
 
 
-class MealCreation(Resource):
+class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECATED
+    print("Meal Creation Endpoint")
     def listIngredients(self, result):
         response = {}
         print("1")
         for meal in result:
-            key = meal['meal_id']
+            key = meal['meal_uid']
             if key not in response:
                 response[key] = {}
                 response[key]['meal_name'] = meal['meal_name']
@@ -3427,7 +3438,7 @@ class MealCreation(Resource):
             ingredient['name'] = meal['ingredient_desc']
             ingredient['qty'] = meal['recipe_ingredient_qty']
             ingredient['units'] = meal['recipe_unit']
-            ingredient['ingredient_id'] = meal['ingredient_id']
+            ingredient['ingredient_id'] = meal['ingredient_uid']
             ingredient['measure_id'] = meal['recipe_measure_id']
             response[key]['ingredients'].append(ingredient)
 
@@ -3435,38 +3446,36 @@ class MealCreation(Resource):
         print("2")
     
     def get(self):
+        print("In Get")
         response = {}
         items = {}
         try:
             conn = connect()
 
-            query = """SELECT
-                            m.meal_id,
-                            m.meal_name,
-                            ingredient_id,
-                            ingredient_desc,
-                            recipe_ingredient_qty,
-                            recipe_unit,
-                            recipe_measure_id
-                            FROM
-                            meals m
-                            left JOIN
-                            recipes r
-                            ON
-                            recipe_meal_id = meal_id
-                            left JOIN
-                            ingredients
-                            ON
-                            ingredient_id = recipe_ingredient_id
-                            left join
-                            conversion_units
-                            ON                    
-                            recipe_measure_id = measure_unit_uid
-                            order by recipe_meal_id;"""
+            query = """
+            SELECT
+                m.meal_uid,
+                m.meal_name,
+                ingredient_uid,
+                ingredient_desc,
+                recipe_ingredient_qty,
+                recipe_unit,
+                recipe_measure_id
+            FROM meals m
+            LEFT JOIN recipes r
+                ON recipe_meal_id = meal_uid
+            LEFT JOIN ingredients
+                ON ingredient_uid = recipe_ingredient_id
+            LEFT join conversion_units
+                ON recipe_measure_id = measure_unit_uid
+            ORDER BY recipe_meal_id;
+            """
 
             sql = execute(query, 'get', conn)
+            print(sql)
 
             items = self.listIngredients(sql['result'])
+            print(items)
 
             response['message'] = 'Request successful.'
             response['result'] = items
@@ -3482,29 +3491,16 @@ class MealCreation(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-
-            # Post JSON needs to be in this format
-                    #   data = {
-                    #       'meal_id': '700-000001',
-                    #       'ingredient_id': '110-000002',
-                    #       'ingredient_qty': 3,
-                    #       'measure_id': '130-000004'
-                    #   }
             #print("1")
 
-            # get_user_id_query = "CALL new_customer_uid();"
-            # print(get_user_id_query)
-            # NewUserIDresponse = execute(get_user_id_query, 'get', conn)
-            # print(NewUserIDresponse)
             get_recipe_query = "CALL new_recipe_uid();"
-            #print("2")
-            #print(get_recipe_query)
+            print("2")
             recipe_uid = execute(get_recipe_query, 'get', conn)
-            #print(recipe_uid)
+            print(recipe_uid)
             NewRecipeID = recipe_uid['result'][0]['new_id']
-            #print(NewRecipeID)
+            print(NewRecipeID)
 
-            #print("5")
+            print("5")
             query = """
                 INSERT INTO recipes 
                 SET
@@ -3517,33 +3513,9 @@ class MealCreation(Resource):
                 ON DUPLICATE KEY UPDATE
                     recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
                     recipe_measure_id = \'""" + data['measure_id'] + "\';"
-            #print("6")
-            #print(data)
-            #original code
-            # query = """
-            #     INSERT INTO recipes (
-            #         recipe_meal_id,
-            #         recipe_ingredient_id,
-            #         recipe_ingredient_qty,
-            #         recipe_measure_id )
-            #     VALUES (
-            #         \'""" + data['meal_id'] + """\',
-            #         \'""" + data['ingredient_id'] + """\',
-            #         \'""" + data['ingredient_qty'] + """\',
-            #         \'""" + data['measure_id'] + """\')
-            #     ON DUPLICATE KEY UPDATE
-            #         recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
-            #         recipe_measure_id = \'""" + data['measure_id'] + "\';"
-            #print("7")
+
             response = simple_post_execute([query], [__class__.__name__], conn)
-            #print("8")
-            #items = self.listIngredients(sql['result'])
-            #print(items)
             response = 'Request successful.'
-            #print("9")
-            
-            #response['result'] = items
-            #print("10")
             return response, 200
         except:
             raise BadRequest('Request failed, please try again later.')
