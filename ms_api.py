@@ -2323,7 +2323,7 @@ class Menu (Resource):
             response = simple_post_execute([query], [__class__.__name__], conn)
             if response[1] != 201:
                 return response
-            response[0]['meal_uid'] = menu_uid
+            response[0]['menu_uid'] = menu_uid
             return response
         except:
             raise BadRequest('Request failed, please try again later.')
