@@ -2368,7 +2368,7 @@ class Menu (Resource):
             print(response[1])
             if response[1] != 201:
                 return response
-            response[0]['meal_uid'] = menu_uid
+            response[0]['menu_uid'] = menu_uid
             return response
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -11281,10 +11281,12 @@ class brandAmbassador(Resource):
 
                 exp_date = dateObject.replace(year=dateObject.year + 5)
                 exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+
+                # LIMIT IS ORIGINALLY SET TO 0.  LIMIT WILL BE UPDATED WHEN A CUSTOMER USES THE AMBASSADOR CODE
                 query = """
                         INSERT INTO coupons 
                         (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '0', '10', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
+                        VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '20', '0', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
                         """
                 print(query)
                 items = execute(query, 'post', conn)
