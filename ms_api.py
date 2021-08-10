@@ -2826,7 +2826,7 @@ class Menu (Resource):
             response = simple_post_execute([query], [__class__.__name__], conn)
             if response[1] != 201:
                 return response
-            response[0]['meal_uid'] = menu_uid
+            response[0]['menu_uid'] = menu_uid
             return response
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -2871,7 +2871,7 @@ class Menu (Resource):
             print(response[1])
             if response[1] != 201:
                 return response
-            response[0]['meal_uid'] = menu_uid
+            response[0]['menu_uid'] = menu_uid
             return response
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -11855,7 +11855,7 @@ class brandAmbassador(Resource):
                 query = """
                         INSERT INTO coupons 
                         (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '0', '10', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
+                        VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '20', '0', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
                         """
                 print(query)
                 items = execute(query, 'post', conn)
@@ -12088,13 +12088,58 @@ class brandAmbassador2(Resource):
                 print('all checks done')
                 dateObject = datetime.now()
 
-                exp_date = dateObject.replace(year=dateObject.year + 5)
+                exp_date = dateObject.replace(year=dateObject.year + 1)
                 exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                # query = """
+                #         INSERT INTO coupons 
+                #         (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                #         VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '20', '0', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
+                #         """
+
+                # '''
+                #     UPDATE M4ME.customers 
+                #     SET 
+                #     customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
+                #     customer_first_name = \'''' + firstName + '''\',
+                #     customer_last_name = \'''' + lastName + '''\',
+                #     customer_phone_num = \'''' + phone + '''\',
+                #     customer_address = \'''' + address + '''\',
+                #     customer_unit = \'''' + unit + '''\',
+                #     customer_city = \'''' + city + '''\',
+                #     customer_state = \'''' + state + '''\',
+                #     customer_zip = \'''' + zip_code + '''\',
+                #     customer_lat = \'''' + latitude + '''\',
+                #     customer_long = \'''' + longitude + '''\',
+                #     password_salt = \'''' + salt + '''\',
+                #     password_hashed = \'''' + password + '''\',
+                #     password_algorithm = \'''' + algorithm + '''\',
+                #     referral_source = \'''' + referral + '''\',
+                #     role = \'''' + role + '''\',
+                #     user_social_media = \'''' + user_social_signup + '''\',
+                #     social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
+                #     WHERE customer_uid = \'''' + cust_id + '''\';
+                # '''
+
                 query = """
-                        INSERT INTO coupons 
-                        (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '0', '10', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
+                        INSERT INTO 
+                            coupons 
+                        SET
+                            coupon_uid = \'""" + couponID + """\',
+                            coupon_id = 'Ambassador',
+                            valid = 'TRUE',
+                            discount_percent = '20',
+                            discount_amount = '0',
+                            discount_shipping = '0',
+                            expire_date = \'""" + exp_date + """\',
+                            limits = '0',
+                            notes = 'Ambassador',
+                            num_used = '0',
+                            recurring = 'F',
+                            email_id = \'""" + code + """\',
+                            cup_business_uid = 'null',
+                            threshold = '10';
                         """
+
                 print(query)
                 items = execute(query, 'post', conn)
                 if items['code'] != 281:
