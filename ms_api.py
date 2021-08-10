@@ -830,10 +830,10 @@ class customer_lists(Resource):
 
 
 
-# -----------------------------------------
+# ---------------------START ENDPOINTS HERE-----------------------------------------
 
 
-
+#  ACCOUNT AND LOGIN ENDPOINTS
 class createAccount(Resource):
     def post(self):
         response = {}
@@ -1589,21 +1589,12 @@ class Reset_Password(Resource):
 
 
 
-
+#  MEALS ENDPOINTS
 class Meals_Selected(Resource): #(meals_selected_endpoint)
     def get(self):
         try:
             conn = connect()
             customer_uid = request.args['customer_uid']
-            '''
-            query = """
-                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
-                    SELECT * FROM M4ME.latest_combined_meal lcm
-                    LEFT JOIN M4ME.lplp
-                        ON lcm.sel_purchase_id = lplp.purchase_uid
-                    WHERE pur_customer_uid = '""" + customer_uid + """'; 
-                    """
-            '''
 
             query = """
                     # CUSTOMER QUERY 3: MEALS SELECTED INCLUDING DEFAULT SURPRISES
@@ -1625,7 +1616,6 @@ class Meals_Selected(Resource): #(meals_selected_endpoint)
                     ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC;
                     """
 
-            
             items = execute(query, 'get', conn)
             if items['code']!=280:
                 items['message'] = "Failed"
@@ -1651,17 +1641,6 @@ class Meals_Selected_Specific(Resource):
             customer_uid = request.args['customer_uid']
             purchase_id = request.args['purchase_id']
             menu_date = request.args['menu_date']
-            '''
-            query = """
-                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
-                    SELECT * FROM M4ME.latest_combined_meal lcm
-                    LEFT JOIN M4ME.lplp
-                        ON lcm.sel_purchase_id = lplp.purchase_id
-                    WHERE pur_customer_uid = '""" + customer_uid + """'
-                    and purchase_id = '""" + purchase_id + """'
-                    and sel_menu_date= '""" + menu_date + """';
-                    """
-            '''
 
             query = """
                     # CUSTOMER QUERY 3A: MEALS SELECTED FOR SPECIFIC PURCHASE ID AND MENU DATE INCLUDING DEFAULT SURPRISES 
@@ -1767,6 +1746,7 @@ class Get_Latest_Purchases_Payments(Resource):
         finally:
             disconnect(conn)
 
+# Next_Billing_Date USED IN MOBILE ONLY AS OF 08092021 - CHECK AGAINST PREDICT_Next_Billing_Date
 class Next_Billing_Date(Resource):
     def get(self):
         try:
@@ -11780,7 +11760,7 @@ class brandAmbassador(Resource):
                 
                 if not data.get('cust_address'):
                     return 'Please enter customer address'
-                address = data['cust_address']
+                address = data['cust_address']  
                 
                 timeStamp = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
                 query = "CALL new_refund_uid;"
