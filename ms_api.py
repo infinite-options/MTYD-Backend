@@ -975,63 +975,94 @@ class createAccount(Resource):
 
 
                 # write everything to database
+                # customer_insert_query = ["""
+                #                         INSERT INTO M4ME.customers 
+                #                         (
+                #                             customer_uid,
+                #                             customer_created_at,
+                #                             customer_first_name,
+                #                             customer_last_name,
+                #                             customer_phone_num,
+                #                             customer_email,
+                #                             customer_address,
+                #                             customer_unit,
+                #                             customer_city,
+                #                             customer_state,
+                #                             customer_zip,
+                #                             customer_lat,
+                #                             customer_long,
+                #                             password_salt,
+                #                             password_hashed,
+                #                             password_algorithm,
+                #                             referral_source,
+                #                             role,
+                #                             user_social_media,
+                #                             user_access_token,
+                #                             social_timestamp,
+                #                             user_refresh_token,
+                #                             mobile_access_token,
+                #                             mobile_refresh_token,
+                #                             social_id
+                #                         )
+                #                         VALUES
+                #                         (
+                                        
+                #                             \'""" + NewUserID + """\',
+                #                             \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                #                             \'""" + firstName + """\',
+                #                             \'""" + lastName + """\',
+                #                             \'""" + phone + """\',
+                #                             \'""" + email + """\',
+                #                             \'""" + address + """\',
+                #                             \'""" + unit + """\',
+                #                             \'""" + city + """\',
+                #                             \'""" + state + """\',
+                #                             \'""" + zip_code + """\',
+                #                             \'""" + latitude + """\',
+                #                             \'""" + longitude + """\',
+                #                             \'""" + salt + """\',
+                #                             \'""" + password + """\',
+                #                             \'""" + algorithm + """\',
+                #                             \'""" + referral + """\',
+                #                             \'""" + role + """\',
+                #                             \'""" + user_social_signup + """\',
+                #                             \'""" + user_access_token + """\',
+                #                             DATE_ADD(now() , INTERVAL 14 DAY),
+                #                             \'""" + user_refresh_token + """\',
+                #                             \'""" + mobile_access_token + """\',
+                #                             \'""" + mobile_refresh_token + """\',
+                #                             \'""" + social_id + """\');"""]
+
                 customer_insert_query = ["""
                                         INSERT INTO M4ME.customers 
-                                        (
-                                            customer_uid,
-                                            customer_created_at,
-                                            customer_first_name,
-                                            customer_last_name,
-                                            customer_phone_num,
-                                            customer_email,
-                                            customer_address,
-                                            customer_unit,
-                                            customer_city,
-                                            customer_state,
-                                            customer_zip,
-                                            customer_lat,
-                                            customer_long,
-                                            password_salt,
-                                            password_hashed,
-                                            password_algorithm,
-                                            referral_source,
-                                            role,
-                                            user_social_media,
-                                            user_access_token,
-                                            social_timestamp,
-                                            user_refresh_token,
-                                            mobile_access_token,
-                                            mobile_refresh_token,
-                                            social_id
-                                        )
-                                        VALUES
-                                        (
-                                        
-                                            \'""" + NewUserID + """\',
-                                            \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-                                            \'""" + firstName + """\',
-                                            \'""" + lastName + """\',
-                                            \'""" + phone + """\',
-                                            \'""" + email + """\',
-                                            \'""" + address + """\',
-                                            \'""" + unit + """\',
-                                            \'""" + city + """\',
-                                            \'""" + state + """\',
-                                            \'""" + zip_code + """\',
-                                            \'""" + latitude + """\',
-                                            \'""" + longitude + """\',
-                                            \'""" + salt + """\',
-                                            \'""" + password + """\',
-                                            \'""" + algorithm + """\',
-                                            \'""" + referral + """\',
-                                            \'""" + role + """\',
-                                            \'""" + user_social_signup + """\',
-                                            \'""" + user_access_token + """\',
-                                            DATE_ADD(now() , INTERVAL 14 DAY),
-                                            \'""" + user_refresh_token + """\',
-                                            \'""" + mobile_access_token + """\',
-                                            \'""" + mobile_refresh_token + """\',
-                                            \'""" + social_id + """\');"""]
+                                        SET customer_uid = \'""" + NewUserID + """\',
+                                            customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                                            customer_first_name = \'""" + firstName + """\',
+                                            customer_last_name = \'""" + lastName + """\',
+                                            customer_phone_num = \'""" + phone + """\',
+                                            customer_email = \'""" + email + """\',
+                                            customer_address = \'""" + address + """\',
+                                            customer_unit = \'""" + unit + """\',
+                                            customer_city = \'""" + city + """\',
+                                            customer_state = \'""" + state + """\',
+                                            customer_zip = \'""" + zip_code + """\',
+                                            customer_lat = \'""" + latitude + """\',
+                                            customer_long = \'""" + longitude + """\',
+                                            password_salt = \'""" + salt + """\',
+                                            password_hashed = \'""" + password + """\',
+                                            password_algorithm = \'""" + algorithm + """\',
+                                            referral_source = \'""" + referral + """\',
+                                            role = \'""" + role + """\',
+                                            user_social_media = \'""" + user_social_signup + """\',
+                                            user_access_token = \'""" + user_access_token + """\',
+                                            social_timestamp = DATE_ADD(now() , INTERVAL 14 DAY),
+                                            user_refresh_token = \'""" + user_refresh_token + """\',
+                                            mobile_access_token = \'""" + mobile_access_token + """\',
+                                            mobile_refresh_token = \'""" + mobile_refresh_token + """\',
+                                            social_id = \'""" + social_id + """\'
+                                            ;
+                                        """]
+                                            
             print(customer_insert_query[0])
             items = execute(customer_insert_query[0], 'post', conn)
 
@@ -1370,28 +1401,28 @@ class AppleLogin (Resource):
 
                         customer_insert_query = """
                                     INSERT INTO M4ME.customers 
-                                    (
-                                        customer_uid,
-                                        customer_created_at,
-                                        customer_email,
-                                        user_social_media,
-                                        user_refresh_token,
-                                        user_access_token,
-                                        social_id,
-                                        social_timestamp
-                                    )
-                                    VALUES
-                                    (
+                                    SET customer_uid = \'""" + NewUserID + """\',
+                                        customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                                        customer_email = \'""" + email + """\',
+                                        user_social_media = \'""" + user_social_signup + """\',
+                                        user_refresh_token = \'""" + access_token + """\',
+                                        user_access_token = \'""" + access_token + """\',
+                                        social_id = \'""" + sub + """\',
+                                        social_timestamp = DATE_ADD(now() , INTERVAL 1 DAY)
+                                    """
+                                    # )
+                                    # VALUES
+                                    # (
                                     
-                                        \'""" + NewUserID + """\',
-                                        \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-                                        \'""" + email + """\',
-                                        \'""" + user_social_signup + """\',
-                                        \'""" + access_token + """\',
-                                        \'""" + access_token + """\',
-                                        \'""" + sub + """\',
-                                        DATE_ADD(now() , INTERVAL 1 DAY)
-                                    );"""
+                                    #     \'""" + NewUserID + """\',
+                                    #     \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                                    #     \'""" + email + """\',
+                                    #     \'""" + user_social_signup + """\',
+                                    #     \'""" + access_token + """\',
+                                    #     \'""" + access_token + """\',
+                                    #     \'""" + sub + """\',
+                                    #     DATE_ADD(now() , INTERVAL 1 DAY)
+                                    # );"""
 
                         item = execute(customer_insert_query, 'post', conn)
 
@@ -6291,7 +6322,74 @@ class all_businesses(Resource):
         finally:
             disconnect(conn)
 
+class all_businesses_brandon(Resource):
 
+    def get(self):
+        try:
+            conn = connect()
+
+            query = """
+                SELECT 
+                    business_uid, 
+                    business_name,
+                    business_type,
+                    business_desc,
+                    business_contact_first_name,
+                    business_contact_last_name,
+                    business_phone_num,
+                    business_phone_num2,
+                    business_email,
+                    business_accepting_hours,
+                    business_address,
+                    business_unit,
+                    business_city,
+                    business_state,
+                    business_zip,
+                    can_cancel,
+                    delivery,
+                    reusable,
+                    business_image,
+                    platform_fee,
+                    transaction_fee,
+                    revenue_sharing,
+                    profit_sharing,
+                    business_status
+                FROM 
+                    M4ME.businesses; 
+            """
+            items = execute(query, 'get', conn)
+            if items['code'] == 280:
+                items['message'] = 'Business data returned successfully'
+                items['code'] = 200
+            else:
+                items['message'] = 'Check sql query'
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+    def post(self):
+        try:
+            conn = connect()
+
+            query = """
+                    SELECT * FROM M4ME.businesses; 
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] == 280:
+                items['message'] = 'Business data returned successfully'
+                items['code'] = 200
+            else:
+                items['message'] = 'Check sql query'
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
             
 
 
