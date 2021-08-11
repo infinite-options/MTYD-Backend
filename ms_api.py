@@ -3099,6 +3099,9 @@ class create_update_meals(Resource):
             
             meal_photo_url = request.files.get('meal_photo_url') if request.files.get('meal_photo_url') is not None else 'NULL'
             #meal_photo_url = request.form.get('meal_photo_url') if request.form.get('meal_photo_url') is not None else 'NULL'
+
+            print("(create_update_meals) meal_photo_url: ", meal_photo_url)
+            print("(create_update_meals) type(meal_photo_url): ", type(meal_photo_url))
             
             meal_calories = request.form.get('meal_calories') if request.form.get('meal_calories') is not None else 'NULL'
             meal_protein = request.form.get('meal_protein') if request.form.get('meal_protein') is not None else 'NULL'
@@ -3111,23 +3114,86 @@ class create_update_meals(Resource):
             #meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
             meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
+
+            print("(create_update_meals) 1")
+
             if meal_uid[1] != 200:
                 return meal_uid
             meal_uid = meal_uid[0]['result']
-            print("1")
+
+            print("(create_update_meals) 2")
+
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
             print("TimeStamp_test: ", TimeStamp_test)
+
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
+
             print("key: ", key)
             print("meal_photo_url: ", meal_photo_url)
-            meal_photo = helper_upload_meal_img(meal_photo_url, key)
-            print("2")
-            print(meal_uid)
+
+            valid_photo = True
+            try: 
+                print("(create_update_meals) meal photo try 1")
+                meal_photo = helper_upload_meal_img(meal_photo_url, key)
+                print("(create_update_meals) meal photo try 2")
+            except: 
+                print("(create_update_meals) meal photo except 1")
+                valid_photo = False
+                get_all_s3_keys('mtyd')
+                print("(create_update_meals) meal photo except 2")
+
+            print("(create_update_meals) 3")
+            print("(create_update_meals) meal_uid: ", meal_uid)
+
             #print(meal_notes)
             # INSERT query
+            # query = """
+            #         INSERT INTO meals
+            #         SET meal_uid = '""" + meal_uid + """',
+            #             meal_category = '""" + meal_category + """',
+            #             meal_business = '""" + meal_business + """',
+            #             meal_name = '""" + meal_name + """',
+            #             meal_desc = '""" + meal_desc + """',
+            #             meal_hint = '""" + meal_hint + """',
+            #             meal_photo_url = '""" + meal_photo + """',
+            #             meal_calories = '""" + meal_calories + """',
+            #             meal_protein = '""" + meal_protein + """',
+            #             meal_carbs = '""" + meal_carbs + """',
+            #             meal_fiber = '""" + meal_fiber + """',
+            #             meal_sugar = '""" + meal_sugar + """',
+            #             meal_fat = '""" + meal_fat + """',
+            #             meal_sat = '""" + meal_sat + """',
+            #             meal_status = '""" + meal_status + """';
+            #         """
+
             query = """
-                    INSERT INTO meals
-                    SET meal_uid = '""" + meal_uid + """',
+                INSERT INTO 
+                    meals
+                SET 
+                    meal_uid = '""" + meal_uid + """',
+                    meal_category = '""" + meal_category + """',
+                    meal_business = '""" + meal_business + """',
+                    meal_name = '""" + meal_name + """',
+                    meal_desc = '""" + meal_desc + """',
+                    meal_hint = '""" + meal_hint + """',
+                    meal_calories = '""" + meal_calories + """',
+                    meal_protein = '""" + meal_protein + """',
+                    meal_carbs = '""" + meal_carbs + """',
+                    meal_fiber = '""" + meal_fiber + """',
+                    meal_sugar = '""" + meal_sugar + """',
+                    meal_fat = '""" + meal_fat + """',
+                    meal_sat = '""" + meal_sat + """',
+                    meal_status = '""" + meal_status + """';
+            """
+            print("(create_update_meals) 3.1")
+            if valid_photo == True:
+                print("(create_update_meals) valid photo false")
+                query = """
+                    INSERT INTO 
+                        meals
+                    SET 
+                        meal_uid = '""" + meal_uid + """',
                         meal_category = '""" + meal_category + """',
                         meal_business = '""" + meal_business + """',
                         meal_name = '""" + meal_name + """',
@@ -3142,18 +3208,25 @@ class create_update_meals(Resource):
                         meal_fat = '""" + meal_fat + """',
                         meal_sat = '""" + meal_sat + """',
                         meal_status = '""" + meal_status + """';
-                    """
-            print("2.5")
+                """
+
+            print("(create_update_meals) 4")
+
             response = simple_post_execute([query], [__class__.__name__], conn)
+            # response = simple_post_execute(query, 'post', conn)
             # response = execute(query, 'post', conn)
-            print("3")
+
+            print("(create_update_meals) 5")
+
             #meal_photo = helper_upload_meal_img(meal_photo_url, key)
             print(response)
             print(response[1])
             if response[1] != 201:
                 return response
             response[0]['meal_uid'] = meal_uid
-            print("4")
+
+            print("(create_update_meals) 6")
+
             # lists=get_all_s3_keys(mtyd)
             # print("ending sequence")
             # return response, lists
@@ -3193,13 +3266,67 @@ class create_update_meals(Resource):
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
             print(key)
-            meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            
+            # meal_photo = helper_upload_meal_img(meal_photo_url, key)
+            valid_photo = True
+            try: 
+                print("(create_update_meals) meal photo try 1")
+                meal_photo = helper_upload_meal_img(meal_photo_url, key)
+                print("(create_update_meals) meal photo try 2")
+            except: 
+                print("(create_update_meals) meal photo except 1")
+                valid_photo = False
+                get_all_s3_keys('mtyd')
+                print("(create_update_meals) meal photo except 2")
+
             print("2")
             print(meal_uid)
             print(meal_notes)
             # INSERT query
+            # query = """
+            #         Update meals
+            #         SET 
+            #             meal_category = '""" + meal_category + """',
+            #             meal_name = '""" + meal_name + """',
+            #             meal_desc = '""" + meal_desc + """',
+            #             meal_hint = '""" + meal_hint + """',
+            #             meal_photo_url = '""" + meal_photo + """',
+            #             meal_calories = '""" + meal_calories + """',
+            #             meal_protein = '""" + meal_protein + """',
+            #             meal_carbs = '""" + meal_carbs + """',
+            #             meal_fiber = '""" + meal_fiber + """',
+            #             meal_sugar = '""" + meal_sugar + """',
+            #             meal_fat = '""" + meal_fat + """',
+            #             meal_sat = '""" + meal_sat + """',
+            #             meal_status = '""" + meal_status + """'
+            #         where meal_uid = '""" + meal_uid + """';
+            #         """
+            print("(create_update_meals -- PUT) query 1")
             query = """
-                    Update meals
+                UPDATE 
+                    meals
+                SET 
+                    meal_category = '""" + meal_category + """',
+                    meal_name = '""" + meal_name + """',
+                    meal_desc = '""" + meal_desc + """',
+                    meal_hint = '""" + meal_hint + """',
+                    meal_calories = '""" + meal_calories + """',
+                    meal_protein = '""" + meal_protein + """',
+                    meal_carbs = '""" + meal_carbs + """',
+                    meal_fiber = '""" + meal_fiber + """',
+                    meal_sugar = '""" + meal_sugar + """',
+                    meal_fat = '""" + meal_fat + """',
+                    meal_sat = '""" + meal_sat + """',
+                    meal_status = '""" + meal_status + """'
+                WHERE 
+                    meal_uid = '""" + meal_uid + """';
+            """
+            print("(create_update_meals -- PUT) query 2")
+            if valid_photo == True:
+                print("(create_update_meals) valid photo false")
+                query = """
+                    UPDATE 
+                        meals
                     SET 
                         meal_category = '""" + meal_category + """',
                         meal_name = '""" + meal_name + """',
@@ -3214,8 +3341,11 @@ class create_update_meals(Resource):
                         meal_fat = '""" + meal_fat + """',
                         meal_sat = '""" + meal_sat + """',
                         meal_status = '""" + meal_status + """'
-                    where meal_uid = '""" + meal_uid + """';
-                    """
+                    WHERE
+                        meal_uid = '""" + meal_uid + """';
+                """
+            print("(create_update_meals -- PUT) query 3")
+
             print("2.5")
             response = simple_post_execute([query], [__class__.__name__], conn)
             # response = execute(query, 'post', conn)
@@ -4841,10 +4971,6 @@ class add_new_ingredient_recipe(Resource):
         finally:
             disconnect(conn)
 
-
-
-
-
 class create_recipe(Resource):
 
     def post(self):
@@ -4890,7 +5016,163 @@ class create_recipe(Resource):
         finally:
             disconnect(conn)
 
+# ADDED BY BRANDON 08/10/2021 (DERIVED FROM CREATE_RECIPE)
+class recipes_brandon (Resource):
 
+    def post(self):
+        items={}
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print("1")
+            qty = data["qty"]
+            id = data["id"]
+            measure = data["measure"]
+            meal_id = data["meal_id"]
+            print("2")
+            # query = """
+            #         INSERT INTO recipes (
+            #             recipe_meal_id, 
+            #             recipe_ingredient_id, 
+            #             recipe_ingredient_qty, 
+            #             recipe_measure_id
+            #             ) 
+            #             VALUES (
+            #             \'""" + meal_id + """\',
+            #             \'""" + id + """\',
+            #             \'""" + qty + """\',
+            #             \'""" + measure + """\'
+            #             );
+            #         """
+            query = """
+                INSERT INTO 
+                    recipes 
+                SET
+                    recipe_meal_id = \'""" + meal_id + """\',
+                    recipe_ingredient_id = \'""" + id + """\',
+                    recipe_ingredient_qty = \'""" + qty + """\',
+                    recipe_measure_id = \'""" + measure + """\';
+            """
+            #print(query)
+            items = execute(query, 'post', conn)
+            print(items)
+            if items['code'] == 281:
+                items['message'] = 'recipe updated successfully'
+                print(items['code'])
+                items['code'] = 200
+                #return items
+            else:
+                items['message'] = 'Check sql query'
+                items['code'] = 400
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+    def put(self):
+        items = {}
+        try:
+            print("(recipes_brandon -- PUT) 1")
+            conn = connect()
+            data = request.get_json(force=True)
+
+            # qty = data["qty"]
+            id = data["meal_id"]
+            ingredients = data["ingredients"]
+            # measure = data["measure"]
+            # meal_id = data["meal_id"]
+
+            print("(recipes_brandon -- PUT) 2")
+            delete_query = """
+                DELETE FROM
+                    recipes
+                WHERE
+                    recipe_meal_id = \'""" + id + """\';
+            """
+            items = execute(delete_query, 'post', conn)
+
+            print("(recipes_brandon -- PUT) 3")
+            if items['code'] == 281:
+                items['message'] = 'recipe deleted successfully'
+                print(items['code'])
+                items['code'] = 200
+                #return items
+            else:
+                items['message'] = 'Check sql query'
+                items['code'] = 400
+                return items
+
+            print("(recipes_brandon -- PUT) 4")
+            print("(recipes_brandon -- PUT) ingredients (input): ", ingredients)
+            for ingredient in ingredients:
+
+                print("(recipes_brandon -- PUT) 4.1")
+                print("(recipes_brandon -- PUT) ingredient: ", ingredient)
+
+                print("(recipes_brandon -- PUT) 4.2")
+                get_recipe_query = "CALL new_recipe_uid();"
+                recipe_uid = execute(get_recipe_query, 'get', conn)
+                print("(recipes_brandon -- PUT) recipe_uid: ", recipe_uid)
+                NewRecipeID = recipe_uid['result'][0]['new_id']
+                # print("(recipes_brandon -- PUT) NewRecipeID: ", NewRecipeID)
+
+                print("(recipes_brandon -- PUT) 4.3")
+                ingredient_id = ingredient["ingredient_id"]
+                ingredient_qty = ingredient["ingredient_qty"]
+                measure_id = ingredient["measure_id"]
+                print("(recipes_brandon -- PUT) NewRecipeID: ", NewRecipeID)
+                print("(recipes_brandon -- PUT) id: ", id)
+                print("(recipes_brandon -- PUT) ingredient_id: ", ingredient_id)
+                print("(recipes_brandon -- PUT) ingredient_qty: ", ingredient_qty, type(ingredient_qty))
+                print("(recipes_brandon -- PUT) measure_id: ", measure_id)
+
+                print("(recipes_brandon -- PUT) 4.4")
+                # query = """
+                # INSERT INTO recipes 
+                # SET
+                #     recipe_uid = \'""" + NewRecipeID + """\',
+                #     recipe_meal_id = \'""" + data['meal_id'] + """\',
+                #     recipe_ingredient_id = \'""" + data['ingredient_id'] + """\',
+                #     recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
+                #     recipe_measure_id = \'""" + data['measure_id'] + """\'
+
+                # ON DUPLICATE KEY UPDATE
+                #     recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
+                #     recipe_measure_id = \'""" + data['measure_id'] + "\';"
+                insert_query = """
+                    INSERT INTO 
+                        recipes 
+                    SET
+                        recipe_uid = \'""" + NewRecipeID + """\',
+                        recipe_meal_id = \'""" + id + """\',
+                        recipe_ingredient_id = \'""" + ingredient_id + """\',
+                        recipe_ingredient_qty = \'""" + str(ingredient_qty) + """\',
+                        recipe_measure_id = \'""" + measure_id + """\';
+                """
+                print("(recipes_brandon -- PUT) 4.5")
+                print("(recipes_brandon -- PUT) insert_query: ", insert_query)
+                items = execute(insert_query, 'post', conn)
+
+                print("(recipes_brandon -- PUT) 4.6")
+                if items['code'] == 281:
+                    items['message'] = 'recipe updated successfully'
+                    print(items['code'])
+                    items['code'] = 200
+                    #return items
+                else:
+                    items['message'] = 'Check sql query'
+                    items['code'] = 400
+                    return items
+            
+            print("(recipes_brandon -- PUT) 5")
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
 #pur_business_uid
@@ -5616,7 +5898,116 @@ class business_details_update(Resource):
                 disconnect(conn)
                 print('process completed')
 
+class business_details_update_brandon(Resource):
+    def post(self, action):
+            try:
+                conn = connect()
+                data = request.get_json(force=True)
 
+                if action == 'Get':
+                    # query = "SELECT * FROM M4ME.businesses WHERE business_uid = \'" + data['business_uid'] + "\';"
+                    print('(bdub) get')
+                    query = """
+                        SELECT 
+                            business_uid, 
+                            business_name,
+                            business_type,
+                            business_desc,
+                            business_contact_first_name,
+                            business_contact_last_name,
+                            business_phone_num,
+                            business_phone_num2,
+                            business_email,
+                            business_accepting_hours,
+                            business_address,
+                            business_unit,
+                            business_city,
+                            business_state,
+                            business_zip,
+                            can_cancel,
+                            delivery,
+                            reusable,
+                            business_image,
+                            platform_fee,
+                            transaction_fee,
+                            revenue_sharing,
+                            profit_sharing,
+                            business_status
+                        FROM 
+                            M4ME.businesses
+                        WHERE 
+                            business_uid = \'""" + data['business_uid'] + """\';
+                    """
+                    item = execute(query, 'get', conn)
+                    if item['code'] == 280:
+                        if not item['result']:
+                            item['message'] = 'No such business uid exists'
+                        else:
+                            item['message'] = 'Business table loaded successfully'
+                        item['code'] = 200
+                    else:
+                        item['message'] = 'check sql query'
+                        item['code'] = 490
+                    return item
+                else:
+                    print("IN ELSE")
+                    print(data)
+                    print('IN')
+
+
+                    # business_association = str(data['business_association'])
+                    # business_association = "'" + business_association.replace("'", "\"") + "'"
+                    # business_hours = str(data['business_hours'])
+                    # business_hours = "'" + business_hours.replace("'", "\"") + "'"
+                    business_accepting_hours = str(data['business_accepting_hours'])
+                    business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
+                    # business_delivery_hours = str(data['business_delivery_hours'])
+                    # business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
+                    print("(bdub) 0")
+                    query = """
+                        UPDATE 
+                            M4ME.businesses
+                        SET 
+                            business_name = \'""" + data["business_name"] + """\',
+                            business_type = \'""" + data["business_type"] + """\',
+                            business_desc = \'""" + data["business_desc"] + """\',
+                            business_contact_first_name = \'""" + data["business_contact_first_name"] + """\',
+                            business_contact_last_name = \'""" + data["business_contact_last_name"] + """\',
+                            business_phone_num = \'""" + data["business_phone_num"] + """\',
+                            business_phone_num2 = \'""" + data["business_phone_num2"] + """\',
+                            business_email = \'""" + data["business_email"] + """\',
+                            business_accepting_hours = """ + business_accepting_hours + """,
+                            business_address = \'""" + data["business_address"] + """\',
+                            business_unit = \'""" + data["business_unit"] + """\',
+                            business_city = \'""" + data["business_city"] + """\',
+                            business_state = \'""" + data["business_state"] + """\',
+                            business_zip = \'""" + data["business_zip"] + """\',
+                            can_cancel = \'""" + data["can_cancel"] + """\',
+                            delivery = \'""" + data["delivery"] + """\',
+                            reusable = \'""" + data["reusable"] + """\',
+                            business_image = \'""" + data["business_image"] + """\',
+                        WHERE 
+                            business_uid = \'""" + data["business_uid"] + """\' ;
+                    """
+                    print("(bdub) 1")
+                    print(query)
+                    item = execute(query, 'post', conn)
+                    print("(bdub) 2")
+                    print(item)
+                    if item['code'] == 281:
+                        item['code'] = 200
+                        item['message'] = 'Business info updated'
+                    else:
+                        item['message'] = 'check sql query'
+                        item['code'] = 490
+                    return item
+
+            except:
+                print("Error happened while outputting from business table")
+                raise BadRequest('Request failed, please try again later.')
+            finally:
+                disconnect(conn)
+                print('process completed')
 
 
 class orders_by_business(Resource): #need to fix
@@ -13186,6 +13577,7 @@ api.add_resource(purchase_Data_SF, '/api/v2/purchase_Data_SF') # seems to be the
 api.add_resource(addItems, '/api/v2/addItems/<string:action>') #check if theres something similar
 
 api.add_resource(business_details_update, '/api/v2/business_details_update/<string:action>')
+api.add_resource(business_details_update_brandon, '/api/v2/business_details_update_brandon/<string:action>')
 
 #needs to be checked
 api.add_resource(orders_by_business, '/api/v2/orders_by_business')# fixed
@@ -13215,6 +13607,7 @@ api.add_resource(deleteAccount, '/api/v2/deleteAccount')
 api.add_resource(email_verification, '/api/v2/email_verification')
 
 api.add_resource(all_businesses, '/api/v2/all_businesses')
+api.add_resource(all_businesses_brandon, '/api/v2/all_businesses_brandon')
 
 api.add_resource(pid_history, '/api/v2/pid_history/<string:pid>')
 
@@ -13234,7 +13627,11 @@ api.add_resource(Update_Delivery_Info_Address, '/api/v2/Update_Delivery_Info_Add
 
 api.add_resource(report_order_customer_pivot_detail, '/api/v2/report_order_customer_pivot_detail/<string:report>,<string:uid>')
 
-api.add_resource(create_recipe, '/api/v2/create_recipe')
+# To be deprecated as of 8/10/21
+api.add_resource(create_recipe, '/api/v2/create_recipe_old')
+
+# To replace create_recipe
+api.add_resource(recipes_brandon, '/api/v2/create_recipe')
 
 api.add_resource(Latest_activity, '/api/v2/Latest_activity/<string:user_id>')
 
