@@ -3086,7 +3086,7 @@ class create_update_meals(Resource):
     def post(self):
         lists={}
         items = {}
-        print("\nInside create_update_meals")
+        # print("\nInside create_update_meals")
         try:
             conn = connect()
             # data = request.get_json(force=True)
@@ -3100,8 +3100,8 @@ class create_update_meals(Resource):
             meal_photo_url = request.files.get('meal_photo_url') if request.files.get('meal_photo_url') is not None else 'NULL'
             #meal_photo_url = request.form.get('meal_photo_url') if request.form.get('meal_photo_url') is not None else 'NULL'
 
-            print("(create_update_meals) meal_photo_url: ", meal_photo_url)
-            print("(create_update_meals) type(meal_photo_url): ", type(meal_photo_url))
+            # print("(create_update_meals) meal_photo_url: ", meal_photo_url)
+            # print("(create_update_meals) type(meal_photo_url): ", type(meal_photo_url))
             
             meal_calories = request.form.get('meal_calories') if request.form.get('meal_calories') is not None else 'NULL'
             meal_protein = request.form.get('meal_protein') if request.form.get('meal_protein') is not None else 'NULL'
@@ -3115,36 +3115,36 @@ class create_update_meals(Resource):
             #taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
             meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
 
-            print("(create_update_meals) 1")
+            # print("(create_update_meals) 1")
 
             if meal_uid[1] != 200:
                 return meal_uid
             meal_uid = meal_uid[0]['result']
 
-            print("(create_update_meals) 2")
+            # print("(create_update_meals) 2")
 
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            print("TimeStamp_test: ", TimeStamp_test)
+            # print("TimeStamp_test: ", TimeStamp_test)
 
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
 
-            print("key: ", key)
-            print("meal_photo_url: ", meal_photo_url)
+            # print("key: ", key)
+            # print("meal_photo_url: ", meal_photo_url)
 
             valid_photo = True
             try: 
-                print("(create_update_meals) meal photo try 1")
+                # print("(create_update_meals) meal photo try 1")
                 meal_photo = helper_upload_meal_img(meal_photo_url, key)
-                print("(create_update_meals) meal photo try 2")
+                # print("(create_update_meals) meal photo try 2")
             except: 
-                print("(create_update_meals) meal photo except 1")
+                # print("(create_update_meals) meal photo except 1")
                 valid_photo = False
-                get_all_s3_keys('mtyd')
-                print("(create_update_meals) meal photo except 2")
+                # get_all_s3_keys('mtyd')
+                # print("(create_update_meals) meal photo except 2")
 
-            print("(create_update_meals) 3")
-            print("(create_update_meals) meal_uid: ", meal_uid)
+            # print("(create_update_meals) 3")
+            # print("(create_update_meals) meal_uid: ", meal_uid)
 
             #print(meal_notes)
             # INSERT query
@@ -3186,9 +3186,9 @@ class create_update_meals(Resource):
                     meal_sat = '""" + meal_sat + """',
                     meal_status = '""" + meal_status + """';
             """
-            print("(create_update_meals) 3.1")
+            # print("(create_update_meals) 3.1")
             if valid_photo == True:
-                print("(create_update_meals) valid photo false")
+                # print("(create_update_meals) valid photo false")
                 query = """
                     INSERT INTO 
                         meals
@@ -3210,17 +3210,14 @@ class create_update_meals(Resource):
                         meal_status = '""" + meal_status + """';
                 """
 
-            print("(create_update_meals) 4")
+            # print("(create_update_meals) 4")
 
             response = simple_post_execute([query], [__class__.__name__], conn)
-            # response = simple_post_execute(query, 'post', conn)
-            # response = execute(query, 'post', conn)
 
-            print("(create_update_meals) 5")
+            # print("(create_update_meals) 5")
 
-            #meal_photo = helper_upload_meal_img(meal_photo_url, key)
-            print(response)
-            print(response[1])
+            # print(response)
+            # print(response[1])
             if response[1] != 201:
                 return response
             response[0]['meal_uid'] = meal_uid
@@ -5024,12 +5021,12 @@ class recipes_brandon (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("1")
+            # print("1")
             qty = data["qty"]
             id = data["id"]
             measure = data["measure"]
             meal_id = data["meal_id"]
-            print("2")
+            # print("2")
             # query = """
             #         INSERT INTO recipes (
             #             recipe_meal_id, 
@@ -5055,10 +5052,10 @@ class recipes_brandon (Resource):
             """
             #print(query)
             items = execute(query, 'post', conn)
-            print(items)
+            # print(items)
             if items['code'] == 281:
                 items['message'] = 'recipe updated successfully'
-                print(items['code'])
+                # print(items['code'])
                 items['code'] = 200
                 #return items
             else:
@@ -5074,17 +5071,18 @@ class recipes_brandon (Resource):
     def put(self):
         items = {}
         try:
-            print("(recipes_brandon -- PUT) 1")
+            # print("(recipes_brandon -- PUT) 1")
             conn = connect()
             data = request.get_json(force=True)
 
             # qty = data["qty"]
             id = data["meal_id"]
+            servings = data["servings"]
             ingredients = data["ingredients"]
             # measure = data["measure"]
             # meal_id = data["meal_id"]
 
-            print("(recipes_brandon -- PUT) 2")
+            # print("(recipes_brandon -- PUT) 2")
             delete_query = """
                 DELETE FROM
                     recipes
@@ -5093,7 +5091,7 @@ class recipes_brandon (Resource):
             """
             items = execute(delete_query, 'post', conn)
 
-            print("(recipes_brandon -- PUT) 3")
+            # print("(recipes_brandon -- PUT) 3")
             if items['code'] == 281:
                 items['message'] = 'recipe deleted successfully'
                 print(items['code'])
@@ -5104,31 +5102,31 @@ class recipes_brandon (Resource):
                 items['code'] = 400
                 return items
 
-            print("(recipes_brandon -- PUT) 4")
-            print("(recipes_brandon -- PUT) ingredients (input): ", ingredients)
+            # print("(recipes_brandon -- PUT) 4")
+            # print("(recipes_brandon -- PUT) ingredients (input): ", ingredients)
             for ingredient in ingredients:
 
-                print("(recipes_brandon -- PUT) 4.1")
-                print("(recipes_brandon -- PUT) ingredient: ", ingredient)
+                # print("(recipes_brandon -- PUT) 4.1")
+                # print("(recipes_brandon -- PUT) ingredient: ", ingredient)
 
-                print("(recipes_brandon -- PUT) 4.2")
+                # print("(recipes_brandon -- PUT) 4.2")
                 get_recipe_query = "CALL new_recipe_uid();"
                 recipe_uid = execute(get_recipe_query, 'get', conn)
-                print("(recipes_brandon -- PUT) recipe_uid: ", recipe_uid)
+                # print("(recipes_brandon -- PUT) recipe_uid: ", recipe_uid)
                 NewRecipeID = recipe_uid['result'][0]['new_id']
                 # print("(recipes_brandon -- PUT) NewRecipeID: ", NewRecipeID)
 
-                print("(recipes_brandon -- PUT) 4.3")
+                # print("(recipes_brandon -- PUT) 4.3")
                 ingredient_id = ingredient["ingredient_id"]
                 ingredient_qty = ingredient["ingredient_qty"]
                 measure_id = ingredient["measure_id"]
-                print("(recipes_brandon -- PUT) NewRecipeID: ", NewRecipeID)
-                print("(recipes_brandon -- PUT) id: ", id)
-                print("(recipes_brandon -- PUT) ingredient_id: ", ingredient_id)
-                print("(recipes_brandon -- PUT) ingredient_qty: ", ingredient_qty, type(ingredient_qty))
-                print("(recipes_brandon -- PUT) measure_id: ", measure_id)
+                # print("(recipes_brandon -- PUT) NewRecipeID: ", NewRecipeID)
+                # print("(recipes_brandon -- PUT) id: ", id)
+                # print("(recipes_brandon -- PUT) ingredient_id: ", ingredient_id)
+                # print("(recipes_brandon -- PUT) ingredient_qty: ", ingredient_qty, type(ingredient_qty))
+                # print("(recipes_brandon -- PUT) measure_id: ", measure_id)
 
-                print("(recipes_brandon -- PUT) 4.4")
+                # print("(recipes_brandon -- PUT) 4.4")
                 # query = """
                 # INSERT INTO recipes 
                 # SET
@@ -5149,13 +5147,14 @@ class recipes_brandon (Resource):
                         recipe_meal_id = \'""" + id + """\',
                         recipe_ingredient_id = \'""" + ingredient_id + """\',
                         recipe_ingredient_qty = \'""" + str(ingredient_qty) + """\',
-                        recipe_measure_id = \'""" + measure_id + """\';
+                        recipe_measure_id = \'""" + measure_id + """\',
+                        recipe_servings = \'""" + str(servings) + """\';
                 """
-                print("(recipes_brandon -- PUT) 4.5")
-                print("(recipes_brandon -- PUT) insert_query: ", insert_query)
+                # print("(recipes_brandon -- PUT) 4.5")
+                # print("(recipes_brandon -- PUT) insert_query: ", insert_query)
                 items = execute(insert_query, 'post', conn)
 
-                print("(recipes_brandon -- PUT) 4.6")
+                # print("(recipes_brandon -- PUT) 4.6")
                 if items['code'] == 281:
                     items['message'] = 'recipe updated successfully'
                     print(items['code'])
@@ -5166,7 +5165,7 @@ class recipes_brandon (Resource):
                     items['code'] = 400
                     return items
             
-            print("(recipes_brandon -- PUT) 5")
+            # print("(recipes_brandon -- PUT) 5")
             return items
 
         except:
