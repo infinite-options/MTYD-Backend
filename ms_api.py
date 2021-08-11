@@ -829,8 +829,9 @@ class customer_lists(Resource):
             raise BadRequest('Request failed, please try again later.')
 
 
+#  -----------------------------------------  PROGRAM ENDPOINTS START HERE  -----------------------------------------
 
-# -----------------------------------------
+#  -- ACCOUNT RELATED ENDPOINTS    -----------------------------------------
 
 
 
@@ -972,66 +973,6 @@ class createAccount(Resource):
                     items['code'] = 480
                     items['message'] = "Internal Server Error."
                     return items
-
-
-                # write everything to database
-                # customer_insert_query = ["""
-                #                         INSERT INTO M4ME.customers 
-                #                         (
-                #                             customer_uid,
-                #                             customer_created_at,
-                #                             customer_first_name,
-                #                             customer_last_name,
-                #                             customer_phone_num,
-                #                             customer_email,
-                #                             customer_address,
-                #                             customer_unit,
-                #                             customer_city,
-                #                             customer_state,
-                #                             customer_zip,
-                #                             customer_lat,
-                #                             customer_long,
-                #                             password_salt,
-                #                             password_hashed,
-                #                             password_algorithm,
-                #                             referral_source,
-                #                             role,
-                #                             user_social_media,
-                #                             user_access_token,
-                #                             social_timestamp,
-                #                             user_refresh_token,
-                #                             mobile_access_token,
-                #                             mobile_refresh_token,
-                #                             social_id
-                #                         )
-                #                         VALUES
-                #                         (
-                                        
-                #                             \'""" + NewUserID + """\',
-                #                             \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-                #                             \'""" + firstName + """\',
-                #                             \'""" + lastName + """\',
-                #                             \'""" + phone + """\',
-                #                             \'""" + email + """\',
-                #                             \'""" + address + """\',
-                #                             \'""" + unit + """\',
-                #                             \'""" + city + """\',
-                #                             \'""" + state + """\',
-                #                             \'""" + zip_code + """\',
-                #                             \'""" + latitude + """\',
-                #                             \'""" + longitude + """\',
-                #                             \'""" + salt + """\',
-                #                             \'""" + password + """\',
-                #                             \'""" + algorithm + """\',
-                #                             \'""" + referral + """\',
-                #                             \'""" + role + """\',
-                #                             \'""" + user_social_signup + """\',
-                #                             \'""" + user_access_token + """\',
-                #                             DATE_ADD(now() , INTERVAL 14 DAY),
-                #                             \'""" + user_refresh_token + """\',
-                #                             \'""" + mobile_access_token + """\',
-                #                             \'""" + mobile_refresh_token + """\',
-                #                             \'""" + social_id + """\');"""]
 
                 customer_insert_query = ["""
                                         INSERT INTO M4ME.customers 
@@ -1410,19 +1351,6 @@ class AppleLogin (Resource):
                                         social_id = \'""" + sub + """\',
                                         social_timestamp = DATE_ADD(now() , INTERVAL 1 DAY)
                                     """
-                                    # )
-                                    # VALUES
-                                    # (
-                                    
-                                    #     \'""" + NewUserID + """\',
-                                    #     \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-                                    #     \'""" + email + """\',
-                                    #     \'""" + user_social_signup + """\',
-                                    #     \'""" + access_token + """\',
-                                    #     \'""" + access_token + """\',
-                                    #     \'""" + sub + """\',
-                                    #     DATE_ADD(now() , INTERVAL 1 DAY)
-                                    # );"""
 
                         item = execute(customer_insert_query, 'post', conn)
 
@@ -1586,24 +1514,49 @@ class Reset_Password(Resource):
         finally:
             disconnect(conn)
 
+class AccountSalt(Resource):
+    def post(self):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+
+            data = request.get_json(force=True)
+            print(data)
+            email = data['email']
+            query = """
+                    SELECT password_algorithm, 
+                            password_salt,
+                            user_social_media 
+                    FROM M4ME.customers cus
+                    WHERE customer_email = \'""" + email + """\';
+                    """
+            items = execute(query, 'get', conn)
+            if not items['result']:
+                items['message'] = "Email doesn't exists"
+                items['code'] = 404
+                return items
+            if items['result'][0]['user_social_media'] != 'NULL':
+                items['message'] = """Social Signup exists. Use \'""" + items['result'][0]['user_social_media'] + """\' """
+                items['code'] = 401
+                return items
+            items['message'] = 'SALT sent successfully'
+            items['code'] = 200
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn) 
 
 
 
+#  -- MEAL RELATED ENDPOINTS    -----------------------------------------
 
 class Meals_Selected(Resource): #(meals_selected_endpoint)
     def get(self):
         try:
             conn = connect()
             customer_uid = request.args['customer_uid']
-            '''
-            query = """
-                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
-                    SELECT * FROM M4ME.latest_combined_meal lcm
-                    LEFT JOIN M4ME.lplp
-                        ON lcm.sel_purchase_id = lplp.purchase_uid
-                    WHERE pur_customer_uid = '""" + customer_uid + """'; 
-                    """
-            '''
 
             query = """
                     # CUSTOMER QUERY 3: MEALS SELECTED INCLUDING DEFAULT SURPRISES
@@ -1651,17 +1604,6 @@ class Meals_Selected_Specific(Resource):
             customer_uid = request.args['customer_uid']
             purchase_id = request.args['purchase_id']
             menu_date = request.args['menu_date']
-            '''
-            query = """
-                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
-                    SELECT * FROM M4ME.latest_combined_meal lcm
-                    LEFT JOIN M4ME.lplp
-                        ON lcm.sel_purchase_id = lplp.purchase_id
-                    WHERE pur_customer_uid = '""" + customer_uid + """'
-                    and purchase_id = '""" + purchase_id + """'
-                    and sel_menu_date= '""" + menu_date + """';
-                    """
-            '''
 
             query = """
                     # CUSTOMER QUERY 3A: MEALS SELECTED FOR SPECIFIC PURCHASE ID AND MENU DATE INCLUDING DEFAULT SURPRISES 
@@ -1704,7 +1646,67 @@ class Meals_Selected_Specific(Resource):
         finally:
             disconnect(conn)
 
+class Meals_Selection (Resource):
+    def post(self):
+        response = {}
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            purchase_id = data['purchase_id']
+            items_selected = "'[" + ", ".join([str(item).replace("'", "\"") for item in data['items']]) + "]'"
+            delivery_day = data['delivery_day']
+            sel_menu_date = data['menu_date']
 
+            if data['is_addon']:
+                res = execute("CALL new_addons_selected_uid();", 'get', conn)
+            else:
+                res = execute("CALL new_meals_selected_uid();", 'get', conn)
+            if res['code'] != 280:
+                print("*******************************************")
+                print("* Cannot run the query to get a new \"selection_uid\" *")
+                print("*******************************************")
+                response['message'] = 'Internal Server Error.'
+                return response, 500
+            selection_uid = res['result'][0]['new_id']
+            queries = [[
+                        """
+                        INSERT INTO addons_selected
+                        SET selection_uid = '""" + selection_uid + """',
+                            sel_purchase_id = '""" + purchase_id + """',
+                            selection_time = '""" + getNow() + """',
+                            sel_menu_date = '""" + sel_menu_date + """',
+                            meal_selection = """ + items_selected + """,
+                            delivery_day = '""" + delivery_day + """';
+                        """
+                        ],
+                       [
+                       """
+                       INSERT INTO meals_selected
+                       SET selection_uid = '""" + selection_uid + """',
+                        sel_purchase_id = '""" + purchase_id + """',
+                        selection_time = '""" + getNow() + """',
+                        sel_menu_date = '""" + sel_menu_date + """',
+                        meal_selection = """ + items_selected + """,
+                        delivery_day = '""" + delivery_day + """';
+                        """
+                       ]]
+
+            if data['is_addon'] == True:
+                # write to addons selected table
+                # need a stored function to get the new selection
+                response = simple_post_execute(queries[0], ["ADDONS_SELECTED"], conn)
+            else:
+                response = simple_post_execute(queries[1], ["MEALS_SELECTED"], conn)
+            if response[1] == 201:
+                response[0]['selection_uid']= selection_uid
+            return response
+        except:
+            if "selection_uid" in locals():
+                execute("DELETE FROM addons_selected WHERE selection_uid = '" + selection_uid + "';", 'post', conn)
+                execute("DELETE FROM meals_selected WHERE selection_uid = '" + selection_uid + "';", 'post', conn)
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
 
 class Get_Upcoming_Menu(Resource):
     def get(self):
@@ -1736,6 +1738,9 @@ class Get_Upcoming_Menu(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+
+#  -- PURCHASES/PAYMENTS RELATED ENDPOINTS    -----------------------------------------
 
 class Get_Latest_Purchases_Payments(Resource):
     # HTTP method GET
@@ -1834,51 +1839,13 @@ class Next_Addon_Charge(Resource):
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
-            disconnect(conn)
-
-
-
-
-
-
-class AccountSalt(Resource):
-    def post(self):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-
-            data = request.get_json(force=True)
-            print(data)
-            email = data['email']
-            query = """
-                    SELECT password_algorithm, 
-                            password_salt,
-                            user_social_media 
-                    FROM M4ME.customers cus
-                    WHERE customer_email = \'""" + email + """\';
-                    """
-            items = execute(query, 'get', conn)
-            if not items['result']:
-                items['message'] = "Email doesn't exists"
-                items['code'] = 404
-                return items
-            if items['result'][0]['user_social_media'] != 'NULL':
-                items['message'] = """Social Signup exists. Use \'""" + items['result'][0]['user_social_media'] + """\' """
-                items['code'] = 401
-                return items
-            items['message'] = 'SALT sent successfully'
-            items['code'] = 200
-            return items
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)   
+            disconnect(conn)  
 
 
 
 
 #used pur_business_uid
+# To be replaced by checkout2 due to new brandAmbassador2 functionality
 class Checkout(Resource):
     def post(self):
         response = {}
@@ -2079,6 +2046,7 @@ class Checkout(Resource):
         finally:
             disconnect(conn)
 
+# Updated to be used with brandAmbassador2
 class Checkout2(Resource):
     def post(self):
         response = {}
@@ -2548,85 +2516,6 @@ class Checkout2(Resource):
         finally:
             disconnect(conn)
 
-class Meals_Selection (Resource):
-    def post(self):
-        response = {}
-        try:
-            conn = connect()
-            data = request.get_json(force=True)
-            purchase_id = data['purchase_id']
-            items_selected = "'[" + ", ".join([str(item).replace("'", "\"") for item in data['items']]) + "]'"
-            delivery_day = data['delivery_day']
-            sel_menu_date = data['menu_date']
-            # skip = data['skip']
-            # if skip == "true":
-            #     response1 = {}
-            #     skip_query = """
-            #                 INSERT INTO meals_selected
-            #                 SET selection_uid = '""" + selection_uid + """',
-            #                 sel_purchase_id = '""" + purchase_id + """',
-            #                 selection_time = '""" + getNow() + """',
-            #                 sel_menu_date = '""" + sel_menu_date + """',
-            #                 meal_selection = """ + items_selected + """,
-            #                 delivery_day = '""" + delivery_day + """';
-            #                 """
-            #     response1 = simple_post_execute(skip_query, ["MEALS_SELECTED"], conn)
-
-            if data['is_addon']:
-                res = execute("CALL new_addons_selected_uid();", 'get', conn)
-            else:
-                res = execute("CALL new_meals_selected_uid();", 'get', conn)
-            if res['code'] != 280:
-                print("*******************************************")
-                print("* Cannot run the query to get a new \"selection_uid\" *")
-                print("*******************************************")
-                response['message'] = 'Internal Server Error.'
-                return response, 500
-            selection_uid = res['result'][0]['new_id']
-            queries = [[
-                        """
-                        INSERT INTO addons_selected
-                        SET selection_uid = '""" + selection_uid + """',
-                            sel_purchase_id = '""" + purchase_id + """',
-                            selection_time = '""" + getNow() + """',
-                            sel_menu_date = '""" + sel_menu_date + """',
-                            meal_selection = """ + items_selected + """,
-                            delivery_day = '""" + delivery_day + """';
-                        """
-                        ],
-                       [
-                       """
-                       INSERT INTO meals_selected
-                       SET selection_uid = '""" + selection_uid + """',
-                        sel_purchase_id = '""" + purchase_id + """',
-                        selection_time = '""" + getNow() + """',
-                        sel_menu_date = '""" + sel_menu_date + """',
-                        meal_selection = """ + items_selected + """,
-                        delivery_day = '""" + delivery_day + """';
-                        """
-                       ]]
-
-            if data['is_addon'] == True:
-                # write to addons selected table
-                # need a stored function to get the new selection
-                response = simple_post_execute(queries[0], ["ADDONS_SELECTED"], conn)
-            else:
-                response = simple_post_execute(queries[1], ["MEALS_SELECTED"], conn)
-            if response[1] == 201:
-                response[0]['selection_uid']= selection_uid
-            return response
-        except:
-            if "selection_uid" in locals():
-                execute("DELETE FROM addons_selected WHERE selection_uid = '" + selection_uid + "';", 'post', conn)
-                execute("DELETE FROM meals_selected WHERE selection_uid = '" + selection_uid + "';", 'post', conn)
-            raise BadRequest("Request failed, please try again later.")
-        finally:
-            disconnect(conn)
-
-
-
-
-
 
 
 class Refund_Calculator (Resource):
@@ -2740,7 +2629,7 @@ class Update_Delivery_Info (Resource):
             disconnect(conn)
 
 
-
+#  -- ADMIN RELATED ENDPOINTS    -----------------------------------------
 
 # ---------- ADMIN ENDPOINTS ----------------#
 # admin endpoints start from here            #
@@ -2757,12 +2646,6 @@ class Plans(Resource):
                     join discounts
                     where itm_business_uid = "200-000002";
                     """
-            # query = """
-            #         # ADMIN QUERY 5: PLANS 
-            #         SELECT * FROM M4ME.subscription_items si 
-            #         -- WHERE itm_business_uid = "200-000007"; 
-            #         WHERE itm_business_uid = \'""" + business_uid + """\';
-            #         """
             print("2")
             return simple_get_execute(query, __class__.__name__, conn)
         except:
@@ -3146,27 +3029,6 @@ class create_update_meals(Resource):
             # print("(create_update_meals) 3")
             # print("(create_update_meals) meal_uid: ", meal_uid)
 
-            #print(meal_notes)
-            # INSERT query
-            # query = """
-            #         INSERT INTO meals
-            #         SET meal_uid = '""" + meal_uid + """',
-            #             meal_category = '""" + meal_category + """',
-            #             meal_business = '""" + meal_business + """',
-            #             meal_name = '""" + meal_name + """',
-            #             meal_desc = '""" + meal_desc + """',
-            #             meal_hint = '""" + meal_hint + """',
-            #             meal_photo_url = '""" + meal_photo + """',
-            #             meal_calories = '""" + meal_calories + """',
-            #             meal_protein = '""" + meal_protein + """',
-            #             meal_carbs = '""" + meal_carbs + """',
-            #             meal_fiber = '""" + meal_fiber + """',
-            #             meal_sugar = '""" + meal_sugar + """',
-            #             meal_fat = '""" + meal_fat + """',
-            #             meal_sat = '""" + meal_sat + """',
-            #             meal_status = '""" + meal_status + """';
-            #         """
-
             query = """
                 INSERT INTO 
                     meals
@@ -3279,25 +3141,6 @@ class create_update_meals(Resource):
             print("2")
             print(meal_uid)
             print(meal_notes)
-            # INSERT query
-            # query = """
-            #         Update meals
-            #         SET 
-            #             meal_category = '""" + meal_category + """',
-            #             meal_name = '""" + meal_name + """',
-            #             meal_desc = '""" + meal_desc + """',
-            #             meal_hint = '""" + meal_hint + """',
-            #             meal_photo_url = '""" + meal_photo + """',
-            #             meal_calories = '""" + meal_calories + """',
-            #             meal_protein = '""" + meal_protein + """',
-            #             meal_carbs = '""" + meal_carbs + """',
-            #             meal_fiber = '""" + meal_fiber + """',
-            #             meal_sugar = '""" + meal_sugar + """',
-            #             meal_fat = '""" + meal_fat + """',
-            #             meal_sat = '""" + meal_sat + """',
-            #             meal_status = '""" + meal_status + """'
-            #         where meal_uid = '""" + meal_uid + """';
-            #         """
             print("(create_update_meals -- PUT) query 1")
             query = """
                 UPDATE 
@@ -3938,10 +3781,6 @@ class Edit_Menu(Resource):
             print("data received")
             print(menu_date)
             print(menu)
-            # items['delete_menu'] = execute("""delete from menu
-            #                                             where menu_date = \'""" + str(menu_date) + """\';
-            #                                                 """, 'post', conn)
-            # print("menu deleted")
 
             i = 0
             for eachitem in data['menu']:
@@ -3957,6 +3796,7 @@ class Edit_Menu(Resource):
                 print(meal_name)
                 print(default_meal)
 
+                # REFACTOR THIS
                 query = """insert into M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, menu_meal_id, default_meal) 
                         values 
                         (\'""" + menu_uid + """\'
@@ -4034,6 +3874,7 @@ class Edit_Meal(Resource):
                 meal_sat = eachitem['meal_sat']
             print(data)
             print("Items read...")
+            # REFACTOR THIS
             query = """
                         insert into M4ME.menu 
                         values 
@@ -4167,6 +4008,7 @@ class Edit_Recipe(Resource):
             meal_name = data['meal_name']
             ingredients = data['ingredients']
 
+            # REFACTOR THIS
             items['delete_ingredients'] = execute("""delete from recipes
                                                         where recipe_meal_id = \'""" + str(meal_id) + """\';
                                                             """, 'post', conn)
@@ -4187,6 +4029,7 @@ class Edit_Recipe(Resource):
                 print(meal_name)
                 print("************************")
 
+                # REFACTOR THIS
                 items['new_ingredients_insert'] = execute(""" INSERT INTO recipes (
                                                             recipe_meal_id, recipe_ingredient_id, recipe_ingredient_qty, 
                                                             recipe_measure_id
@@ -4224,6 +4067,8 @@ class Add_New_Ingredient(Resource):
             ingredientIdQuery = execute(
                 """CALL get_new_ingredient_id();""", 'get', conn)
             ingredientId = ingredientIdQuery['result'][0]['new_id']
+
+            # REFACTOR
             items['new_ingredient_insert'] = execute(""" INSERT INTO ingredients (
                                                                 ingredient_id, ingredient_desc, package_size,ingredient_measure_id,ingredient_cost, ingredient_measure
                                                                 ) 
@@ -4291,6 +4136,7 @@ class Add_Meal_plan(Resource):
             meal_shipping = data['meal_shipping']
 
             print("Items read...")
+            # REFACTOR
             items['new_meal_insert'] = execute("""INSERT INTO subscription_items  ( 	
                                                     item_uid,item_desc,payment_frequency,item_photo,info_headline,
                                                     info_footer,num_items,info_weekly_price,item_price,shipping 
@@ -4411,7 +4257,7 @@ class UpdateProfile(Resource):
 
 
 
-
+# POSSIBLY ACCOUNT RELATED (MAY NEED TO BE MOVED?)
 class access_refresh_update(Resource):
 
     def post(self):
@@ -4538,24 +4384,7 @@ class customer_infos(Resource):
             item = {}
             try:
                 conn = connect()
-                print("1")
-                #data = request.get_json(force=True)
-                print("2")
-                #query = "CALL M4ME.new_profile"
-                #new_profile_query = execute(query, 'get', conn)
-                #new_profile = newPaymentUID_query['result'][0]['new_id']
 
-                # uid= data['uid']
-                # f_name= data['first_name']
-                # l_name= data['last_name']
-                # phone= data['phone']
-                # email= data['email']
-                # address= data['address']
-                # unit= data['unit']
-                # city= data['city']
-                # state= data['state']
-                # zip_code= data['zip']
-                # notification= data['noti']
 
                 query = """ 
                             select customer_uid, 
@@ -4602,7 +4431,7 @@ class customer_infos(Resource):
 
 
 
-
+# POSSIBLY MOVE TO ADMIN SECTION
 class Meal_Detail(Resource):
 
     def get(self, date):
@@ -4675,6 +4504,8 @@ class List_of_Meals(Resource):
         finally:
             disconnect(conn)
 
+
+#  -- ADMIN NOTIFICATION RELATED ENDPOINTS    -----------------------------------------
 
 class Create_Group(Resource):
 
@@ -4834,8 +4665,184 @@ class Send_Twilio_SMS(Resource):
         items['Message'] = 'SMS sent successfully to all recipients'
         return items
 
+class update_guid_notification(Resource):
+
+    def post(self, role, action):
+        response = {}
+        items = {}
+
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            print(data)
+            if role == 'customer' and action == 'add':
+                uid = data['uid']
+                guid = data['guid']
+                notification = data['notification']
+                query = """
+                        SELECT *
+                        FROM customers c
+                        WHERE customer_uid = \'""" + uid + """\'
+                        """
+                items = execute(query, 'get', conn)
+                del data['uid']
+                test = str(data).replace("'", "\"")
+                print('test---------', test)
+                data = "'" + test + "'"
+
+                print(data)
+                if items['result']:
+
+                    # REFACTOR
+                    query = " " \
+                            "UPDATE customers " \
+                            "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
+                            "WHERE customer_uid = '" + str(uid) + "';" \
+                            ""
+
+                    items = execute(query, 'post', conn)
+                    print(items)
+                    if items['code'] == 281:
+                        items['code'] = 200
+                        items['message'] = 'Device_id notification and GUID updated'
+                    else:
+                        items['message'] = 'check sql query'
+
+                else:
+                    items['message'] = "UID doesn't exists"
+
+                return items
+
+            elif role == 'business' and action == 'add':
+                uid = data['uid']
+                guid = data['guid']
+                query = """
+                        SELECT *
+                        FROM businesses b
+                        WHERE business_uid = \'""" + uid + """\'
+                        """
+                items = execute(query, 'get', conn)
+
+                del data['uid']
+                test = str(data).replace("'", "\"")
+                print('test---------', test)
+                data = "'" + test + "'"
+
+                if items['result']:
+                    data
+                    query = " " \
+                            "UPDATE businesses " \
+                            "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
+                            "WHERE business_uid = '" + str(uid) + "';" \
+                            ""
+
+                    items = execute(query, 'post', conn)
+
+                    if items['code'] == 281:
+                        items['code'] = 200
+                        items['message'] = 'Device_id notification and GUID updated'
+                    else:
+                        items['message'] = 'check sql query'
+
+                else:
+                    items['message'] = "UID doesn't exists"
+
+                return items
+
+            #GUIDS
+
+            elif role == 'customer' and action == 'update':
+                query = """
+                    SELECT cust_guid_device_id_notification
+                    FROM customers c
+                    WHERE customer_uid = \'""" + data['uid'] + """\';
+                    """
+                items = execute(query, 'get', conn)
+                json_guid = json.loads(items['result'][0]['cust_guid_device_id_notification'])
+                print('0', json_guid)
+                for i, vals in enumerate(json_guid):
+                    print(i, vals)
+                    if vals == None or vals == 'null':
+                        continue
+                    if vals['guid'] == data['guid']:
+                        print(vals)
+                        json_guid[i]['notification'] = data['notification']
+                        break
+                if json_guid[0] == None:
+                    print('none')
+                    json_guid[0] = 'null'
+
+                print('1', json_guid)
+                guid = str(json_guid)
+                guid = guid.replace("'", '"')
+                print('2', guid)
+                print(guid)
+                guid = "[null," + guid[8:]
+                print('replace',guid)
+                query = """
+                        UPDATE customers  
+                        SET
+                        cust_guid_device_id_notification = \'""" + guid + """\'
+                        WHERE ( customer_uid  = '""" + data['uid'] + """' );
+                        """
+                print(query)
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = 'guid not updated check sql query and data'
+
+                else:
+                    print(items)
+                    items['message'] = 'guid updated'
+                return items
+
+            elif role == 'business' and action == 'update':
+                query = """
+                    SELECT bus_guid_device_id_notification
+                    FROM businesses b
+                    WHERE business_uid = \'""" + data['uid'] + """\';
+                    """
+                items = execute(query, 'get', conn)
+                json_guid = json.loads(items['result'][0]['bus_guid_device_id_notification'])
+                for i, vals in enumerate(json_guid):
+                    print(i, vals)
+                    if vals == None or vals == 'null':
+                        continue
+                    if vals['guid'] == data['guid']:
+                        print(vals)
+                        json_guid[i]['notification'] = data['notification']
+                        break
+                if json_guid[0] == None:
+                    json_guid[0] = 'null'
+
+                guid = str(json_guid)
+                guid = guid.replace("'", '"')
+                print(guid)
+                guid = "[null," + guid[8:]
+                query = """
+                        UPDATE  businesses
+                        SET
+                        bus_guid_device_id_notification = \'""" + guid + """\'
+                        WHERE ( business_uid  = '""" + data['uid'] + """' );
+                        """
+                items = execute(query, 'post', conn)
+                if items['code'] != 281:
+                    items['message'] = 'guid not updated check sql query and data'
+
+                else:
+                    items['message'] = 'guid updated'
+                return items
+
+            else:
+                return 'choose correct option'
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
+#  -- ADMIN RECIPE RELATED ENDPOINTS    -----------------------------------------
 
 class get_recipes(Resource):
 
@@ -4934,6 +4941,7 @@ class add_new_ingredient_recipe(Resource):
             recipe_uid_query = execute(query1, 'get', conn)
             recipe_uid = recipe_uid_query['result'][0]['new_id']
             print(recipe_uid)
+            # REFACTOR
             query = """
                     INSERT INTO recipes (
                         recipe_uid, 
@@ -4981,6 +4989,7 @@ class create_recipe(Resource):
             measure = data["measure"]
             meal_id = data["meal_id"]
             print("2")
+            # REFACTOR
             query = """
                     INSERT INTO recipes (
                         recipe_meal_id, 
@@ -5027,20 +5036,7 @@ class recipes_brandon (Resource):
             measure = data["measure"]
             meal_id = data["meal_id"]
             # print("2")
-            # query = """
-            #         INSERT INTO recipes (
-            #             recipe_meal_id, 
-            #             recipe_ingredient_id, 
-            #             recipe_ingredient_qty, 
-            #             recipe_measure_id
-            #             ) 
-            #             VALUES (
-            #             \'""" + meal_id + """\',
-            #             \'""" + id + """\',
-            #             \'""" + qty + """\',
-            #             \'""" + measure + """\'
-            #             );
-            #         """
+
             query = """
                 INSERT INTO 
                     recipes 
@@ -5126,19 +5122,6 @@ class recipes_brandon (Resource):
                 # print("(recipes_brandon -- PUT) ingredient_qty: ", ingredient_qty, type(ingredient_qty))
                 # print("(recipes_brandon -- PUT) measure_id: ", measure_id)
 
-                # print("(recipes_brandon -- PUT) 4.4")
-                # query = """
-                # INSERT INTO recipes 
-                # SET
-                #     recipe_uid = \'""" + NewRecipeID + """\',
-                #     recipe_meal_id = \'""" + data['meal_id'] + """\',
-                #     recipe_ingredient_id = \'""" + data['ingredient_id'] + """\',
-                #     recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
-                #     recipe_measure_id = \'""" + data['measure_id'] + """\'
-
-                # ON DUPLICATE KEY UPDATE
-                #     recipe_ingredient_qty = \'""" + data['ingredient_qty'] + """\',
-                #     recipe_measure_id = \'""" + data['measure_id'] + "\';"
                 insert_query = """
                     INSERT INTO 
                         recipes 
@@ -5415,250 +5398,6 @@ class get_delivery_info(Resource):
             disconnect(conn)
 
 
-class update_guid_notification(Resource):
-
-    def post(self, role, action):
-        response = {}
-        items = {}
-
-        try:
-            conn = connect()
-            data = request.get_json(force=True)
-
-            print(data)
-            if role == 'customer' and action == 'add':
-                uid = data['uid']
-                guid = data['guid']
-                notification = data['notification']
-                query = """
-                        SELECT *
-                        FROM customers c
-                        WHERE customer_uid = \'""" + uid + """\'
-                        """
-                items = execute(query, 'get', conn)
-                del data['uid']
-                test = str(data).replace("'", "\"")
-                print('test---------', test)
-                data = "'" + test + "'"
-
-                print(data)
-                if items['result']:
-
-                    query = " " \
-                            "UPDATE customers " \
-                            "SET cust_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(cust_guid_device_id_notification," + data + ")) " \
-                            "WHERE customer_uid = '" + str(uid) + "';" \
-                            ""
-
-                    items = execute(query, 'post', conn)
-                    print(items)
-                    if items['code'] == 281:
-                        items['code'] = 200
-                        items['message'] = 'Device_id notification and GUID updated'
-                    else:
-                        items['message'] = 'check sql query'
-
-                else:
-                    items['message'] = "UID doesn't exists"
-
-                return items
-
-            elif role == 'business' and action == 'add':
-                uid = data['uid']
-                guid = data['guid']
-                query = """
-                        SELECT *
-                        FROM businesses b
-                        WHERE business_uid = \'""" + uid + """\'
-                        """
-                items = execute(query, 'get', conn)
-
-                del data['uid']
-                test = str(data).replace("'", "\"")
-                print('test---------', test)
-                data = "'" + test + "'"
-
-                if items['result']:
-                    data
-                    query = " " \
-                            "UPDATE businesses " \
-                            "SET bus_guid_device_id_notification  = (SELECT JSON_MERGE_PRESERVE(bus_guid_device_id_notification," + data + ")) " \
-                            "WHERE business_uid = '" + str(uid) + "';" \
-                            ""
-
-                    items = execute(query, 'post', conn)
-
-                    if items['code'] == 281:
-                        items['code'] = 200
-                        items['message'] = 'Device_id notification and GUID updated'
-                    else:
-                        items['message'] = 'check sql query'
-
-                else:
-                    items['message'] = "UID doesn't exists"
-
-                return items
-
-            #GUIDS
-
-            elif role == 'customer' and action == 'update':
-                query = """
-                    SELECT cust_guid_device_id_notification
-                    FROM customers c
-                    WHERE customer_uid = \'""" + data['uid'] + """\';
-                    """
-                items = execute(query, 'get', conn)
-                json_guid = json.loads(items['result'][0]['cust_guid_device_id_notification'])
-                print('0', json_guid)
-                for i, vals in enumerate(json_guid):
-                    print(i, vals)
-                    if vals == None or vals == 'null':
-                        continue
-                    if vals['guid'] == data['guid']:
-                        print(vals)
-                        json_guid[i]['notification'] = data['notification']
-                        break
-                if json_guid[0] == None:
-                    print('none')
-                    json_guid[0] = 'null'
-
-                print('1', json_guid)
-                guid = str(json_guid)
-                guid = guid.replace("'", '"')
-                print('2', guid)
-                print(guid)
-                guid = "[null," + guid[8:]
-                print('replace',guid)
-                query = """
-                        UPDATE customers  
-                        SET
-                        cust_guid_device_id_notification = \'""" + guid + """\'
-                        WHERE ( customer_uid  = '""" + data['uid'] + """' );
-                        """
-                print(query)
-                items = execute(query, 'post', conn)
-                if items['code'] != 281:
-                    items['message'] = 'guid not updated check sql query and data'
-
-                else:
-                    print(items)
-                    items['message'] = 'guid updated'
-                return items
-
-            elif role == 'business' and action == 'update':
-                query = """
-                    SELECT bus_guid_device_id_notification
-                    FROM businesses b
-                    WHERE business_uid = \'""" + data['uid'] + """\';
-                    """
-                items = execute(query, 'get', conn)
-                json_guid = json.loads(items['result'][0]['bus_guid_device_id_notification'])
-                for i, vals in enumerate(json_guid):
-                    print(i, vals)
-                    if vals == None or vals == 'null':
-                        continue
-                    if vals['guid'] == data['guid']:
-                        print(vals)
-                        json_guid[i]['notification'] = data['notification']
-                        break
-                if json_guid[0] == None:
-                    json_guid[0] = 'null'
-
-                guid = str(json_guid)
-                guid = guid.replace("'", '"')
-                print(guid)
-                guid = "[null," + guid[8:]
-                query = """
-                        UPDATE  businesses
-                        SET
-                        bus_guid_device_id_notification = \'""" + guid + """\'
-                        WHERE ( business_uid  = '""" + data['uid'] + """' );
-                        """
-                items = execute(query, 'post', conn)
-                if items['code'] != 281:
-                    items['message'] = 'guid not updated check sql query and data'
-
-                else:
-                    items['message'] = 'guid updated'
-                return items
-
-            else:
-                return 'choose correct option'
-
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-# class Categorical_Options(Resource): #NEED TO FIX
-#     def get(self, long, lat):
-#         response = {}
-#         items = {}
-
-#         try:
-#             conn = connect()
-
-#             # query for businesses serving in customer's zone
-#             query = """
-#                     SELECT DISTINCT z_business_uid
-#                     FROM
-#                     (SELECT *,  
-#                     IF (
-#                     IF ((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) <= 0,
-#                     \'""" + lat + """\' >=  (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),
-#                     \'""" + lat + """\' <=   (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long)) AND
-                           
-#                     \'""" + lat + """\' <= (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) * \'""" + long + """\' + z.RT_lat - z.RT_long * (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) AND
-                           
-#                     IF ((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) >= 0,  
-#                     \'""" + lat + """\' >= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),
-#                     \'""" + lat + """\' <= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long)) AND
-                           
-#                     \'""" + lat + """\' >= (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long) * \'""" + long + """\' + z.LB_lat - z.LB_long * (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long), "TRUE", "FALSE") AS "In_Zone",
-                     
-#                     FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
-#                     FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
-#                     FROM M4ME.zones z) AS DD
-#                     WHERE In_Zone = 'True'
-#                     ;
-#                     """
-#             items = execute(query, 'get', conn)
-
-#             if items['code'] != 280:
-#                 items['message'] = 'check sql query'
-#                 return items
-
-#             ids = []
-#             for vals in items['result']:
-#                 ids.append(vals['z_business_uid'])
-#             print(ids)
-
-#             #query for getting categorical data
-#             query = """
-#                     SELECT * 
-#                     FROM M4ME.businesses as bus,
-#                     (SELECT itm_business_uid, GROUP_CONCAT(DISTINCT item_type SEPARATOR ',') AS item_type
-#                     FROM M4ME.items
-#                     GROUP BY itm_business_uid) as itm
-#                     WHERE bus.business_uid = itm.itm_business_uid AND bus.business_uid IN """ + str(tuple(ids)) + """;
-#                     """
-#             items = execute(query, 'get', conn)
-
-#             if items['code'] != 280:
-#                 items['message'] = 'check sql query'
-#                 return items
-
-#             items['message'] = 'Categorical options successful'
-#             items['code'] = 200
-#             return items
-#         except:
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-
-
 
 
 class getItems(Resource): #NEED TO FIX
@@ -5765,26 +5504,38 @@ class Refund(Resource): #add column called ref_payment_id
 
             phone = customer_phone['result'][0]['customer_phone_num']
             query_email = ["SELECT customer_email FROM M4ME.customers WHERE customer_email = \'" + email + "\';"]
-            query_insert = [""" INSERT INTO M4ME.refunds
-                            (
-                                refund_uid,
-                                created_at,
-                                email_id,
-                                phone_num,
-                                image_url,
-                                ref_payment_id
-                                customer_note
-                            )
-                            VALUES
-                            (
-                            \'""" + NewRefundID + """\'
-                            , \'""" + timeStamp + """\'
-                            , \'""" + email + """\'
-                            , \'""" + phone + """\'
-                            , \'""" + item_photo_url + """\'
-                            , \'""" + payment + """\'
-                            , \'""" + note.replace("'", "") + """\');"""
-                            ]
+            # query_insert = [""" INSERT INTO M4ME.refunds
+            #                 (
+            #                     refund_uid,
+            #                     created_at,
+            #                     email_id,
+            #                     phone_num,
+            #                     image_url,
+            #                     ref_payment_id
+            #                     customer_note
+            #                 )
+            #                 VALUES
+            #                 (
+            #                 \'""" + NewRefundID + """\'
+            #                 , \'""" + timeStamp + """\'
+            #                 , \'""" + email + """\'
+            #                 , \'""" + phone + """\'
+            #                 , \'""" + item_photo_url + """\'
+            #                 , \'""" + payment + """\'
+            #                 , \'""" + note.replace("'", "") + """\');"""
+            #                 ]
+            query_insert = [""" 
+                INSERT INTO 
+                    M4ME.refunds
+                SET
+                    refund_uid = \'""" + NewRefundID + """\',
+                    created_at = \'""" + timeStamp + """\',
+                    email_id = \'""" + email + """\',
+                    phone_num = \'""" + phone + """\',
+                    image_url = \'""" + item_photo_url + """\',
+                    ref_payment_id = \'""" + payment + """\',
+                    customer_note = \'""" + note.replace("'", "") + """\';
+            """]
 
             emailExists = execute(query_email[0], 'get', conn)
             print('email_exists', emailExists)
@@ -11953,21 +11704,23 @@ class createAccount2(Resource):
                     mobile_refresh_token = it['result'][0]['mobile_refresh_token']
 
                 customer_insert_query =  ['''
-                                    UPDATE M4ME.customers 
-                                    SET 
-                                    customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
-                                    customer_first_name = \'''' + firstName + '''\',
-                                    customer_last_name = \'''' + lastName + '''\',
-                                    customer_phone_num = \'''' + phone + '''\',
-                                    password_salt = \'''' + salt + '''\',
-                                    password_hashed = \'''' + password + '''\',
-                                    password_algorithm = \'''' + algorithm + '''\',
-                                    referral_source = \'''' + referral + '''\',
-                                    role = \'''' + role + '''\',
-                                    user_social_media = \'''' + user_social_signup + '''\',
-                                    social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
-                                    WHERE customer_uid = \'''' + cust_id + '''\';
-                                    ''']
+                    UPDATE 
+                        M4ME.customers 
+                    SET 
+                        customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
+                        customer_first_name = \'''' + firstName + '''\',
+                        customer_last_name = \'''' + lastName + '''\',
+                        customer_phone_num = \'''' + phone + '''\',
+                        password_salt = \'''' + salt + '''\',
+                        password_hashed = \'''' + password + '''\',
+                        password_algorithm = \'''' + algorithm + '''\',
+                        referral_source = \'''' + referral + '''\',
+                        role = \'''' + role + '''\',
+                        user_social_media = \'''' + user_social_signup + '''\',
+                        social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
+                    WHERE 
+                        customer_uid = \'''' + cust_id + '''\';
+                ''']
 
 
             else:
@@ -11995,45 +11748,67 @@ class createAccount2(Resource):
 
 
                 # write everything to database
-                customer_insert_query = ["""
-                                        INSERT INTO M4ME.customers 
-                                        (
-                                            customer_uid,
-                                            customer_created_at,
-                                            customer_first_name,
-                                            customer_last_name,
-                                            password_salt,
-                                            password_hashed,
-                                            password_algorithm,
-                                            referral_source,
-                                            role,
-                                            user_social_media,
-                                            user_access_token,
-                                            social_timestamp,
-                                            user_refresh_token,
-                                            mobile_access_token,
-                                            mobile_refresh_token,
-                                            social_id
-                                        )
-                                        VALUES
-                                        (
+                # customer_insert_query = ["""
+                #                         INSERT INTO M4ME.customers 
+                #                         (
+                #                             customer_uid,
+                #                             customer_created_at,
+                #                             customer_first_name,
+                #                             customer_last_name,
+                #                             password_salt,
+                #                             password_hashed,
+                #                             password_algorithm,
+                #                             referral_source,
+                #                             role,
+                #                             user_social_media,
+                #                             user_access_token,
+                #                             social_timestamp,
+                #                             user_refresh_token,
+                #                             mobile_access_token,
+                #                             mobile_refresh_token,
+                #                             social_id
+                #                         )
+                #                         VALUES
+                #                         (
                                         
-                                            \'""" + NewUserID + """\',
-                                            \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-                                            \'""" + firstName + """\',
-                                            \'""" + lastName + """\',
-                                            \'""" + salt + """\',
-                                            \'""" + password + """\',
-                                            \'""" + algorithm + """\',
-                                            \'""" + referral + """\',
-                                            \'""" + role + """\',
-                                            \'""" + user_social_signup + """\',
-                                            \'""" + user_access_token + """\',
-                                            DATE_ADD(now() , INTERVAL 14 DAY),
-                                            \'""" + user_refresh_token + """\',
-                                            \'""" + mobile_access_token + """\',
-                                            \'""" + mobile_refresh_token + """\',
-                                            \'""" + social_id + """\');"""]
+                #                             \'""" + NewUserID + """\',
+                #                             \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                #                             \'""" + firstName + """\',
+                #                             \'""" + lastName + """\',
+                #                             \'""" + salt + """\',
+                #                             \'""" + password + """\',
+                #                             \'""" + algorithm + """\',
+                #                             \'""" + referral + """\',
+                #                             \'""" + role + """\',
+                #                             \'""" + user_social_signup + """\',
+                #                             \'""" + user_access_token + """\',
+                #                             DATE_ADD(now() , INTERVAL 14 DAY),
+                #                             \'""" + user_refresh_token + """\',
+                #                             \'""" + mobile_access_token + """\',
+                #                             \'""" + mobile_refresh_token + """\',
+                #                             \'""" + social_id + """\');"""]
+                customer_insert_query = ["""
+                    INSERT INTO 
+                        M4ME.customers 
+                    SET
+                        customer_uid = \'""" + NewUserID + """\',
+                        customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                        customer_first_name = \'""" + firstName + """\',
+                        customer_last_name = \'""" + lastName + """\',
+                        password_salt = \'""" + salt + """\',
+                        password_hashed = \'""" + password + """\',
+                        password_algorithm = \'""" + algorithm + """\',
+                        referral_source = \'""" + referral + """\',
+                        role = \'""" + role + """\',
+                        user_social_media = \'""" + user_social_signup + """\',
+                        user_access_token = \'""" + user_access_token + """\',
+                        social_timestamp = DATE_ADD(now() , INTERVAL 14 DAY),
+                        user_refresh_token = \'""" + user_refresh_token + """\',
+                        mobile_access_token = \'""" + mobile_access_token + """\',
+                        mobile_refresh_token = \'""" + mobile_refresh_token + """\',
+                        social_id = \'""" + social_id + """\';                      
+                """]
+
             print(customer_insert_query[0])
             items = execute(customer_insert_query[0], 'post', conn)
 
@@ -12694,10 +12469,29 @@ class brandAmbassador2(Resource):
                         dateObject = datetime.now()
                         exp_date = dateObject.replace(year=dateObject.year + 1)
                         exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                        # query = """
+                        # INSERT INTO coupons 
+                        # (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                        # VALUES ( \'""" + couponID + """\', 'Discount', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + info + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
+                        # """
                         query = """
-                        INSERT INTO coupons 
-                        (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        VALUES ( \'""" + couponID + """\', 'Discount', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + info + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
+                            INSERT INTO 
+                                coupons 
+                            SET
+                                coupon_uid = \'""" + couponID + """\',
+                                coupon_id = 'Discount',
+                                valid = \'""" + final_res['valid'] + """\',
+                                discount_percent = \'""" + str(final_res['discount_percent']) + """\',
+                                discount_amount = \'""" + str(final_res['discount_amount']) + """\',
+                                discount_shipping = \'""" + str(final_res['discount_shipping']) + """\',
+                                expire_date = \'""" + exp_date + """\',
+                                limits = '2',
+                                notes = \'""" + code + """\',
+                                num_used = '0',
+                                recurring = \'""" + final_res['recurring'] + """\',
+                                email_id = \'""" + info + """\', 
+                                cup_business_uid = \'""" + final_res['cup_business_uid'] + """\', 
+                                threshold = \'""" + str(final_res['threshold']) + """\';
                         """
                         
                         items = execute(query, 'post', conn)
@@ -13127,19 +12921,32 @@ class try_catch_storage(Resource):
             new_problem_uid = "CALL new_try_catch_id();"
             problem_id = execute(new_problem_uid, 'get', conn)
             #print(problem_id["result"][0]["new_id"])
+            # query = """
+            #         insert into try_catch (problem_id, customer_uid, caught_problems, problem_timestamp,functions, files, line_number, types)
+            #         values(
+            #             '""" + problem_id["result"][0]["new_id"] + """',
+            #             '""" + customer_uid + """',
+            #             '""" + caught_problems + """',
+            #             now(),
+            #             '""" + functions + """',
+            #             '""" + files + """',
+            #             '""" + line_number + """',
+            #             '""" + types + """'
+            #         );
+            #         """
             query = """
-                    insert into try_catch (problem_id, customer_uid, caught_problems, problem_timestamp,functions, files, line_number, types)
-                    values(
-                        '""" + problem_id["result"][0]["new_id"] + """',
-                        '""" + customer_uid + """',
-                        '""" + caught_problems + """',
-                        now(),
-                        '""" + functions + """',
-                        '""" + files + """',
-                        '""" + line_number + """',
-                        '""" + types + """'
-                    );
-                    """
+                INSERT INTO 
+                    try_catch 
+                SET
+                    problem_id = '""" + problem_id["result"][0]["new_id"] + """',
+                    customer_uid = '""" + customer_uid + """',
+                    caught_problems = '""" + caught_problems + """',
+                    problem_timestamp = now(),
+                    functions = '""" + functions + """',
+                    files = '""" + files + """',
+                    line_number = '""" + line_number + """',
+                    types = '""" + types + """';
+            """
             print("3")
             items = execute(query, 'post', conn)
 
