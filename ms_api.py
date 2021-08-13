@@ -1935,6 +1935,219 @@ class Edit_Meal_Plan (Resource):
         finally:
             disconnect(conn)
 
+class meal_type (Resource):
+    def get(self):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT distinct meal_category
+                    FROM meals
+                    order by meal_category;
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting meal types")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+class Meals_Selected_pid(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            purchase_id = request.args['purchase_id']
+
+            '''
+            query = """
+                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
+                    SELECT * FROM M4ME.latest_combined_meal lcm
+                    LEFT JOIN M4ME.lplp
+                        ON lcm.sel_purchase_id = lplp.purchase_id
+                    WHERE purchase_id = '""" + purchase_id + """';
+                    """
+            '''
+
+            query = """
+                    # CUSTOMER QUERY 3A: MEALS SELECTED FOR SPECIFIC PURCHASE ID AND MENU DATE INCLUDING DEFAULT SURPRISES 
+					SELECT lplpmdlcm.*,
+						IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
+					FROM (
+					SELECT * FROM M4ME.lplp
+					JOIN (
+						SELECT DISTINCT menu_date
+						FROM menu
+						WHERE menu_date > now()
+						ORDER BY menu_date ASC) AS md
+					LEFT JOIN M4ME.latest_combined_meal lcm
+					ON lplp.purchase_id = lcm.sel_purchase_id AND
+							md.menu_date = lcm.sel_menu_date
+					WHERE purchase_id = '""" + purchase_id + """'
+							-- AND purchase_status = "ACTIVE"
+							) AS lplpmdlcm
+					ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC; 
+                    """
+
+            
+            items = execute(query, 'get', conn)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Meals selected"
+                items['code'] = 200
+                #return items
+            return items
+
+
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class Copy_Menu(Resource):
+
+    def post(self):
+        # date1 and date2 are passed from json body
+        # (params should be called date1 and date2)
+        # example: {"date1" = "2020-10-03 00:00:00", "date2" = "2020-10-12 00:00:00"}
+        # goal: copy the menu items from date1 to date2 (we can use INSERT INTO command)
+        # query: with dates passed from json body we can get the rows from the database
+        # containing date1, iterate through these rows to give them a new menu_uid and update 
+        # the menu_date to date2. We also have to insert the new row one at a time because to
+        # generate a new menu_uid each time, we have to insert the row with the most recently
+        # generated new menu_uid to get a new one for the next row to be inserted
+        try:
+            conn = connect()
+            dates = request.get_json(force=True)
+            print("Dates: ", dates)
+            copyFromDate = dates['date1']
+            copyToDate = dates['date2']
+            query = """ SELECT * FROM M4ME.menu WHERE menu_date = \'""" + copyFromDate + """\'; """
+            items = execute(query, 'get', conn)
+            records = items['result']
+            print("Results: ", records)
+            
+            for i in range(len(records)):
+                newIdQuery = """ call M4ME.new_menu_uid(); """
+                newId = execute(newIdQuery, 'get', conn)
+                newMenuUid = newId['result'][0]['new_id']
+                print(newMenuUid)
+                date = copyToDate
+                #print(date)
+                category = records[i]['menu_category']
+                #print(category)
+                menuType = records[i]['menu_type']
+                #print(menuType)
+                cat = records[i]['meal_cat']
+                #print(cat)
+                menuMealId = records[i]['menu_meal_id']
+                #print(menuMealId)
+                defaultMeal = records[i]['default_meal']
+                #print(defaultMeal)
+                deliveryDays = records[i]['delivery_days']
+                print(deliveryDays)
+                price = records[i]['menu_meal_price']
+                print(price)
+                postQuery = """ INSERT INTO 
+                                M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, 
+                                           menu_meal_id, default_meal, delivery_days, menu_meal_price) 
+                                VALUES (\'""" + str(newMenuUid) + """\', \'""" + str(date) + """\', \'""" + str(category) + """\', 
+                                        \'""" + str(menuType) + """\', \'""" + str(cat) + """\', \'""" + str(menuMealId) + """\', 
+                                        \'""" + str(defaultMeal) + """\', \'""" + str(deliveryDays) + """\', \'""" + str(price) + """\'); """
+                #print(postQuery)
+                copiedRow = execute(postQuery, 'post', conn)
+        except:
+            print('Error has occurred trying to copy menu items')
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('Process completed')
+
+class favourite_food(Resource):
+    
+    def post(self, action):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            if action == 'get':
+
+                query = """
+                        SELECT favorites 
+                        FROM customers 
+                        WHERE customer_uid = \'""" + data['customer_uid'] + """\';
+                        """
+                items = execute(query, 'get', conn)
+
+                if items['code'] != 280:
+                    items['message'] = 'Check sql query'
+                return items
+            
+            elif action == 'post':
+                #print(data)
+                #print("start q1 here")
+                query1 = """
+                        select favorites
+                        from customers
+                        where customer_uid = \'""" + data['customer_uid'] + """\';
+                        """
+                #print(query1)
+                items1 = execute(query1, 'get', conn)
+                #print("check 1")
+                #print(items1)
+                #print("check 2")
+                #print(items1["result"][0]["favorites"])
+                favorite = str(data['favorite']).replace("'", '"')
+                #print(favorite)
+                if items1["result"][0]["favorites"] == None:
+                    favorite = favorite
+                else:
+                    favorite=items1["result"][0]["favorites"]+ "," + favorite
+                #print("check 3")
+                #favorite=items1["result"][0]["favorites"]+ "," + favorite
+                #print(favorite)
+                query = """
+                        UPDATE customers 
+                        SET favorites = \'""" + favorite + """\'
+                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
+                        """
+                #print(query)
+                items = execute(query, 'post', conn)
+
+                if items['code'] != 281:
+                    items['message'] = 'Check sql query'
+                return items
+            elif action == 'update':
+                #print(data)
+                favorite = str(data['favorite']).replace("'", '"')
+                #print(favorite)
+                query = """
+                        UPDATE customers 
+                        SET favorites = \'""" + favorite + """\'
+                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
+                        """
+                #print(query)
+                items = execute(query, 'post', conn)
+
+                if items['code'] != 281:
+                    items['message'] = 'Check sql query'
+                return items
+            else:
+                return 'choose correct option'
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 #  -- PURCHASES/PAYMENTS RELATED ENDPOINTS    -----------------------------------------
 
@@ -3285,6 +3498,1160 @@ class Paypal_Payment_key_checker(Resource):
         else:
             return 200
         return response
+
+class payment_info (Resource):
+    def get(self, p_id):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM payments
+                    WHERE payment_uid = \'""" + p_id + """\';
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+
+class payment_info_history (Resource): #edit to take in purchase_uid
+    def get(self, p_id):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM purchases
+                    inner join payments
+                        on purchase_id = pay_purchase_id
+                    WHERE purchase_id = \'""" + p_id + """\';
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+class Get_Latest_Purchases_Payments_with_Refund(Resource):
+    # HTTP method GET
+    def get(self):
+        try:
+            conn = connect()
+            customer_uid = request.args['customer_uid']
+            #purchase_uid = request.args['purchase_uid']
+            query = """
+                    # CUSTOMER QUERY 2: CUSTOMER LATEST PURCHASE AND LATEST PAYMENT HISTORY
+                    # NEED CUSTOMER ADDRESS IN CASE CUSTOMER HAS NOT ORDERED BEFORE
+                    SELECT * FROM M4ME.lplp lp
+                    LEFT JOIN M4ME.customers c
+                        ON lp.pur_customer_uid = c.customer_uid
+                    WHERE pur_customer_uid = '""" + customer_uid + """'
+                    and items like "%200-000002%"
+                    and purchase_status = "ACTIVE";
+                    """
+            response = simple_get_execute(query, __class__.__name__, conn)
+            if response[1] != 200:
+                return response[1]
+            except_list = ['password_hashed', 'password_salt', 'password_algorithm']
+            for i in range(len(response[0]['result'])):
+                for key in except_list:
+                     if response[0]['result'][i].get(key) is not None:
+                        del response[0]['result'][i][key]
+            refundinfo = {}
+            print("here")
+            intx=0
+            for i2 in range(len(response[0]['result'])):
+                print("here 1")
+                print(response[0]['result'][intx]["purchase_uid"])
+                info_query = """
+                       SELECT pur.*, pay.*, sub.*
+                       FROM purchases pur, payments pay, subscription_items sub
+                       WHERE pur.purchase_uid = pay.pay_purchase_uid
+                           AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
+                                                   FROM purchases WHERE purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """')
+                           AND pur.purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """'
+                           AND pur.purchase_status='ACTIVE';  
+                       """
+                info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+                refund_info = change_purchase().refund_calculator(info_res[0]['result'][0], conn)
+
+                refundinfo[intx]=refund_info
+                intx=intx+1
+            response2 = {}
+            inty = 0
+            print("changes here")
+            for i2 in range(len(response[0]['result'])):
+                #print(response[0]['result'][i2])
+                response2[inty]=str(response[0]['result'][i2]) + "" + str(refundinfo[i2])
+                print("1")
+                #inty=inty+1
+                #print(refundinfo[i2])
+                #response2[inty+1]=refundinfo[i2]
+                print("2")
+                inty=inty+1
+            print("here 3")
+            print(response2)
+            return response2
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class payment_info_history_fixed (Resource): #edit to take in purchase_uid
+    def get(self, p_uid):
+        try:
+            conn = connect()
+            
+            query = """
+                    SELECT *
+                    FROM purchases
+                    inner join payments
+                        on purchase_id = pay_purchase_id
+                    WHERE purchase_id = (select pay_purchase_id from payments where pay_purchase_uid = \'""" + p_uid + """\');
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            return items
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+# Only for Web applications.  Mobile applications handles stripe directly from Mobile App
+class Stripe_Intent(Resource):
+    def post(self):
+        response = {}
+
+        stripe.api_key = stripe_secret_test_key
+        note = request.form.get('note')
+        print(note, type(note))
+        if note == "M4METEST":
+            stripe.api_key = stripe_secret_test_key
+            #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+            print('TEST')
+        else:
+            stripe.api_key = stripe_secret_live_key
+            print('LIVE')
+
+        if request.form.get('amount') == None:
+            raise BadRequest('Request failed. Please provide the amount field.')
+        try:
+            # print(request.form.get('amount'))
+            # x = int(round(float(request.form.get('amount'))) * 100)
+            # print("x: ", x)
+            # x = round(float(request.form.get('amount')) * 100)
+            # print("x: ", x)
+            # NEED round TO PREVENT STRIPE INTENT ERROR
+            amount = int(round(float(request.form.get('amount')) * 100))
+            print("Stripe Intent amount 2: ", amount)
+        except:
+            raise BadRequest('Request failed. Unable to convert amount to int')
+        print('AMOUNT------', amount)
+
+        intent = stripe.PaymentIntent.create(
+        amount=amount,
+        currency='usd',
+        )
+        print('INTENT------', intent)
+        client_secret = intent.client_secret
+        intent_id = intent.id
+        response['client_secret'] = client_secret
+        response['id'] = intent_id
+        response['code'] = 200
+        print(response['client_secret'])
+        print(response['id'])
+        return response
+
+# not being used; review in future to see how works
+class checkAutoPay(Resource):
+    def get(self):
+
+        def next_weekday(d, weekday):
+            days_ahead = weekday - d.weekday()
+            if days_ahead <= 0: # Target day already happened this week
+                days_ahead += 7
+            return d + timedelta(days_ahead)
+
+        conn = connect()
+        res = []
+        fat_res = []
+
+        delivery_days = ['mon', 'wed', 'fri']
+        autoPay_days = ['tue', 'thu', 'sat']
+        
+        days_num = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        x = datetime.now()
+        day_of_week = x.strftime("%a").lower()
+        
+        query = """
+                SELECT pur.*, pay.*, ms.delivery_day
+                FROM M4ME.purchases as pur, M4ME.payments as pay, M4ME.meals_selected as ms
+                WHERE pur.purchase_status = 'ACTIVE' AND pur.purchase_uid=pay.pay_purchase_uid AND ms.sel_purchase_id = pur.purchase_uid
+                GROUP BY pur.purchase_uid;
+                """
+        items = execute(query, 'get', conn)
+        if items['code'] != 280:
+            items['message'] = 'check sql query for purchases'
+            return items
+        
+        
+        for vals in items['result']:
+            #------------------########
+            cust_email = vals['delivery_email']
+            
+            if vals['purchase_uid'] != '400-000095':
+                continue
+            print('********#####TEST********#####', vals['purchase_uid'])
+            sub_id = json.loads(vals['items'])
+            query = """
+                    SELECT sub.*
+                    FROM M4ME.subscription_items sub
+                    WHERE sub.item_uid = '"""+sub_id[0]['item_uid']+"""';
+                    """
+            
+            items = execute(query,'get',conn)
+            
+            if items['code'] != 280:
+                items['message'] = 'check sql query for sub id'
+                return items
+            
+            freq = items['result'][0]['num_issues']
+
+            start_delivery_date = vals['start_delivery_date']
+            end_day = datetime.strftime(datetime.now(utc),"%Y-%m-%d")
+            
+            query = """
+                    SELECT COUNT(delivery_day) AS skip_count FROM 
+                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
+                        WHERE sel_purchase_id = '"""+vals['purchase_uid']+"""'
+                        GROUP BY sel_menu_date) AS GB   #tells us which was last option customer selected
+                        INNER JOIN M4ME.meals_selected S
+                        ON S.sel_purchase_id = GB.sel_purchase_id
+                            AND S.sel_menu_date = GB.sel_menu_date
+                            AND S.selection_time = GB.max_selection_time
+                    WHERE S.sel_menu_date >= '"""+start_delivery_date+"""'
+                        AND S.sel_menu_date <= '"""+end_day+"""'
+                        AND delivery_day = 'SKIP'
+                    ORDER BY S.sel_menu_date;
+                    """
+            print(query)
+            items = execute(query,'get',conn)
+            
+            if items['code'] != 280:
+                items['message'] = 'check sql query for skips'
+                return items
+            
+            skips = items['result'][0]['skip_count']
+            print('skips',skips)
+            start_delivery_date = datetime.strptime(start_delivery_date,'%Y-%m-%d %H-%M-%S').date()
+            end_day = datetime.strptime(end_day,'%Y-%m-%d').date()
+            delivered = (end_day - start_delivery_date).days//7 + 1 - skips
+
+            print(delivered, freq, end_day - start_delivery_date)
+
+            send_emails = []
+            
+            if delivered == freq:
+                # if it's delivery day then just send emails
+                # if it's autopay day then start charging
+                d = datetime.now().date()
+                
+                if day_of_week[:3] in delivery_days:
+                    #shoot email
+                    idx = days_num.index(vals['delivery_day'].lower()[:3])
+                    start_delivery_date = str(next_weekday(d, idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
+                    
+                    send_emails.append(sendAutopayEmails(cust_email, start_delivery_date, vals['purchase_uid']))
+                
+                elif day_of_week[:3] in autoPay_days:
+                    #do autopay
+                    idx = days_num.index(vals['delivery_day'].lower()[:3])
+                    start_delivery_date = str(next_weekday(d, idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
+                    res.append(createNewPurchase(vals['purchase_uid'], start_delivery_date))
+                else:
+                    continue
+
+            elif delivered < freq:
+                print('do nothing')
+                continue
+            
+            else:
+                #------------------########
+                fat_res.append(vals['purchase_uid'])
+                print('fatal error check database')
+        
+        print(res)
+        
+        # email error to prashant once cron job is done
+        pay_er = ''
+        for vals in res:
+            if vals != 'successfull':
+                pay_er += vals + ","
+        pay_er = pay_er[:-1]
+        if len(pay_er) == 0:
+            pay_er = 'No Errors'
+        
+        print(fat_res)
+        print(str(fat_res))
+
+        if len(fat_res) == 0:
+            fat_res = 'No Errors'
+
+        
+        email_er = ''
+        for vals in send_emails:
+            if vals != 'successfull':
+                email_er += vals + ","
+        email_er = email_er[:-1]
+        if len(email_er) == 0:
+            email_er = 'No Errors'
+
+        
+        # send email
+        msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=['parva.shah808@gmail.com'])
+        #pmarathay@gmail.com
+        print('MESSAGE----', msg)
+        print('message complete')
+        
+        msg.body =  "Hi Prashant,\n\n"\
+                    "This email contains errors if ANY after running cron job for emails and autopay in MTYD\n\n"\
+                    "Ids where error occured: "+ pay_er +"\n\n"\
+                    "Ids where FATAL error occured: "+ str(fat_res)+ "\n\n"\
+                    "IDs where while sending email error occured: "+ email_er + "\n\n"\
+                    "Check with backend guys if you run into any problems or have any questions.\n"\
+                    "Thx - MTYD Team"
+        
+        print('msg-bd----', msg.body)
+        mail.send(msg)
+        disconnect(conn)
+
+# JAYDEVA
+class change_purchase (Resource):
+    
+    def put(self):
+        
+        # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
+        conn = connect()
+        data = request.get_json(force=True)
+        print("\nSTEP 1:  In CHANGE PURCHASE\n", data)
+
+        # WHAT THEY HAD
+        pur_uid = data["purchase_uid"]
+        print("What they have (CURRENT Purchase ID): ", pur_uid)
+
+        # WHAT THEY ARE CHANGING TO
+        print("What they are changing to:")
+        item_uid = data["items"][0]['item_uid']
+        print("  NEW item_uid : ", item_uid)
+        num_deliveries = data["items"][0]['qty']
+        print("  NEW days : ", num_deliveries)
+        # num_meals = data["items"][0]['name']
+        # print("meals : ",num_meals)
+        # price = data["items"][0]['price']
+        # print("price : ", price)
+        # item_uid = data["items"][0]['item_uid']
+        # print("item_uid : ", item_uid)
+
+
+
+        # STEP 2A CALCULATE REFUND
+        print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
+        print("Call Refund Calculator")
+        refund = calculator().refund(pur_uid)
+        print("\nRefund Calculator Return: ", refund)
+        amount_should_refund = round(refund['amount_due'],2)
+        print("Amount to be Refunded: ", amount_should_refund)
+
+
+        # STEP 2B CALCULATE NEW CHARGE AMOUNT
+        print("\nSTEP 2B:  Inside Calculate New Charge", pur_uid)
+        new_charge = calculator().billing(item_uid, num_deliveries)
+        # print("Returned JSON Object: \n", new_charge)
+        print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
+        print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
+        print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
+        new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
+        print(new_meal_charge, type(new_meal_charge))
+        new_discount = new_charge['result'][0]['delivery_discount']
+        print(new_discount, type(new_discount))
+        new_discount = round(new_meal_charge * new_discount/100,2)
+        print(new_discount, type(new_discount))
+        new_driver_tip = float(data["driver_tip"])
+        print(new_driver_tip, type(new_driver_tip))
+        new_tax = round(.0925*(new_meal_charge  - new_discount + refund['delivery_fee']),2)
+        print(new_tax, type(new_tax))
+        delta = round(new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax,2)
+        print(delta, type(delta))
+        # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
+        # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
+        # print("Amount for new Plan: ", new_charge)
+        print("New Meal Plan Charges: ", delta)
+        # delta = round(delta - amount_should_refund,2)
+        # print("Additional Charge/Refund after discount: ", delta)
+
+        # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
+        amount_should_refund = round(amount_should_refund - delta,2)
+        print("Additional Charge/Refund after discount: ", amount_should_refund, type(amount_should_refund))
+        
+        # STEP 3 PROCESS STRIPE
+        print("\nSTEP 3:  PROCESS STRIPE")
+        # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
+        print("\nSTEP 3A:  Get Stripe Key")
+        delivery_instructions = refund['delivery_instructions']
+        print(delivery_instructions)
+        stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+        print("Stripe Key: ", stripe.api_key)
+        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+
+        print("\nSTEP 3B:  Charge or Refund Stripe")
+        if amount_should_refund < 0:
+            print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
+            # GET STRIPE KEY
+            # CHARGE STRIPE
+
+            # response = requests.get("http://api.open-notify.org/astros.json")
+            # print(response.json())
+
+            # # Create a new resource
+            # response = requests.post('https://httpbin.org/post', data = {'key':'value'})
+            # # Update an existing resource
+            # requests.put('https://httpbin.org/put', data = {'key':'value'})
+
+            # WORKING CODE TO PROCESS STRIPE TRANSACTION
+            # response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
+            # # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
+            # json = {   
+            #             "currency": "usd",   
+            #             "customer_uid": refund['customer_uid'],
+            #             "business_code": refund['delivery_instructions'],
+            #             "payment_summary": {        
+            #                 "total": - amount_should_refund
+            #             } 
+            #         })
+            
+            # print(response.json())
+            # charge_id = response.json()
+
+            print("Stripe Transaction Inputs: ", refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
+
+            charge_id = stripe_transaction().purchase(refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
+            print("Return from Stripe Charge Transaction: ", charge_id)
+
+            # STEP 4 WRITE TO DATABASE
+            print("STEP 4:  WRITE TO DATABASE")
+            new_pur_id = get_new_purchaseID(conn)
+            new_pay_id = get_new_paymentID(conn)
+
+            # UPDATE PAYMENT TABLE
+            # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
+            print(new_pay_id)
+            print(refund['payment_id'])
+            print(new_pur_id)
+            print(new_pur_id)
+            print(str(getNow()))
+            print(str(new_meal_charge))
+            print(str(new_discount))
+            print(str(refund['service_fee']))
+            print(str(refund['delivery_fee']))
+            print(str(data["driver_tip"]))
+            print(str(refund['taxes']))
+            print(str(refund['ambassador_code']))
+            print("charge_id: ", charge_id)
+
+            # FIND NEXT START DATE FOR CHANGED PLAN
+            date_query = '''
+                        SELECT DISTINCT menu_date FROM M4ME.menu
+                        WHERE menu_date > CURDATE()
+                        ORDER BY menu_date ASC
+                        LIMIT 1
+                        '''
+            response = simple_get_execute(date_query, "Next Delivery Date", conn)
+            start_delivery_date = response[0]['result'][0]['menu_date']
+            print("start_delivery_date: ", start_delivery_date)
+        
+         # UPDATE PAYMENT TABLE
+            query = """
+                    INSERT INTO M4ME.payments
+                    SET payment_uid = '""" + new_pay_id + """',
+                        payment_id = '""" + refund['payment_id'] + """',
+                        pay_purchase_uid = '""" + new_pur_id + """',
+                        pay_purchase_id = '""" + new_pur_id + """',
+                        payment_time_stamp =  '""" + str(getNow()) + """',
+                        subtotal = '""" + str(new_meal_charge) + """',
+                        amount_discount = '""" + str(new_discount) + """',
+                        service_fee = '""" + str(refund['service_fee']) + """',
+                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                        driver_tip = '""" + str(data["driver_tip"]) + """',
+                        taxes = '""" + str(new_tax) + """',
+                        amount_due = '""" + str(delta) + """',
+                        amount_paid = '""" + str(- amount_should_refund) + """',
+                        cc_num = '""" + str(refund['cc_num']) + """',
+                        cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
+                        cc_cvv = '""" + str(refund['cc_cvv']) + """',
+                        cc_zip = '""" + str(refund['cc_zip']) + """',
+                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                        charge_id = '""" + str(charge_id) + """',
+                        start_delivery_date =  '""" + str(start_delivery_date) + """';
+                    """        
+                    
+                            
+            response = execute(query, 'post', conn)
+            print("Payments Update db response: ", response)
+            
+            if response['code'] != 281:
+                return {"message": "Payment Insert Error"}, 500
+
+        # UPDATE PURCHASE TABLE
+            query = """
+                    UPDATE M4ME.purchases
+                    SET purchase_status = "CHANGED"
+                    where purchase_uid = '""" + pur_uid + """';
+                    """
+            update_response = execute(query, 'post', conn)
+            print("Purchases Update db response: ", update_response)
+            if update_response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
+
+            # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
+            # GET PURCHASE TABLE DATA    
+            query = """ 
+                    SELECT *
+                    FROM M4ME.purchases
+                    WHERE purchase_uid = '""" + pur_uid + """';
+                    """
+            response = execute(query, 'get', conn)
+            if response['code'] != 280:
+                return {"message": "Purchase Table Lookup Error"}, 500
+            print("Get Purchase UID response: ", response)
+
+            # INSERT INTO PURCHASE TABLE
+            items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
+            print(items)
+
+            query = """
+                    INSERT INTO M4ME.purchases
+                    SET purchase_uid = '""" + new_pur_id + """',
+                        purchase_date = '""" + str(getNow()) + """',
+                        purchase_id = '""" + new_pur_id + """',
+                        purchase_status = 'ACTIVE',
+                        pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
+                        pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
+                        delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
+                        delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
+                        delivery_email = '""" + response['result'][0]['delivery_email'] + """',
+                        delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
+                        delivery_address = '""" + response['result'][0]['delivery_address'] + """',
+                        delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
+                        delivery_city = '""" + response['result'][0]['delivery_city'] + """',
+                        delivery_state = '""" + response['result'][0]['delivery_state'] + """',
+                        delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
+                        delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
+                        delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
+                        delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
+                        items = '""" + items + """';
+                    """
+            response = execute(query, 'post', conn)
+            print("New Changed Purchases Added to db response 1: ", response)
+            if response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
+
+            return charge_id
+
+        else:
+            # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
+            print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
+            query = """ 
+                    SELECT charge_id 
+                    FROM M4ME.payments
+                    WHERE payment_id = '""" + refund['payment_id'] + """'
+                        AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
+                    ORDER BY payment_time_stamp DESC;
+                    """
+            chargeIDresponse = execute(query, 'get', conn)
+            if chargeIDresponse['code'] != 280:
+                return {"message": "Related Transaction Error"}, 500
+            print("Related Puchase IDs: ", chargeIDresponse['result'])
+            num_transactions = len(chargeIDresponse['result'])
+            print("Number of Related Puchase IDs: ", num_transactions)
+
+            # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
+            print("\nInside Systematically Stepping Through Transactions")
+            n = 0
+            while num_transactions > 0 and amount_should_refund > 0 :
+                print("Number of Transactions: ", num_transactions)
+                print("Amount to Refund: ",amount_should_refund)
+                print("Counter is at: ", n)
+                stripe_process_id = chargeIDresponse['result'][n]['charge_id']
+                print("Stripe Purchase ID: ", stripe_process_id)
+
+                if stripe_process_id[:2] == "pi":
+                    stripe_process_id = stripe.PaymentIntent.retrieve(stripe_process_id).get("charges").get("data")[0].get("id")
+                    print("Update Purchase ID: ", stripe_process_id)
+                refundable_info = stripe.Charge.retrieve(stripe_process_id,)
+
+                stripe_captured = refundable_info['amount_captured']/100
+                stripe_refunded = refundable_info['amount_refunded']/100
+                refundable_amount = stripe_captured - stripe_refunded
+                # print("\nRefundable Amount: ", refundable_info)
+                print("\nAmount Captured: ", stripe_captured)
+                print("Amount Refunded: ", stripe_refunded)
+                print("Refundable Amount: ", refundable_amount)
+                print("Amount to be Refunded: ", amount_should_refund)
+
+                if refundable_amount == 0:
+                    num_transactions = num_transactions - 1
+                    n = n + 1
+                    continue
+
+                if refundable_amount >= amount_should_refund:
+                    # refund it right away => amount should be refund is equal refunded_amount
+                    print("In If Statement")
+
+                    # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+                    refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
+                    purchase_status = 'ACTIVE'
+                    stripe_refund = amount_should_refund
+                    amount_should_refund = 0
+                    print("Refund id: ", refund_id['id'])
+                else:
+                    print("In Else Statement")
+                    refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
+                    purchase_status = 'PARTIAL REFUND'
+                    stripe_refund = refundable_amount
+                    amount_should_refund = round(amount_should_refund - refundable_amount,2)
+                    print("Refund id: ", refund_id['id'])
+
+                num_transactions = num_transactions - 1
+                n = n + 1
+                print (num_transactions, n)
+
+                # STEP 4 WRITE TO DATABASE
+                print("\nSTEP 4:  WRITE TO DATABASE")
+                new_pur_id = get_new_purchaseID(conn)
+                new_pay_id = get_new_paymentID(conn)
+                
+
+                # UPDATE PAYMENT TABLE
+                # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
+                print(new_pay_id)
+                print(refund['payment_id'])
+                print(new_pur_id)
+                print(new_pur_id)
+                print(purchase_status)
+                print(str(getNow()))
+                print(str(refund['meal_refund']))
+                print(str(refund['service_fee']))
+                print(str(refund['delivery_fee']))
+                print(str(refund['driver_tip']))
+                print(str(refund['taxes']))
+                print(str(refund['ambassador_code']))
+                print("refund_res: ", refund_id['id'])
+
+                # FIND NEXT START DATE FOR CHANGED PLAN
+                date_query = '''
+                            SELECT DISTINCT menu_date FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1
+                            '''
+                sd_response = simple_get_execute(date_query, "Next Delivery Date", conn)
+                start_delivery_date = sd_response[0]['result'][0]['menu_date']
+                print("start_delivery_date: ", start_delivery_date)
+
+                # INSERT CHANGES INTO PAYMENT TABLE
+                print("\nInsert into Payment Table")
+                query = """
+                        INSERT INTO M4ME.payments
+                        SET payment_uid = '""" + new_pay_id + """',
+                            payment_id = '""" + refund['payment_id'] + """',
+                            pay_purchase_uid = '""" + new_pur_id + """',
+                            pay_purchase_id = '""" + new_pur_id + """',
+                            payment_time_stamp =  '""" + str(getNow()) + """',
+                            subtotal = '""" + str(new_meal_charge) + """',
+                            amount_discount = '""" + str(new_discount) + """',
+                            service_fee = '""" + str(refund['service_fee']) + """',
+                            delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                            driver_tip = '""" + str(data["driver_tip"]) + """',
+                            taxes = '""" + str(new_tax) + """',
+                            amount_due = '""" + str(delta) + """',
+                            amount_paid = '""" + str(-stripe_refund) + """',
+                            cc_num = '""" + str(refund['cc_num']) + """',
+                            cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
+                            cc_cvv = '""" + str(refund['cc_cvv']) + """',
+                            cc_zip = '""" + str(refund['cc_zip']) + """',
+                            ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                            charge_id = '""" + str(refund_id['id']) + """',
+                            start_delivery_date =  '""" + str(start_delivery_date) + """';
+                        """        
+                        
+                                
+                pay_insert_response = execute(query, 'post', conn)
+                print("Payments Update db response: ", pay_insert_response)
+                
+                if pay_insert_response['code'] != 281:
+                    return {"message": "Payment Insert Error"}, 500
+
+                # UPDATE PURCHASE TABLE
+                print("\nUpdate Purchases Table")
+                query = """
+                        UPDATE M4ME.purchases
+                        SET purchase_status = "CHANGED"
+                        where purchase_uid = '""" + pur_uid + """';
+                        """
+                pur_update_response = execute(query, 'post', conn)
+                print("Purchases Update db response: ", pur_update_response)
+                if pur_update_response['code'] != 281:
+                    return {"message": "Purchase Insert Error"}, 500
+
+                # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
+                print("\nWrite New Purchases Table")
+                # GET EXISTING PURCHASE TABLE DATA    
+                query = """ 
+                        SELECT *
+                        FROM M4ME.purchases
+                        WHERE purchase_uid = '""" + pur_uid + """';
+                        """
+                response = execute(query, 'get', conn)
+                if response['code'] != 280:
+                    return {"message": "Purchase Table Lookup Error"}, 500
+                print("Get Purchase UID response: ", response)
+
+                # INSERT INTO PURCHASE TABLE
+                print("Insert into Purchases Table")
+                items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
+                print(items)
+
+                query = """
+                        INSERT INTO M4ME.purchases
+                        SET purchase_uid = '""" + new_pur_id + """',
+                            purchase_date = '""" + str(getNow()) + """',
+                            purchase_id = '""" + new_pur_id + """',
+                            purchase_status = '""" + purchase_status + """',
+                            pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
+                            pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
+                            delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
+                            delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
+                            delivery_email = '""" + response['result'][0]['delivery_email'] + """',
+                            delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
+                            delivery_address = '""" + response['result'][0]['delivery_address'] + """',
+                            delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
+                            delivery_city = '""" + response['result'][0]['delivery_city'] + """',
+                            delivery_state = '""" + response['result'][0]['delivery_state'] + """',
+                            delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
+                            delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
+                            delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
+                            delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
+                            items = '""" + items + """';
+                        """
+                pur_insert_response = execute(query, 'post', conn)
+                print("New Changed Purchases Added to db response 2: ", pur_insert_response)
+                if pur_insert_response['code'] != 281:
+                    return {"message": "Purchase Insert Error"}, 500
+
+                continue
+            
+            return refund_id['id']
+
+
+class cancel_purchase (Resource):
+    
+    def put(self):
+
+         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
+        conn = connect()
+        data = request.get_json(force=True)
+        print("\nSTEP 1:  In CANCEL PURCHASE\n", data)
+        # print("hello")
+        # print(data['purchase_uid'])
+        # print("goodbye")
+        
+        # WHAT THEY HAD
+        pur_uid = data["purchase_uid"]
+        print("What they have (CURRENT Purchase ID): ", pur_uid)
+
+        # STEP 2 CALCULATE REFUND
+        print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
+        print("Call Refund Calculator")
+        refund = calculator().refund(pur_uid)
+        print("\nRefund Calculator Return: ", refund)
+        amount_should_refund = round(refund['amount_due'],2)
+        print("Amount to be Refunded: ", amount_should_refund)
+
+        # STEP 3 PROCESS STRIPE
+        print("\nSTEP 3:  PROCESS STRIPE")
+        # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
+        print("\nSTEP 3A:  Get Stripe Key") 
+        delivery_instructions = refund['delivery_instructions']
+        print(delivery_instructions)
+        stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+        print("Stripe Key: ", stripe.api_key)
+        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+
+        # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
+        print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
+        query = """ 
+                SELECT charge_id 
+                FROM M4ME.payments
+                WHERE payment_id = '""" + refund['payment_id'] + """'
+                    AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
+                ORDER BY payment_time_stamp DESC;
+                """
+        chargeIDresponse = execute(query, 'get', conn)
+        if chargeIDresponse['code'] != 280:
+            return {"message": "Related Transaction Error"}, 500
+        print("Related Puchase IDs: ", chargeIDresponse['result'])
+        num_transactions = len(chargeIDresponse['result'])
+        print("Number of Related Puchase IDs: ", num_transactions)
+
+        # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
+        print("\nSTEP 3C: Systematically Step Through Transactions")
+        n = 0
+        print("Number of Transactions: ", num_transactions)
+        print("Amount to Refund: ",amount_should_refund)
+        if amount_should_refund <= 0:
+            # return ("Amount Should Refund less than zero! ", amount_should_refund)
+            print("Amount Should Refund less than zero! ", amount_should_refund)
+            return {"message": "Amount Should Refund less than zero!"}
+        while num_transactions > 0 and amount_should_refund > 0 :
+            print("Number of Transactions: ", num_transactions)
+            print("Amount to Refund: ",amount_should_refund)
+            print("Counter is at: ", n)
+            stripe_process_id = chargeIDresponse['result'][n]['charge_id']
+            print("Stripe Purchase ID: ", stripe_process_id)
+
+            if stripe_process_id[:2] == "pi":
+                stripe_process_id = stripe.PaymentIntent.retrieve(stripe_process_id).get("charges").get("data")[0].get("id")
+                print("Update Purchase ID: ", stripe_process_id)
+            refundable_info = stripe.Charge.retrieve(stripe_process_id,)
+
+            stripe_captured = refundable_info['amount_captured']/100
+            stripe_refunded = refundable_info['amount_refunded']/100
+            refundable_amount = stripe_captured - stripe_refunded
+            # print("\nRefundable Amount: ", refundable_info)
+            print("\nAmount Captured: ", stripe_captured)
+            print("Amount Refunded: ", stripe_refunded)
+            print("Refundable Amount: ", refundable_amount)
+            print("Amount to be Refunded: ", amount_should_refund)
+
+
+ 
+            if refundable_amount == 0:
+                    num_transactions = num_transactions - 1
+                    n = n + 1
+                    continue
+            
+
+            if refundable_amount >= amount_should_refund:
+                # refund it right away => amount should be refund is equal refunded_amount
+                print("In If Statement")
+
+                # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+                refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
+                stripe_refund = amount_should_refund
+                amount_should_refund = 0
+                print("Refund id: ", refund_id['id'])
+            else:
+                print("In Else Statement")
+                refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
+                stripe_refund = refundable_amount
+                amount_should_refund = round(amount_should_refund - refundable_amount,2)
+                print("Refund id: ", refund_id['id'])
+
+            num_transactions = num_transactions - 1
+            n = n + 1
+            print (num_transactions, n)
+
+            # STEP 4 WRITE TO DATABASE
+            print("\nSTEP 4:  WRITE TO DATABASE")
+            # new_pur_id = get_new_purchaseID(conn) - DON'T NEED NEW PURCHASE UID FOR CANCEL
+            new_pay_id = get_new_paymentID(conn)
+
+            # UPDATE PAYMENT TABLE
+            # INSERT NEW ROW WITH REFUND AMOUNT AND SAME PAYMENT ID
+            print(new_pay_id)
+            print(refund['payment_id'])
+            print(pur_uid)
+            print(refund['purchase_id'])
+            print(str(getNow()))
+            print(str(refund['meal_refund']))
+            print(str(refund['service_fee']))
+            print(str(refund['delivery_fee']))
+            print(str(refund['driver_tip']))
+            print(str(refund['taxes']))
+            print(str(refund['ambassador_code']))
+            print("refund_res: ", refund_id['id'])
+
+            # UPDATE PAYMENT TABLE
+            query = """
+                    INSERT INTO M4ME.payments
+                    SET payment_uid = '""" + new_pay_id + """',
+                        payment_id = '""" + refund['payment_id'] + """',
+                        pay_purchase_uid = '""" + pur_uid + """',
+                        pay_purchase_id = '""" + refund['purchase_id'] + """',
+                        payment_time_stamp =  '""" + str(getNow()) + """',
+                        subtotal = '""" + str(refund['meal_refund']) + """',
+                        amount_discount = '""" + str(refund['amount_discount']) + """',
+                        service_fee = '""" + str(refund['service_fee']) + """',
+                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                        driver_tip = '""" + str(refund['driver_tip']) + """',
+                        taxes = '""" + str(refund['taxes']) + """',
+                        amount_due = '""" + str(refund['amount_due']) + """',
+                        amount_paid = '""" + str(-refund['amount_due']) + """',
+                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                        charge_id = '""" + str(refund_id['id']) + """';
+                    """        
+                            
+            response = execute(query, 'post', conn)
+            print("Payments Update db response: ", response)
+            
+            if response['code'] != 281:
+                return {"message": "Payment Insert Error"}, 500
+
+            # UPDATE PURCHASE TABLE
+            query = """
+                    UPDATE M4ME.purchases
+                    SET purchase_status = "CANCELLED and REFUNDED"
+                    where purchase_uid = '""" + pur_uid + """';
+                    """
+            cancel_response = execute(query, 'post', conn)
+            print("Purchases Update db response: ", cancel_response)
+            if cancel_response['code'] != 281:
+                return {"message": "Purchase Insert Error"}, 500
+
+            continue
+        
+        return refund_id['id']
+
+# PRASHANT NEXT BILLING DATE
+class predict_next_billing_date(Resource):
+
+    def get(self, id):
+
+        try:
+            conn = connect()
+            print("Inside predict class", id)
+
+            # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
+            query = """
+
+                SELECT nbd.*,
+                    nms.next_delivery,
+                    nms.final_selection
+                FROM (
+                    SELECT *,
+                        ADDDATE(menu_date, 1) AS next_billing_date
+                    FROM ( 
+                        SELECT A.*,
+                            sum(B.delivery) as cum_qty
+                        FROM ( 
+                            SELECT * ,
+                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                            FROM M4ME.lplp
+                            JOIN (
+                                SELECT DISTINCT menu_date
+                                FROM menu
+                                -- WHERE menu_date > now()
+                                ORDER BY menu_date ASC) AS md
+                            LEFT JOIN M4ME.latest_combined_meal lcm
+                            ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                    md.menu_date = lcm.sel_menu_date
+                            WHERE pur_customer_uid = '""" + id + """'  
+                                    AND purchase_status = "ACTIVE"
+                                    AND menu_date >= start_delivery_date)
+                            AS A
+                        JOIN (
+                            SELECT * ,
+                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                            FROM M4ME.lplp
+                            JOIN (
+                                SELECT DISTINCT menu_date
+                                FROM menu
+                                -- WHERE menu_date > now()
+                                ORDER BY menu_date ASC) AS md
+                            LEFT JOIN M4ME.latest_combined_meal lcm
+                            ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                    md.menu_date = lcm.sel_menu_date
+                            WHERE pur_customer_uid = '""" + id + """'  
+                                    AND purchase_status = "ACTIVE"
+                                    AND menu_date >= start_delivery_date)
+                            AS B
+                        ON A.menu_date >= B.menu_date
+                            AND A.purchase_uid = B.purchase_uid
+                        GROUP BY A.menu_date,
+                            A.purchase_uid
+                        ) AS cum_del
+                    WHERE cum_del.num_deliveries = cum_del.cum_qty
+                        AND delivery = 1
+                    ORDER BY cum_del.purchase_uid
+                    ) AS nbd
+                JOIN (
+                    SELECT -- *,
+                        menu_date AS next_delivery,
+                        purchase_uid,
+                        purchase_id,
+                        CASE
+                            WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
+                            WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
+                            ELSE "SELECTED"
+                            END 
+                            AS final_selection
+                    FROM (
+                    -- PART A
+                        SELECT *
+                        FROM (
+                            SELECT DISTINCT menu_date 
+                            FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1) as nmd,
+                            (
+                            SELECT purchase_uid, purchase_id -- *
+                            FROM M4ME.lplp
+                            WHERE lplp.pur_customer_uid = '""" + id + """') as pur
+                        ) AS nmdpur
+                    LEFT JOIN (
+                    -- PART B
+                        SELECT *
+                        FROM M4ME.latest_combined_meal lcm
+                        JOIN (
+                            SELECT DISTINCT menu_date AS dmd 
+                            FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1) AS nmd
+                        WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
+                    ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
+                ) AS nms
+                ON nbd.purchase_id = nms.purchase_id;
+            """
+
+            next_billing_date = execute(query, 'get', conn)
+            print("Next Billing Date: ", next_billing_date)
+
+            return next_billing_date
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class predict_autopay_day(Resource):
+
+    def get(self, id):
+
+        try:
+            conn = connect()
+            query = """
+                    select * from
+                    (select * 
+                    from M4ME.purchases, M4ME.payments
+                    where purchase_status = 'ACTIVE' AND purchase_uid = pay_purchase_uid) as gg
+                    left join (SELECT S.sel_purchase_id, S.sel_menu_date, S.meal_selection, S.delivery_day FROM
+                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
+                        GROUP BY sel_purchase_id,sel_menu_date) AS GB
+                        INNER JOIN M4ME.meals_selected S
+                        ON S.sel_purchase_id = GB.sel_purchase_id
+                            AND S.sel_menu_date = GB.sel_menu_date
+                            AND S.selection_time = GB.max_selection_time
+                    ) as gh
+                    on gh.sel_purchase_id = gg.purchase_id
+                    WHERE gg.purchase_id = '""" + id + """'
+
+                    """
+            items = execute(query, 'get', conn)
+            print("items", items)
+            number_of_delivery = json.loads(items['result'][0]['items'])
+            print("number_of_delivery", number_of_delivery)
+            number_of_delivery = int(number_of_delivery[0]['qty'])
+            print("number_of_delivery", number_of_delivery)
+
+            
+            delivery_day = {}
+            print("items", items)
+            # for vals in items['result']:
+            #     if vals['sel_menu_date']:
+            #         del_date = vals['sel_menu_date'].replace('-',':')
+            #         delivery_day[del_date] = vals['delivery_day']
+                
+                
+            delivery = items['result'][0]['start_delivery_date']
+            print(delivery)
+
+            start_delivery_date = delivery.replace('-',':')
+            print(start_delivery_date)
+            
+            query_dates = """
+                            SELECT DISTINCT(menu_date)
+                            FROM M4ME.menu
+                            WHERE menu_date >= '""" + start_delivery_date + """'
+                            ORDER BY menu_date
+                          """
+            items_dates = execute(query_dates, 'get', conn)
+            print("before addition")
+            #print(vals["taxes"])
+            # vals["taxes"]=items[0]['result'][0]["taxes"]
+            # vals["delivery_fee"]=items[0]['result'][0]["delivery_fee"]
+            # vals["service_fee"]=items[0]['result'][0]["service_fee"]
+            # vals["driver_tip"]=items[0]['result'][0]["driver_tip"]
+            # vals["base_amount"]=items[0]['result'][0]["subtotal"]
+            # vals["discount"]=items[0]['result'][0]["amount_discount"]
+            # print("after addition")
+            # vals["ambassador_code"]=info_res[0]['result'][0]["ambassador_code"]
+            # return refund_info
+            
+            print(items_dates)
+
+            ct = 0
+            for vals in items_dates['result']:
+                days = vals['menu_date'].replace("-",":")
+                print(days)
+                if days in delivery_day:
+                    if delivery_day[days] == 'SKIP':
+                        continue
+                ct += 1
+                print("ct: ", ct)
+                if ct == number_of_delivery:
+                    vals["taxes"]=items['result'][0]["taxes"]
+                    vals["delivery_fee"]=items['result'][0]["delivery_fee"]
+                    vals["service_fee"]=items['result'][0]["service_fee"]
+                    vals["driver_tip"]=items['result'][0]["driver_tip"]
+                    vals["base_amount"]=items['result'][0]["subtotal"]
+                    vals["discount"]=items['result'][0]["amount_discount"]
+                    vals["total"] = vals["base_amount"]-vals["discount"] +vals["taxes"] + vals["delivery_fee"] + vals["service_fee"] + vals["driver_tip"]
+                    return vals
+
+            
+            return 'not enough menu dates'
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 
 #  -- ADMIN RELATED ENDPOINTS    -----------------------------------------
@@ -5355,6 +6722,167 @@ class admin_report(Resource):
         finally:
             disconnect(conn)
 
+class adminInfo(Resource):
+
+    def refund_calculator(self, info_res,  conn):
+        print("in refund calculator")
+        # Getting the original start and end date for requesting purchase
+        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+        # check for SKIP. Let consider the simple case. The customer can change their purchases if and only if their purchase
+        # still active.
+        week_remaining = int(info_res['payment_frequency'])
+
+        end_delivery_date = start_delivery_date + timedelta(days=(week_remaining) * 7)
+        skip_query = """SELECT COUNT(delivery_day) AS skip_count FROM
+                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
+                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
+                                GROUP BY sel_menu_date) AS GB
+                                INNER JOIN meals_selected S
+                                ON S.sel_purchase_id = GB.sel_purchase_id
+                                    AND S.sel_menu_date = GB.sel_menu_date
+                                    AND S.selection_time = GB.max_selection_time
+                        WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
+                            AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
+                            AND delivery_day = 'SKIP'
+                        ORDER BY S.sel_menu_date;
+                    """
+        skip_res = simple_get_execute(skip_query, "SKIP QUERY", conn)
+        if skip_res[1] != 200:
+            return skip_res
+        skip = int(skip_res[0].get('skip_count')) if skip_res[0].get('skip_count') else 0
+        if datetime.now().date() > start_delivery_date.date():
+            delivered = (datetime.now().date() - start_delivery_date.date()).days//7 + 1 - skip
+            week_remaining -= delivered
+        elif (datetime.now().date() > end_delivery_date.date()):
+            print("There is something wrong with the query to get info for the requested purchase.")
+            response = {'message': "Internal Server Error."}
+            return response, 500
+        print("start here")
+        print(info_res)
+        item_price = json.loads(info_res['items'])[0].get('price')
+        print("price is")
+        print(item_price)
+        customer_paid = float(item_price)
+        print("paid amount is")
+        print(customer_paid)
+        print("end here")
+        # get the price of the new item.
+        items_query = """
+                        SELECT * FROM subscription_items
+                        WHERE item_name = '""" + info_res['item_name'] + """'
+                        """
+        items_res = simple_get_execute(items_query, "GET Subscription_items QUERY", conn)
+        if items_res[1] != 200:
+            return items_res
+        price = {}
+        for item in items_res[0]['result']:
+            price[item['num_issues']] = item['item_price']
+        
+        print("price######", price)
+        refund = 0
+        if info_res['num_issues'] == 4: # 4 week prepaid
+            print("matching 4 week pre-pay")
+            if week_remaining == 0:
+                refund = 0
+            elif week_remaining == 1:
+                refund = customer_paid - float(price[2]) - float(price[1])
+            elif week_remaining == 2:
+                refund = customer_paid - float(price[2])
+            elif week_remaining == 3:
+                refund = customer_paid - float(price[2])
+            elif week_remaining == 4:
+                refund = customer_paid
+        elif info_res['num_issues'] == 2:
+            print("matching 2 week Pre-pay")
+            print("r0")
+            if week_remaining == 0:
+                refund = 0
+                print("r1")
+            elif week_remaining == 1:
+                print("in price", price)
+                refund = customer_paid - float(price[1])
+                print("r2")
+            elif week_remaining == 2:
+                refund = customer_paid
+                print("r3")
+        elif info_res['num_issues'] == 1:
+            print("matching weekly")
+            if week_remaining == 0:
+                refund = 0
+            elif week_remaining == 1:
+                refund = customer_paid
+        return {"week_remaining": week_remaining, "refund_amount": refund}
+
+    
+    
+    def get(self):
+        
+        conn  = connect()
+
+        query = """
+                SELECT * FROM M4ME.lplp;
+                """
+        items = execute(query, 'get', conn)
+
+        if items['code'] == '281':
+            items['message'] = "error check your query"
+            return items
+
+        #return items
+
+        query_freq = """
+                    SELECT item_uid, num_issues FROM M4ME.subscription_items;
+                    """
+        items_freq = execute(query_freq, 'get', conn)
+
+        if items_freq['code'] == '281':
+            items_freq['message'] = "error check your query"
+            return items_freq
+        
+        uid_freq = items_freq["result"]
+        uid_freq_dict = {}
+        for item in uid_freq:
+            uid_freq_dict[item["item_uid"]] = item["num_issues"]
+        
+        
+
+
+        ans = []
+        for vals in items['result']:
+            
+            item_uid = json.loads(vals["items"])[0]["item_uid"]
+            vals["freq"] = uid_freq_dict[item_uid]
+
+            if vals["purchase_status"] == "ACTIVE":
+                purchaseID = vals["purchase_uid"]
+                
+                info_query = """
+                        SELECT pur.*, pay.*, sub.*
+                        FROM purchases pur, payments pay, subscription_items sub
+                        WHERE pur.purchase_uid = pay.pay_purchase_uid
+                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
+                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
+                            AND pur.purchase_uid = '""" + purchaseID + """'
+                            AND pur.purchase_status='ACTIVE';  
+                        """
+                print("info_query", info_query)
+                info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
+                print(info_res)
+                if info_res[1] != 200:
+                    return {"message": "Internal Server Error"}, 500
+                # Calculate refund
+                print("1.9")
+                refund_info = self.refund_calculator(info_res[0]['result'][0], conn)
+                vals["refund_amount"] = refund_info['refund_amount']
+                
+            else:
+                vals["refund_amount"] = -1
+            
+
+            ans.append(vals)
+        
+        return ans
+
 
 #  -- ADMIN NOTIFICATION RELATED ENDPOINTS    -----------------------------------------
 
@@ -6260,6 +7788,144 @@ class get_supplys_by_date(Resource):
                 items['code'] = 404
                 return items
 
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class orders_by_business_specific(Resource): #need to fix
+
+    def get(self, b_id):
+
+        try:
+            conn = connect()
+            query = """
+                    SELECT *,deconstruct.* 
+                    FROM M4ME.lplp, 
+                         JSON_TABLE(items, '$[*]' COLUMNS (
+                                    qty VARCHAR(255)  PATH '$.qty',
+                                    name VARCHAR(255)  PATH '$.name',
+                                    price VARCHAR(255)  PATH '$.price',
+                                    item_uid VARCHAR(255)  PATH '$.item_uid',
+                                    itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
+                         ) AS deconstruct
+                    WHERE itm_business_uid = '""" + b_id + """';  
+                    """
+            items = execute(query, 'get', conn)
+            if items['code'] == 280:
+                items['message'] = 'Orders by business view loaded successful'
+                items['code'] = 200
+            else:
+                items['message'] = 'Check sql query'
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
+
+class Orders_by_Purchase_Id_with_Pid(Resource):
+    def get(self, p_id):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_purchase_id = \'""" + p_id + """\' and lplpibr_purchase_status = "ACTIVE"
+                    group by d_purchase_id, d_menu_date
+                    order by d_menu_date desc;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class Orders_by_Purchase_Id_with_Pid_and_date(Resource):
+    def get(self, p_id, date):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_purchase_id = \'""" + p_id + """\' and d_menu_date = \'""" + date + """\'
+                    group by d_purchase_id, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class Orders_by_Items_total_items(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select d_menu_date,
+                            jt_name,
+                            sum(jt_qty)
+                    FROM fcs_items_by_row
+                    group by jt_name, d_menu_date
+                    order by d_menu_date desc;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -7211,6 +8877,7 @@ class Get_Tags_With_GUID_iOS(Resource):
 
 
 # maybe SF only
+# possible deletion
 class report_order_customer_pivot_detail(Resource):
 
     def get(self, report, uid):
@@ -7774,33 +9441,61 @@ class update_zones(Resource):
                 z_businesses = "'" + z_businesses.replace("'", "\"") + "'"
                 status = data['status'] if data.get('status') is not None else 'ACTIVE' 
                 # REFACTOR
+                # query = """
+                #         INSERT INTO M4ME.zones 
+                #         (zone_uid, z_business_uid, area, zone, zone_name, z_businesses, z_delivery_day, z_delivery_time, z_accepting_day, z_accepting_time, service_fee, delivery_fee, tax_rate, LB_long, LB_lat, LT_long, LT_lat, RT_long, RT_lat, RB_long, RB_lat, zone_status)
+                #          VALUES(
+                #          \'""" + uid + """\',
+                #           \'""" + data['z_business_uid'] + """\',
+                #           \'""" + data['area'] + """\',
+                #            \'""" + data['zone'] + """\',
+                #             \'""" + data['zone_name'] + """\',
+                #             """ + z_businesses + """,
+                #             \'""" + data['z_delivery_day'] + """\',
+                #             \'""" + data['z_delivery_time'] + """\',
+                #             \'""" + data['z_accepting_day'] + """\',
+                #             \'""" + data['z_accepting_time'] + """\',
+                #             \'""" + data['service_fee'] + """\',
+                #             \'""" + data['delivery_fee'] + """\',
+                #             \'""" + data['tax_rate'] + """\',
+                #             \'""" + data['LB_long'] + """\',
+                #             \'""" + data['LB_lat'] + """\',
+                #             \'""" + data['LT_long'] + """\',
+                #             \'""" + data['LT_lat'] + """\',
+                #             \'""" + data['RT_long'] + """\',
+                #             \'""" + data['RT_lat'] + """\',
+                #             \'""" + data['RB_long'] + """\',
+                #             \'""" + data['RB_lat'] + """\',
+                #             \'""" + status + """\')
+                #         """
                 query = """
-                        INSERT INTO M4ME.zones 
-                        (zone_uid, z_business_uid, area, zone, zone_name, z_businesses, z_delivery_day, z_delivery_time, z_accepting_day, z_accepting_time, service_fee, delivery_fee, tax_rate, LB_long, LB_lat, LT_long, LT_lat, RT_long, RT_lat, RB_long, RB_lat, zone_status)
-                         VALUES(
-                         \'""" + uid + """\',
-                          \'""" + data['z_business_uid'] + """\',
-                          \'""" + data['area'] + """\',
-                           \'""" + data['zone'] + """\',
-                            \'""" + data['zone_name'] + """\',
-                            """ + z_businesses + """,
-                            \'""" + data['z_delivery_day'] + """\',
-                            \'""" + data['z_delivery_time'] + """\',
-                            \'""" + data['z_accepting_day'] + """\',
-                            \'""" + data['z_accepting_time'] + """\',
-                            \'""" + data['service_fee'] + """\',
-                            \'""" + data['delivery_fee'] + """\',
-                            \'""" + data['tax_rate'] + """\',
-                            \'""" + data['LB_long'] + """\',
-                            \'""" + data['LB_lat'] + """\',
-                            \'""" + data['LT_long'] + """\',
-                            \'""" + data['LT_lat'] + """\',
-                            \'""" + data['RT_long'] + """\',
-                            \'""" + data['RT_lat'] + """\',
-                            \'""" + data['RB_long'] + """\',
-                            \'""" + data['RB_lat'] + """\',
-                            \'""" + status + """\')
-                        """
+                    INSERT INTO 
+                        M4ME.zones 
+                    SET
+                        zone_uid = \'""" + uid + """\',
+                        z_business_uid = \'""" + data['z_business_uid'] + """\',
+                        area = \'""" + data['area'] + """\',
+                        zone = \'""" + data['zone'] + """\',
+                        zone_name = \'""" + data['zone_name'] + """\',
+                        z_businesses = """ + z_businesses + """,
+                        z_delivery_day = \'""" + data['z_delivery_day'] + """\',
+                        z_delivery_time = \'""" + data['z_delivery_time'] + """\',
+                        z_accepting_day = \'""" + data['z_accepting_day'] + """\',
+                        z_accepting_time = \'""" + data['z_accepting_time'] + """\',
+                        service_fee = \'""" + data['service_fee'] + """\',
+                        delivery_fee = \'""" + data['delivery_fee'] + """\',
+                        tax_rate = \'""" + data['tax_rate'] + """\',
+                        LB_long = \'""" + data['LB_long'] + """\',
+                        LB_lat = \'""" + data['LB_lat'] + """\',
+                        LT_long = \'""" + data['LT_long'] + """\',
+                        LT_lat = \'""" + data['LT_lat'] + """\',
+                        RT_long = \'""" + data['RT_long'] + """\',
+                        RT_lat = \'""" + data['RT_lat'] + """\',
+                        RB_long = \'""" + data['RB_long'] + """\',
+                        RB_lat = \'""" + data['RB_lat'] + """\',
+                        zone_status = \'""" + status + """\';
+                """
+
                 #print('QUERY--', query)
                 items = execute(query, 'post', conn)
                 if items['code'] != 281:
@@ -7867,277 +9562,6 @@ class update_zones(Resource):
             disconnect(conn)
 
 
-class meal_type (Resource):
-    def get(self):
-        try:
-            conn = connect()
-            
-            query = """
-                    SELECT distinct meal_category
-                    FROM meals
-                    order by meal_category;
-                    """
-            items = execute(query, 'get', conn)
-            if items['code'] != 280:
-                items['message'] = 'Check sql query'
-                return items
-            #items['result'] = items['result'][0]
-            return items
-        except:
-                print("Error happened while getting meal types")
-                raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-            print('process completed')
-
-
-class payment_info (Resource):
-    def get(self, p_id):
-        try:
-            conn = connect()
-            
-            query = """
-                    SELECT *
-                    FROM payments
-                    WHERE payment_uid = \'""" + p_id + """\';
-                    """
-            items = execute(query, 'get', conn)
-            if items['code'] != 280:
-                items['message'] = 'Check sql query'
-                return items
-            #items['result'] = items['result'][0]
-            return items
-        except:
-                print("Error happened while getting payment info")
-                raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-            print('process completed')
-
-
-class payment_info_history (Resource): #edit to take in purchase_uid
-    def get(self, p_id):
-        try:
-            conn = connect()
-            
-            query = """
-                    SELECT *
-                    FROM purchases
-                    inner join payments
-                        on purchase_id = pay_purchase_id
-                    WHERE purchase_id = \'""" + p_id + """\';
-                    """
-            items = execute(query, 'get', conn)
-            if items['code'] != 280:
-                items['message'] = 'Check sql query'
-                return items
-            #items['result'] = items['result'][0]
-            return items
-        except:
-                print("Error happened while getting payment info")
-                raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-            print('process completed')
-
-
-
-class Meals_Selected_pid(Resource):
-    def get(self):
-        try:
-            conn = connect()
-            purchase_id = request.args['purchase_id']
-
-            '''
-            query = """
-                    # CUSTOMER QUERY 3: ALL MEAL SELECTIONS BY CUSTOMER  (INCLUDES HISTORY)
-                    SELECT * FROM M4ME.latest_combined_meal lcm
-                    LEFT JOIN M4ME.lplp
-                        ON lcm.sel_purchase_id = lplp.purchase_id
-                    WHERE purchase_id = '""" + purchase_id + """';
-                    """
-            '''
-
-            query = """
-                    # CUSTOMER QUERY 3A: MEALS SELECTED FOR SPECIFIC PURCHASE ID AND MENU DATE INCLUDING DEFAULT SURPRISES 
-					SELECT lplpmdlcm.*,
-						IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
-					FROM (
-					SELECT * FROM M4ME.lplp
-					JOIN (
-						SELECT DISTINCT menu_date
-						FROM menu
-						WHERE menu_date > now()
-						ORDER BY menu_date ASC) AS md
-					LEFT JOIN M4ME.latest_combined_meal lcm
-					ON lplp.purchase_id = lcm.sel_purchase_id AND
-							md.menu_date = lcm.sel_menu_date
-					WHERE purchase_id = '""" + purchase_id + """'
-							-- AND purchase_status = "ACTIVE"
-							) AS lplpmdlcm
-					ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC; 
-                    """
-
-            
-            items = execute(query, 'get', conn)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Meals selected"
-                items['code'] = 200
-                #return items
-            return items
-
-
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-class orders_by_business_specific(Resource): #need to fix
-
-    def get(self, b_id):
-
-        try:
-            conn = connect()
-            query = """
-                    SELECT *,deconstruct.* 
-                    FROM M4ME.lplp, 
-                         JSON_TABLE(items, '$[*]' COLUMNS (
-                                    qty VARCHAR(255)  PATH '$.qty',
-                                    name VARCHAR(255)  PATH '$.name',
-                                    price VARCHAR(255)  PATH '$.price',
-                                    item_uid VARCHAR(255)  PATH '$.item_uid',
-                                    itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
-                         ) AS deconstruct
-                    WHERE itm_business_uid = '""" + b_id + """';  
-                    """
-            items = execute(query, 'get', conn)
-            if items['code'] == 280:
-                items['message'] = 'Orders by business view loaded successful'
-                items['code'] = 200
-            else:
-                items['message'] = 'Check sql query'
-            return items
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-
-
-class Orders_by_Purchase_Id_with_Pid(Resource):
-    def get(self, p_id):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-            query = """
-                    SELECT
-                        d_menu_date,
-                        d_purchase_id,
-                        group_concat(jt_name),
-                        group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    where d_purchase_id = \'""" + p_id + """\' and lplpibr_purchase_status = "ACTIVE"
-                    group by d_purchase_id, d_menu_date
-                    order by d_menu_date desc;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-class Orders_by_Purchase_Id_with_Pid_and_date(Resource):
-    def get(self, p_id, date):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-            query = """
-                    SELECT
-                        d_menu_date,
-                        d_purchase_id,
-                        group_concat(jt_name),
-                        group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    where d_purchase_id = \'""" + p_id + """\' and d_menu_date = \'""" + date + """\'
-                    group by d_purchase_id, d_menu_date;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-class Orders_by_Items_total_items(Resource):
-    def get(self):
-        try:
-            conn = connect()
-            # menu_date = request.args['menu_date']
-            query = """
-                    select d_menu_date,
-                            jt_name,
-                            sum(jt_qty)
-                    FROM fcs_items_by_row
-                    group by jt_name, d_menu_date
-                    order by d_menu_date desc;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
 class categoricalOptions(Resource):
     def get(self, long, lat):
         response = {}
@@ -8145,41 +9569,7 @@ class categoricalOptions(Resource):
 
         try:
             conn = connect()
-            print('IN')
-            '''
-            # query for businesses serving in customer's zone
-            query = """
-                    SELECT zone
-                    FROM
-                    (SELECT *,  
-                    IF (
-                    IF ((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) <= 0,
-                    \'""" + lat + """\' >=  (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),
-                    \'""" + lat + """\' <=   (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long) * \'""" + long + """\' + z.LT_lat - z.LT_long * (z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long)) AND
-                           
-                    \'""" + lat + """\' <= (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) * \'""" + long + """\' + z.RT_lat - z.RT_long * (z.RT_lat - z.LT_lat)/(z.RT_long - z.LT_long) AND
-                           
-                    IF ((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) >= 0,  
-                    \'""" + lat + """\' >= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),
-                    \'""" + lat + """\' <= (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long) * \'""" + long + """\' + z.RB_lat - z.RB_long * (z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long)) AND
-                           
-                    \'""" + lat + """\' >= (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long) * \'""" + long + """\' + z.LB_lat - z.LB_long * (z.LB_lat - z.RB_lat)/(z.LB_long - z.RB_long), "TRUE", "FALSE") AS "In_Zone",
-                     
-                    FORMAT((z.LT_lat - z.LB_lat)/(z.LT_long - z.LB_long),3) AS "LEFT_SLOPE",
-                    FORMAT((z.RB_lat - z.RT_lat)/(z.RB_long - z.RT_long),3) AS "RIGHT_SLOPE"
-                    FROM zones z) AS DD
-                    WHERE In_Zone = 'True'
-                    ;
-                    """
-                
-            items = execute(query, 'get', conn)
-            if items['code'] != 280:
-                items['message'] = 'check sql query'
-                return items
-            print(items)
-            for vals in items['result']:
-                zones.append(vals['zone'])
-            '''
+
             print('START')
             zones = ['Random', 'Random']
             query = """
@@ -8286,7 +9676,8 @@ class get_Zones_specific (Resource):
             disconnect(conn)
             print('process completed')
 
-
+# check this
+# not being used; maybe useful in future
 class find_next_sat (Resource):
     def get(self):
         try:
@@ -8306,211 +9697,104 @@ class find_next_sat (Resource):
             print("done")
 
 
-class get_final_price (Resource):
-    def get(self):
-        try:
-            conn = connect()
-            purchase_uid = data["p_uid"]
-            data = request.get_json(force=True)
-            query = {
-
-            }
-            return date
-        except:
-            print("error")
-        finally:
-            #disconnect(conn)
-            print("done")
-
-
-
-class Get_Latest_Purchases_Payments_with_Refund(Resource):
-    # HTTP method GET
-    def get(self):
-        try:
-            conn = connect()
-            customer_uid = request.args['customer_uid']
-            #purchase_uid = request.args['purchase_uid']
-            query = """
-                    # CUSTOMER QUERY 2: CUSTOMER LATEST PURCHASE AND LATEST PAYMENT HISTORY
-                    # NEED CUSTOMER ADDRESS IN CASE CUSTOMER HAS NOT ORDERED BEFORE
-                    SELECT * FROM M4ME.lplp lp
-                    LEFT JOIN M4ME.customers c
-                        ON lp.pur_customer_uid = c.customer_uid
-                    WHERE pur_customer_uid = '""" + customer_uid + """'
-                    and items like "%200-000002%"
-                    and purchase_status = "ACTIVE";
-                    """
-            response = simple_get_execute(query, __class__.__name__, conn)
-            if response[1] != 200:
-                return response[1]
-            except_list = ['password_hashed', 'password_salt', 'password_algorithm']
-            for i in range(len(response[0]['result'])):
-                for key in except_list:
-                     if response[0]['result'][i].get(key) is not None:
-                        del response[0]['result'][i][key]
-            refundinfo = {}
-            print("here")
-            intx=0
-            for i2 in range(len(response[0]['result'])):
-                print("here 1")
-                print(response[0]['result'][intx]["purchase_uid"])
-                info_query = """
-                       SELECT pur.*, pay.*, sub.*
-                       FROM purchases pur, payments pay, subscription_items sub
-                       WHERE pur.purchase_uid = pay.pay_purchase_uid
-                           AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid 
-                                                   FROM purchases WHERE purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """')
-                           AND pur.purchase_uid = '""" + response[0]['result'][i2]["purchase_uid"] + """'
-                           AND pur.purchase_status='ACTIVE';  
-                       """
-                info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-                refund_info = change_purchase().refund_calculator(info_res[0]['result'][0], conn)
-
-                refundinfo[intx]=refund_info
-                intx=intx+1
-            response2 = {}
-            inty = 0
-            print("changes here")
-            for i2 in range(len(response[0]['result'])):
-                #print(response[0]['result'][i2])
-                response2[inty]=str(response[0]['result'][i2]) + "" + str(refundinfo[i2])
-                print("1")
-                #inty=inty+1
-                #print(refundinfo[i2])
-                #response2[inty+1]=refundinfo[i2]
-                print("2")
-                inty=inty+1
-            print("here 3")
-            print(response2)
-            return response2
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-class payment_info_history_fixed (Resource): #edit to take in purchase_uid
-    def get(self, p_uid):
-        try:
-            conn = connect()
-            
-            query = """
-                    SELECT *
-                    FROM purchases
-                    inner join payments
-                        on purchase_id = pay_purchase_id
-                    WHERE purchase_id = (select pay_purchase_id from payments where pay_purchase_uid = \'""" + p_uid + """\');
-                    """
-            items = execute(query, 'get', conn)
-            if items['code'] != 280:
-                items['message'] = 'Check sql query'
-                return items
-            #items['result'] = items['result'][0]
-            return items
-        except:
-                print("Error happened while getting payment info")
-                raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-            print('process completed')
-
+# check this
 #if one is changed to skip, add extra surprise. if skip is changed to surprise, delete newest surprise
-class add_surprise (Resource):
-    def post(self, p_uid):
-        try:
-            conn = connect()
-            # query = """
-            #         select num_issues 
-            #         from subscription_items
-            #         where item_price=
-            #         (SELECT json_extract(items, '$[0].price') price
-            #         FROM purchases WHERE purchase_uid = \'""" + p_uid + """\');
-            #         """
+# delete September 1
+# class add_surprise (Resource):
+#     def post(self, p_uid):
+#         try:
+#             conn = connect()
+#             # query = """
+#             #         select num_issues 
+#             #         from subscription_items
+#             #         where item_price=
+#             #         (SELECT json_extract(items, '$[0].price') price
+#             #         FROM purchases WHERE purchase_uid = \'""" + p_uid + """\');
+#             #         """
 
-            query = """
+#             query = """
                     
-                    SELECT json_extract(items, '$[0].qty') as qty
-                    FROM purchases WHERE purchase_uid = \'""" + p_uid + """\';
-                    """
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code'] != 280:
-                items['message'] = 'Check sql query'
-                return items
-            #items['result'] = items['result'][0]
-            #print(int(items["result"][0]["num_issues"]))
-            print("1")
-            query1 ="""
-                        select purchase_id
-                        from purchases
-                        where purchase_uid = \'""" + p_uid + """\';
-                    """
-            print("1.5")
-            p_id = execute(query1, 'get', conn)
-            print("1.7")
-            tempstring = items["result"][0]["qty"].strip('\"')
-            inty=int(tempstring)
-            print(inty)
-            intx=0
+#                     SELECT json_extract(items, '$[0].qty') as qty
+#                     FROM purchases WHERE purchase_uid = \'""" + p_uid + """\';
+#                     """
+#             items = execute(query, 'get', conn)
+#             print(items)
+#             if items['code'] != 280:
+#                 items['message'] = 'Check sql query'
+#                 return items
+#             #items['result'] = items['result'][0]
+#             #print(int(items["result"][0]["num_issues"]))
+#             print("1")
+#             query1 ="""
+#                         select purchase_id
+#                         from purchases
+#                         where purchase_uid = \'""" + p_uid + """\';
+#                     """
+#             print("1.5")
+#             p_id = execute(query1, 'get', conn)
+#             print("1.7")
+#             tempstring = items["result"][0]["qty"].strip('\"')
+#             inty=int(tempstring)
+#             print(inty)
+#             intx=0
 
-            print("2")
-            query3 ="""
-                        select distinct menu_date
-                        from menu
-                        where menu_date > now()
-                        order by menu_date asc;
-                    """
-            print("3")
-            menu_date = execute(query3, 'get', conn)
-            intx=0
-            print(menu_date['result'][intx]['menu_date'])
-            for intx in range(0,inty):
-                res = execute("CALL new_meals_selected_uid();", 'get', conn)
-                print("4")
-                print(intx)
-                #temparr= str(menu_date['result'][intx]['menu_date'])
-                #print(temparr)
-                print(p_id)
-                query2 ="""
-                            insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
-                            values(
-                                \'""" + res['result'][0]['new_id'] + """\',
-                                \'""" + p_id["result"][0]["purchase_id"] + """\',
-                                now(),
-                                \'""" + menu_date['result'][intx]['menu_date'] + """\',
-                                '[{
-                                    "qty": "", 
-                                    "name": "SURPRISE", 
-                                    "price": "", 
-                                    "item_uid": ""
-                                }]',
-                                "SUNDAY"
-                            );
-                        """
-                print("5")
-                sur_item = execute(query2, 'post', conn)
-                print(sur_item)
-                print("6")
-                # query3= """
-                #             update meals_selected
-                #             set
-                #             sel_menu_date = '""" + menu_date['result'][intx]['menu_date'] + """'
-                #             where selection_uid = \'""" + res['result'][0]['new_id'] + """\';
-                #         """
-                # udate = execute(query3, 'post', conn)
-                print("7")
-            return sur_item
-        except:
-                print("Error happened while getting payment info")
-                raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-            print('process completed')
+#             print("2")
+#             query3 ="""
+#                         select distinct menu_date
+#                         from menu
+#                         where menu_date > now()
+#                         order by menu_date asc;
+#                     """
+#             print("3")
+#             menu_date = execute(query3, 'get', conn)
+#             intx=0
+#             print(menu_date['result'][intx]['menu_date'])
+#             for intx in range(0,inty):
+#                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
+#                 print("4")
+#                 print(intx)
+#                 #temparr= str(menu_date['result'][intx]['menu_date'])
+#                 #print(temparr)
+#                 print(p_id)
+#                 query2 ="""
+#                             insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
+#                             values(
+#                                 \'""" + res['result'][0]['new_id'] + """\',
+#                                 \'""" + p_id["result"][0]["purchase_id"] + """\',
+#                                 now(),
+#                                 \'""" + menu_date['result'][intx]['menu_date'] + """\',
+#                                 '[{
+#                                     "qty": "", 
+#                                     "name": "SURPRISE", 
+#                                     "price": "", 
+#                                     "item_uid": ""
+#                                 }]',
+#                                 "SUNDAY"
+#                             );
+#                         """
+#                 print("5")
+#                 sur_item = execute(query2, 'post', conn)
+#                 print(sur_item)
+#                 print("6")
+#                 # query3= """
+#                 #             update meals_selected
+#                 #             set
+#                 #             sel_menu_date = '""" + menu_date['result'][intx]['menu_date'] + """'
+#                 #             where selection_uid = \'""" + res['result'][0]['new_id'] + """\';
+#                 #         """
+#                 # udate = execute(query3, 'post', conn)
+#                 print("7")
+#             return sur_item
+#         except:
+#                 print("Error happened while getting payment info")
+#                 raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
+#             print('process completed')
 
 
-
+# check this
+# not used; figure out where discounts are called
 class discount_percentage (Resource): #edit to take in purchase_uid
     def get(self, n_delivery):
         try:
@@ -8534,110 +9818,6 @@ class discount_percentage (Resource): #edit to take in purchase_uid
             disconnect(conn)
             print('process completed')
 
-class Copy_Menu(Resource):
-
-    def post(self):
-        # date1 and date2 are passed from json body
-        # (params should be called date1 and date2)
-        # example: {"date1" = "2020-10-03 00:00:00", "date2" = "2020-10-12 00:00:00"}
-        # goal: copy the menu items from date1 to date2 (we can use INSERT INTO command)
-        # query: with dates passed from json body we can get the rows from the database
-        # containing date1, iterate through these rows to give them a new menu_uid and update 
-        # the menu_date to date2. We also have to insert the new row one at a time because to
-        # generate a new menu_uid each time, we have to insert the row with the most recently
-        # generated new menu_uid to get a new one for the next row to be inserted
-        try:
-            conn = connect()
-            dates = request.get_json(force=True)
-            print("Dates: ", dates)
-            copyFromDate = dates['date1']
-            copyToDate = dates['date2']
-            query = """ SELECT * FROM M4ME.menu WHERE menu_date = \'""" + copyFromDate + """\'; """
-            items = execute(query, 'get', conn)
-            records = items['result']
-            print("Results: ", records)
-            
-            for i in range(len(records)):
-                newIdQuery = """ call M4ME.new_menu_uid(); """
-                newId = execute(newIdQuery, 'get', conn)
-                newMenuUid = newId['result'][0]['new_id']
-                print(newMenuUid)
-                date = copyToDate
-                #print(date)
-                category = records[i]['menu_category']
-                #print(category)
-                menuType = records[i]['menu_type']
-                #print(menuType)
-                cat = records[i]['meal_cat']
-                #print(cat)
-                menuMealId = records[i]['menu_meal_id']
-                #print(menuMealId)
-                defaultMeal = records[i]['default_meal']
-                #print(defaultMeal)
-                deliveryDays = records[i]['delivery_days']
-                print(deliveryDays)
-                price = records[i]['menu_meal_price']
-                print(price)
-                postQuery = """ INSERT INTO 
-                                M4ME.menu (menu_uid, menu_date, menu_category, menu_type, meal_cat, 
-                                           menu_meal_id, default_meal, delivery_days, menu_meal_price) 
-                                VALUES (\'""" + str(newMenuUid) + """\', \'""" + str(date) + """\', \'""" + str(category) + """\', 
-                                        \'""" + str(menuType) + """\', \'""" + str(cat) + """\', \'""" + str(menuMealId) + """\', 
-                                        \'""" + str(defaultMeal) + """\', \'""" + str(deliveryDays) + """\', \'""" + str(price) + """\'); """
-                #print(postQuery)
-                copiedRow = execute(postQuery, 'post', conn)
-        except:
-            print('Error has occurred trying to copy menu items')
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-            print('Process completed')
-
-
-# Only for Web applications.  Mobile applications handles stripe directly from Mobile App
-class Stripe_Intent(Resource):
-    def post(self):
-        response = {}
-
-        stripe.api_key = stripe_secret_test_key
-        note = request.form.get('note')
-        print(note, type(note))
-        if note == "M4METEST":
-            stripe.api_key = stripe_secret_test_key
-            #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
-            print('TEST')
-        else:
-            stripe.api_key = stripe_secret_live_key
-            print('LIVE')
-
-        if request.form.get('amount') == None:
-            raise BadRequest('Request failed. Please provide the amount field.')
-        try:
-            # print(request.form.get('amount'))
-            # x = int(round(float(request.form.get('amount'))) * 100)
-            # print("x: ", x)
-            # x = round(float(request.form.get('amount')) * 100)
-            # print("x: ", x)
-            # NEED round TO PREVENT STRIPE INTENT ERROR
-            amount = int(round(float(request.form.get('amount')) * 100))
-            print("Stripe Intent amount 2: ", amount)
-        except:
-            raise BadRequest('Request failed. Unable to convert amount to int')
-        print('AMOUNT------', amount)
-
-        intent = stripe.PaymentIntent.create(
-        amount=amount,
-        currency='usd',
-        )
-        print('INTENT------', intent)
-        client_secret = intent.client_secret
-        intent_id = intent.id
-        response['client_secret'] = client_secret
-        response['id'] = intent_id
-        response['code'] = 200
-        print(response['client_secret'])
-        print(response['id'])
-        return response
 
 
 # Parva Code  ----------------------------------------------------------------------------------------------------------
@@ -8666,6 +9846,7 @@ def sendAutopayEmails(email, start_delivery_date, id):
         print('error occured')
         return id
     
+# delete if checkautopay deleted
 def couponsLogic(id, email, amount_due):
     try:
         print('in coupons logic')
@@ -8733,6 +9914,7 @@ def couponsLogic(id, email, amount_due):
     finally:
         disconnect(conn2)
 
+# delete if checkautopay deleted
 def createNewPurchase(id, start_delivery_date):
     # Implement coupons logic 
     # need zappa setting file to create cron job   
@@ -8911,329 +10093,9 @@ def createNewPurchase(id, start_delivery_date):
     finally:
         disconnect(conn1)
 
-class checkAutoPay(Resource):
-    def get(self):
 
-        def next_weekday(d, weekday):
-            days_ahead = weekday - d.weekday()
-            if days_ahead <= 0: # Target day already happened this week
-                days_ahead += 7
-            return d + timedelta(days_ahead)
-
-        conn = connect()
-        res = []
-        fat_res = []
-
-        delivery_days = ['mon', 'wed', 'fri']
-        autoPay_days = ['tue', 'thu', 'sat']
-        
-        days_num = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-        x = datetime.now()
-        day_of_week = x.strftime("%a").lower()
-        
-        query = """
-                SELECT pur.*, pay.*, ms.delivery_day
-                FROM M4ME.purchases as pur, M4ME.payments as pay, M4ME.meals_selected as ms
-                WHERE pur.purchase_status = 'ACTIVE' AND pur.purchase_uid=pay.pay_purchase_uid AND ms.sel_purchase_id = pur.purchase_uid
-                GROUP BY pur.purchase_uid;
-                """
-        items = execute(query, 'get', conn)
-        if items['code'] != 280:
-            items['message'] = 'check sql query for purchases'
-            return items
-        
-        
-        for vals in items['result']:
-            #------------------########
-            cust_email = vals['delivery_email']
-            
-            if vals['purchase_uid'] != '400-000095':
-                continue
-            print('********#####TEST********#####', vals['purchase_uid'])
-            sub_id = json.loads(vals['items'])
-            query = """
-                    SELECT sub.*
-                    FROM M4ME.subscription_items sub
-                    WHERE sub.item_uid = '"""+sub_id[0]['item_uid']+"""';
-                    """
-            
-            items = execute(query,'get',conn)
-            
-            if items['code'] != 280:
-                items['message'] = 'check sql query for sub id'
-                return items
-            
-            freq = items['result'][0]['num_issues']
-
-            start_delivery_date = vals['start_delivery_date']
-            end_day = datetime.strftime(datetime.now(utc),"%Y-%m-%d")
-            
-            query = """
-                    SELECT COUNT(delivery_day) AS skip_count FROM 
-                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
-                        WHERE sel_purchase_id = '"""+vals['purchase_uid']+"""'
-                        GROUP BY sel_menu_date) AS GB   #tells us which was last option customer selected
-                        INNER JOIN M4ME.meals_selected S
-                        ON S.sel_purchase_id = GB.sel_purchase_id
-                            AND S.sel_menu_date = GB.sel_menu_date
-                            AND S.selection_time = GB.max_selection_time
-                    WHERE S.sel_menu_date >= '"""+start_delivery_date+"""'
-                        AND S.sel_menu_date <= '"""+end_day+"""'
-                        AND delivery_day = 'SKIP'
-                    ORDER BY S.sel_menu_date;
-                    """
-            print(query)
-            items = execute(query,'get',conn)
-            
-            if items['code'] != 280:
-                items['message'] = 'check sql query for skips'
-                return items
-            
-            skips = items['result'][0]['skip_count']
-            print('skips',skips)
-            start_delivery_date = datetime.strptime(start_delivery_date,'%Y-%m-%d %H-%M-%S').date()
-            end_day = datetime.strptime(end_day,'%Y-%m-%d').date()
-            delivered = (end_day - start_delivery_date).days//7 + 1 - skips
-
-            print(delivered, freq, end_day - start_delivery_date)
-
-            send_emails = []
-            
-            if delivered == freq:
-                # if it's delivery day then just send emails
-                # if it's autopay day then start charging
-                d = datetime.now().date()
-                
-                if day_of_week[:3] in delivery_days:
-                    #shoot email
-                    idx = days_num.index(vals['delivery_day'].lower()[:3])
-                    start_delivery_date = str(next_weekday(d, idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
-                    
-                    send_emails.append(sendAutopayEmails(cust_email, start_delivery_date, vals['purchase_uid']))
-                
-                elif day_of_week[:3] in autoPay_days:
-                    #do autopay
-                    idx = days_num.index(vals['delivery_day'].lower()[:3])
-                    start_delivery_date = str(next_weekday(d, idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
-                    res.append(createNewPurchase(vals['purchase_uid'], start_delivery_date))
-                else:
-                    continue
-
-            elif delivered < freq:
-                print('do nothing')
-                continue
-            
-            else:
-                #------------------########
-                fat_res.append(vals['purchase_uid'])
-                print('fatal error check database')
-        
-        print(res)
-        
-        # email error to prashant once cron job is done
-        pay_er = ''
-        for vals in res:
-            if vals != 'successfull':
-                pay_er += vals + ","
-        pay_er = pay_er[:-1]
-        if len(pay_er) == 0:
-            pay_er = 'No Errors'
-        
-        print(fat_res)
-        print(str(fat_res))
-
-        if len(fat_res) == 0:
-            fat_res = 'No Errors'
-
-        
-        email_er = ''
-        for vals in send_emails:
-            if vals != 'successfull':
-                email_er += vals + ","
-        email_er = email_er[:-1]
-        if len(email_er) == 0:
-            email_er = 'No Errors'
-
-        
-        # send email
-        msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=['parva.shah808@gmail.com'])
-        #pmarathay@gmail.com
-        print('MESSAGE----', msg)
-        print('message complete')
-        
-        msg.body =  "Hi Prashant,\n\n"\
-                    "This email contains errors if ANY after running cron job for emails and autopay in MTYD\n\n"\
-                    "Ids where error occured: "+ pay_er +"\n\n"\
-                    "Ids where FATAL error occured: "+ str(fat_res)+ "\n\n"\
-                    "IDs where while sending email error occured: "+ email_er + "\n\n"\
-                    "Check with backend guys if you run into any problems or have any questions.\n"\
-                    "Thx - MTYD Team"
-        
-        print('msg-bd----', msg.body)
-        mail.send(msg)
-        disconnect(conn)
-        
-class adminInfo(Resource):
-
-    def refund_calculator(self, info_res,  conn):
-        print("in refund calculator")
-        # Getting the original start and end date for requesting purchase
-        start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
-        # check for SKIP. Let consider the simple case. The customer can change their purchases if and only if their purchase
-        # still active.
-        week_remaining = int(info_res['payment_frequency'])
-
-        end_delivery_date = start_delivery_date + timedelta(days=(week_remaining) * 7)
-        skip_query = """SELECT COUNT(delivery_day) AS skip_count FROM
-                            (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM meals_selected
-                                WHERE sel_purchase_id = '""" + info_res['purchase_id'] + """'
-                                GROUP BY sel_menu_date) AS GB
-                                INNER JOIN meals_selected S
-                                ON S.sel_purchase_id = GB.sel_purchase_id
-                                    AND S.sel_menu_date = GB.sel_menu_date
-                                    AND S.selection_time = GB.max_selection_time
-                        WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
-                            AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
-                            AND delivery_day = 'SKIP'
-                        ORDER BY S.sel_menu_date;
-                    """
-        skip_res = simple_get_execute(skip_query, "SKIP QUERY", conn)
-        if skip_res[1] != 200:
-            return skip_res
-        skip = int(skip_res[0].get('skip_count')) if skip_res[0].get('skip_count') else 0
-        if datetime.now().date() > start_delivery_date.date():
-            delivered = (datetime.now().date() - start_delivery_date.date()).days//7 + 1 - skip
-            week_remaining -= delivered
-        elif (datetime.now().date() > end_delivery_date.date()):
-            print("There is something wrong with the query to get info for the requested purchase.")
-            response = {'message': "Internal Server Error."}
-            return response, 500
-        print("start here")
-        print(info_res)
-        item_price = json.loads(info_res['items'])[0].get('price')
-        print("price is")
-        print(item_price)
-        customer_paid = float(item_price)
-        print("paid amount is")
-        print(customer_paid)
-        print("end here")
-        # get the price of the new item.
-        items_query = """
-                        SELECT * FROM subscription_items
-                        WHERE item_name = '""" + info_res['item_name'] + """'
-                        """
-        items_res = simple_get_execute(items_query, "GET Subscription_items QUERY", conn)
-        if items_res[1] != 200:
-            return items_res
-        price = {}
-        for item in items_res[0]['result']:
-            price[item['num_issues']] = item['item_price']
-        
-        print("price######", price)
-        refund = 0
-        if info_res['num_issues'] == 4: # 4 week prepaid
-            print("matching 4 week pre-pay")
-            if week_remaining == 0:
-                refund = 0
-            elif week_remaining == 1:
-                refund = customer_paid - float(price[2]) - float(price[1])
-            elif week_remaining == 2:
-                refund = customer_paid - float(price[2])
-            elif week_remaining == 3:
-                refund = customer_paid - float(price[2])
-            elif week_remaining == 4:
-                refund = customer_paid
-        elif info_res['num_issues'] == 2:
-            print("matching 2 week Pre-pay")
-            print("r0")
-            if week_remaining == 0:
-                refund = 0
-                print("r1")
-            elif week_remaining == 1:
-                print("in price", price)
-                refund = customer_paid - float(price[1])
-                print("r2")
-            elif week_remaining == 2:
-                refund = customer_paid
-                print("r3")
-        elif info_res['num_issues'] == 1:
-            print("matching weekly")
-            if week_remaining == 0:
-                refund = 0
-            elif week_remaining == 1:
-                refund = customer_paid
-        return {"week_remaining": week_remaining, "refund_amount": refund}
-
-    
-    
-    def get(self):
-        
-        conn  = connect()
-
-        query = """
-                SELECT * FROM M4ME.lplp;
-                """
-        items = execute(query, 'get', conn)
-
-        if items['code'] == '281':
-            items['message'] = "error check your query"
-            return items
-
-        #return items
-
-        query_freq = """
-                    SELECT item_uid, num_issues FROM M4ME.subscription_items;
-                    """
-        items_freq = execute(query_freq, 'get', conn)
-
-        if items_freq['code'] == '281':
-            items_freq['message'] = "error check your query"
-            return items_freq
-        
-        uid_freq = items_freq["result"]
-        uid_freq_dict = {}
-        for item in uid_freq:
-            uid_freq_dict[item["item_uid"]] = item["num_issues"]
-        
-        
-
-
-        ans = []
-        for vals in items['result']:
-            
-            item_uid = json.loads(vals["items"])[0]["item_uid"]
-            vals["freq"] = uid_freq_dict[item_uid]
-
-            if vals["purchase_status"] == "ACTIVE":
-                purchaseID = vals["purchase_uid"]
-                
-                info_query = """
-                        SELECT pur.*, pay.*, sub.*
-                        FROM purchases pur, payments pay, subscription_items sub
-                        WHERE pur.purchase_uid = pay.pay_purchase_uid
-                            AND sub.item_uid = (SELECT json_extract(items, '$[0].item_uid') item_uid
-                                                    FROM purchases WHERE purchase_uid = '""" + purchaseID + """')
-                            AND pur.purchase_uid = '""" + purchaseID + """'
-                            AND pur.purchase_status='ACTIVE';  
-                        """
-                print("info_query", info_query)
-                info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-                print(info_res)
-                if info_res[1] != 200:
-                    return {"message": "Internal Server Error"}, 500
-                # Calculate refund
-                print("1.9")
-                refund_info = self.refund_calculator(info_res[0]['result'][0], conn)
-                vals["refund_amount"] = refund_info['refund_amount']
-                
-            else:
-                vals["refund_amount"] = -1
-            
-
-            ans.append(vals)
-        
-        return ans
-
+# keep for possible testing
+# maybe delete
 class test_cal(Resource):
     def get(self, purchaseID):
         
@@ -9340,98 +10202,6 @@ class test_cal(Resource):
         return {"week_remaining": remaining_delivery_days, "refund_amount": float(str(round(refund_amount, 2)))}
 
 
-class predict_autopay_day(Resource):
-
-    def get(self, id):
-
-        try:
-            conn = connect()
-            query = """
-                    select * from
-                    (select * 
-                    from M4ME.purchases, M4ME.payments
-                    where purchase_status = 'ACTIVE' AND purchase_uid = pay_purchase_uid) as gg
-                    left join (SELECT S.sel_purchase_id, S.sel_menu_date, S.meal_selection, S.delivery_day FROM
-                    (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
-                        GROUP BY sel_purchase_id,sel_menu_date) AS GB
-                        INNER JOIN M4ME.meals_selected S
-                        ON S.sel_purchase_id = GB.sel_purchase_id
-                            AND S.sel_menu_date = GB.sel_menu_date
-                            AND S.selection_time = GB.max_selection_time
-                    ) as gh
-                    on gh.sel_purchase_id = gg.purchase_id
-                    WHERE gg.purchase_id = '""" + id + """'
-
-                    """
-            items = execute(query, 'get', conn)
-            print("items", items)
-            number_of_delivery = json.loads(items['result'][0]['items'])
-            print("number_of_delivery", number_of_delivery)
-            number_of_delivery = int(number_of_delivery[0]['qty'])
-            print("number_of_delivery", number_of_delivery)
-
-            
-            delivery_day = {}
-            print("items", items)
-            # for vals in items['result']:
-            #     if vals['sel_menu_date']:
-            #         del_date = vals['sel_menu_date'].replace('-',':')
-            #         delivery_day[del_date] = vals['delivery_day']
-                
-                
-            delivery = items['result'][0]['start_delivery_date']
-            print(delivery)
-
-            start_delivery_date = delivery.replace('-',':')
-            print(start_delivery_date)
-            
-            query_dates = """
-                            SELECT DISTINCT(menu_date)
-                            FROM M4ME.menu
-                            WHERE menu_date >= '""" + start_delivery_date + """'
-                            ORDER BY menu_date
-                          """
-            items_dates = execute(query_dates, 'get', conn)
-            print("before addition")
-            #print(vals["taxes"])
-            # vals["taxes"]=items[0]['result'][0]["taxes"]
-            # vals["delivery_fee"]=items[0]['result'][0]["delivery_fee"]
-            # vals["service_fee"]=items[0]['result'][0]["service_fee"]
-            # vals["driver_tip"]=items[0]['result'][0]["driver_tip"]
-            # vals["base_amount"]=items[0]['result'][0]["subtotal"]
-            # vals["discount"]=items[0]['result'][0]["amount_discount"]
-            # print("after addition")
-            # vals["ambassador_code"]=info_res[0]['result'][0]["ambassador_code"]
-            # return refund_info
-            
-            print(items_dates)
-
-            ct = 0
-            for vals in items_dates['result']:
-                days = vals['menu_date'].replace("-",":")
-                print(days)
-                if days in delivery_day:
-                    if delivery_day[days] == 'SKIP':
-                        continue
-                ct += 1
-                print("ct: ", ct)
-                if ct == number_of_delivery:
-                    vals["taxes"]=items['result'][0]["taxes"]
-                    vals["delivery_fee"]=items['result'][0]["delivery_fee"]
-                    vals["service_fee"]=items['result'][0]["service_fee"]
-                    vals["driver_tip"]=items['result'][0]["driver_tip"]
-                    vals["base_amount"]=items['result'][0]["subtotal"]
-                    vals["discount"]=items['result'][0]["amount_discount"]
-                    vals["total"] = vals["base_amount"]-vals["discount"] +vals["taxes"] + vals["delivery_fee"] + vals["service_fee"] + vals["driver_tip"]
-                    return vals
-
-            
-            return 'not enough menu dates'
-
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
 ### End of code by Parva ################################################################################
 
 
@@ -9444,6 +10214,10 @@ class predict_autopay_day(Resource):
 
 ### START PRASHANT CODE ################################################################################
 
+
+#  -- SUBSCRIPTIONS RELATED ENDPOINTS    -----------------------------------------
+
+# check this
 class subscription_history(Resource):
 
     def get(self, cust_uid):
@@ -9561,124 +10335,7 @@ class subscription_history(Resource):
             disconnect(conn)
 
 
-
-
-# PRASHANT NEXT BILLING DATE
-class predict_next_billing_date(Resource):
-
-    def get(self, id):
-
-        try:
-            conn = connect()
-            print("Inside predict class", id)
-
-            # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
-            query = """
-
-                SELECT nbd.*,
-                    nms.next_delivery,
-                    nms.final_selection
-                FROM (
-                    SELECT *,
-                        ADDDATE(menu_date, 1) AS next_billing_date
-                    FROM ( 
-                        SELECT A.*,
-                            sum(B.delivery) as cum_qty
-                        FROM ( 
-                            SELECT * ,
-                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                            FROM M4ME.lplp
-                            JOIN (
-                                SELECT DISTINCT menu_date
-                                FROM menu
-                                -- WHERE menu_date > now()
-                                ORDER BY menu_date ASC) AS md
-                            LEFT JOIN M4ME.latest_combined_meal lcm
-                            ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                    md.menu_date = lcm.sel_menu_date
-                            WHERE pur_customer_uid = '""" + id + """'  
-                                    AND purchase_status = "ACTIVE"
-                                    AND menu_date >= start_delivery_date)
-                            AS A
-                        JOIN (
-                            SELECT * ,
-                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                            FROM M4ME.lplp
-                            JOIN (
-                                SELECT DISTINCT menu_date
-                                FROM menu
-                                -- WHERE menu_date > now()
-                                ORDER BY menu_date ASC) AS md
-                            LEFT JOIN M4ME.latest_combined_meal lcm
-                            ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                    md.menu_date = lcm.sel_menu_date
-                            WHERE pur_customer_uid = '""" + id + """'  
-                                    AND purchase_status = "ACTIVE"
-                                    AND menu_date >= start_delivery_date)
-                            AS B
-                        ON A.menu_date >= B.menu_date
-                            AND A.purchase_uid = B.purchase_uid
-                        GROUP BY A.menu_date,
-                            A.purchase_uid
-                        ) AS cum_del
-                    WHERE cum_del.num_deliveries = cum_del.cum_qty
-                        AND delivery = 1
-                    ORDER BY cum_del.purchase_uid
-                    ) AS nbd
-                JOIN (
-                    SELECT -- *,
-                        menu_date AS next_delivery,
-                        purchase_uid,
-                        purchase_id,
-                        CASE
-                            WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
-                            WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
-                            ELSE "SELECTED"
-                            END 
-                            AS final_selection
-                    FROM (
-                    -- PART A
-                        SELECT *
-                        FROM (
-                            SELECT DISTINCT menu_date 
-                            FROM M4ME.menu
-                            WHERE menu_date > CURDATE()
-                            ORDER BY menu_date ASC
-                            LIMIT 1) as nmd,
-                            (
-                            SELECT purchase_uid, purchase_id -- *
-                            FROM M4ME.lplp
-                            WHERE lplp.pur_customer_uid = '""" + id + """') as pur
-                        ) AS nmdpur
-                    LEFT JOIN (
-                    -- PART B
-                        SELECT *
-                        FROM M4ME.latest_combined_meal lcm
-                        JOIN (
-                            SELECT DISTINCT menu_date AS dmd 
-                            FROM M4ME.menu
-                            WHERE menu_date > CURDATE()
-                            ORDER BY menu_date ASC
-                            LIMIT 1) AS nmd
-                        WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
-                    ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
-                ) AS nms
-                ON nbd.purchase_id = nms.purchase_id;
-            """
-
-            next_billing_date = execute(query, 'get', conn)
-            print("Next Billing Date: ", next_billing_date)
-
-            return next_billing_date
-
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
+# check this
 class calculator(Resource):
 
     # GETS ALL INFORMATION RELATED TO AN ACTIVE PURCHASE ID INCLUDING PAYMENT AND SUBSCRIPTION INFO        
@@ -10050,606 +10707,6 @@ class calculator(Resource):
             disconnect(conn)
     
 
-
-# JAYDEVA
-class change_purchase (Resource):
-    
-    def put(self):
-        
-        # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
-        conn = connect()
-        data = request.get_json(force=True)
-        print("\nSTEP 1:  In CHANGE PURCHASE\n", data)
-
-        # WHAT THEY HAD
-        pur_uid = data["purchase_uid"]
-        print("What they have (CURRENT Purchase ID): ", pur_uid)
-
-        # WHAT THEY ARE CHANGING TO
-        print("What they are changing to:")
-        item_uid = data["items"][0]['item_uid']
-        print("  NEW item_uid : ", item_uid)
-        num_deliveries = data["items"][0]['qty']
-        print("  NEW days : ", num_deliveries)
-        # num_meals = data["items"][0]['name']
-        # print("meals : ",num_meals)
-        # price = data["items"][0]['price']
-        # print("price : ", price)
-        # item_uid = data["items"][0]['item_uid']
-        # print("item_uid : ", item_uid)
-
-
-
-        # STEP 2A CALCULATE REFUND
-        print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
-        print("Call Refund Calculator")
-        refund = calculator().refund(pur_uid)
-        print("\nRefund Calculator Return: ", refund)
-        amount_should_refund = round(refund['amount_due'],2)
-        print("Amount to be Refunded: ", amount_should_refund)
-
-
-        # STEP 2B CALCULATE NEW CHARGE AMOUNT
-        print("\nSTEP 2B:  Inside Calculate New Charge", pur_uid)
-        new_charge = calculator().billing(item_uid, num_deliveries)
-        # print("Returned JSON Object: \n", new_charge)
-        print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
-        print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-        print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
-        new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
-        print(new_meal_charge, type(new_meal_charge))
-        new_discount = new_charge['result'][0]['delivery_discount']
-        print(new_discount, type(new_discount))
-        new_discount = round(new_meal_charge * new_discount/100,2)
-        print(new_discount, type(new_discount))
-        new_driver_tip = float(data["driver_tip"])
-        print(new_driver_tip, type(new_driver_tip))
-        new_tax = round(.0925*(new_meal_charge  - new_discount + refund['delivery_fee']),2)
-        print(new_tax, type(new_tax))
-        delta = round(new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax,2)
-        print(delta, type(delta))
-        # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
-        # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
-        # print("Amount for new Plan: ", new_charge)
-        print("New Meal Plan Charges: ", delta)
-        # delta = round(delta - amount_should_refund,2)
-        # print("Additional Charge/Refund after discount: ", delta)
-
-        # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
-        amount_should_refund = round(amount_should_refund - delta,2)
-        print("Additional Charge/Refund after discount: ", amount_should_refund, type(amount_should_refund))
-        
-        # STEP 3 PROCESS STRIPE
-        print("\nSTEP 3:  PROCESS STRIPE")
-        # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
-        print("\nSTEP 3A:  Get Stripe Key")
-        delivery_instructions = refund['delivery_instructions']
-        print(delivery_instructions)
-        stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-        print("Stripe Key: ", stripe.api_key)
-        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
-
-        print("\nSTEP 3B:  Charge or Refund Stripe")
-        if amount_should_refund < 0:
-            print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
-            # GET STRIPE KEY
-            # CHARGE STRIPE
-
-            # response = requests.get("http://api.open-notify.org/astros.json")
-            # print(response.json())
-
-            # # Create a new resource
-            # response = requests.post('https://httpbin.org/post', data = {'key':'value'})
-            # # Update an existing resource
-            # requests.put('https://httpbin.org/put', data = {'key':'value'})
-
-            # WORKING CODE TO PROCESS STRIPE TRANSACTION
-            # response = requests.post('https://huo8rhh76i.execute-api.us-west-1.amazonaws.com/dev/api/v2/createOffSessionPaymentIntent',
-            # # # response = requests.post('http://localhost:2000/api/v2/createOffSessionPaymentIntent',
-            # json = {   
-            #             "currency": "usd",   
-            #             "customer_uid": refund['customer_uid'],
-            #             "business_code": refund['delivery_instructions'],
-            #             "payment_summary": {        
-            #                 "total": - amount_should_refund
-            #             } 
-            #         })
-            
-            # print(response.json())
-            # charge_id = response.json()
-
-            print("Stripe Transaction Inputs: ", refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
-
-            charge_id = stripe_transaction().purchase(refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
-            print("Return from Stripe Charge Transaction: ", charge_id)
-
-            # STEP 4 WRITE TO DATABASE
-            print("STEP 4:  WRITE TO DATABASE")
-            new_pur_id = get_new_purchaseID(conn)
-            new_pay_id = get_new_paymentID(conn)
-
-            # UPDATE PAYMENT TABLE
-            # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
-            print(new_pay_id)
-            print(refund['payment_id'])
-            print(new_pur_id)
-            print(new_pur_id)
-            print(str(getNow()))
-            print(str(new_meal_charge))
-            print(str(new_discount))
-            print(str(refund['service_fee']))
-            print(str(refund['delivery_fee']))
-            print(str(data["driver_tip"]))
-            print(str(refund['taxes']))
-            print(str(refund['ambassador_code']))
-            print("charge_id: ", charge_id)
-
-            # FIND NEXT START DATE FOR CHANGED PLAN
-            date_query = '''
-                        SELECT DISTINCT menu_date FROM M4ME.menu
-                        WHERE menu_date > CURDATE()
-                        ORDER BY menu_date ASC
-                        LIMIT 1
-                        '''
-            response = simple_get_execute(date_query, "Next Delivery Date", conn)
-            start_delivery_date = response[0]['result'][0]['menu_date']
-            print("start_delivery_date: ", start_delivery_date)
-        
-         # UPDATE PAYMENT TABLE
-            query = """
-                    INSERT INTO M4ME.payments
-                    SET payment_uid = '""" + new_pay_id + """',
-                        payment_id = '""" + refund['payment_id'] + """',
-                        pay_purchase_uid = '""" + new_pur_id + """',
-                        pay_purchase_id = '""" + new_pur_id + """',
-                        payment_time_stamp =  '""" + str(getNow()) + """',
-                        subtotal = '""" + str(new_meal_charge) + """',
-                        amount_discount = '""" + str(new_discount) + """',
-                        service_fee = '""" + str(refund['service_fee']) + """',
-                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
-                        driver_tip = '""" + str(data["driver_tip"]) + """',
-                        taxes = '""" + str(new_tax) + """',
-                        amount_due = '""" + str(delta) + """',
-                        amount_paid = '""" + str(- amount_should_refund) + """',
-                        cc_num = '""" + str(refund['cc_num']) + """',
-                        cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
-                        cc_cvv = '""" + str(refund['cc_cvv']) + """',
-                        cc_zip = '""" + str(refund['cc_zip']) + """',
-                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
-                        charge_id = '""" + str(charge_id) + """',
-                        start_delivery_date =  '""" + str(start_delivery_date) + """';
-                    """        
-                    
-                            
-            response = execute(query, 'post', conn)
-            print("Payments Update db response: ", response)
-            
-            if response['code'] != 281:
-                return {"message": "Payment Insert Error"}, 500
-
-        # UPDATE PURCHASE TABLE
-            query = """
-                    UPDATE M4ME.purchases
-                    SET purchase_status = "CHANGED"
-                    where purchase_uid = '""" + pur_uid + """';
-                    """
-            update_response = execute(query, 'post', conn)
-            print("Purchases Update db response: ", update_response)
-            if update_response['code'] != 281:
-                return {"message": "Purchase Insert Error"}, 500
-
-            # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
-            # GET PURCHASE TABLE DATA    
-            query = """ 
-                    SELECT *
-                    FROM M4ME.purchases
-                    WHERE purchase_uid = '""" + pur_uid + """';
-                    """
-            response = execute(query, 'get', conn)
-            if response['code'] != 280:
-                return {"message": "Purchase Table Lookup Error"}, 500
-            print("Get Purchase UID response: ", response)
-
-            # INSERT INTO PURCHASE TABLE
-            items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
-            print(items)
-
-            query = """
-                    INSERT INTO M4ME.purchases
-                    SET purchase_uid = '""" + new_pur_id + """',
-                        purchase_date = '""" + str(getNow()) + """',
-                        purchase_id = '""" + new_pur_id + """',
-                        purchase_status = 'ACTIVE',
-                        pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
-                        pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
-                        delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
-                        delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
-                        delivery_email = '""" + response['result'][0]['delivery_email'] + """',
-                        delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
-                        delivery_address = '""" + response['result'][0]['delivery_address'] + """',
-                        delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
-                        delivery_city = '""" + response['result'][0]['delivery_city'] + """',
-                        delivery_state = '""" + response['result'][0]['delivery_state'] + """',
-                        delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
-                        delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
-                        delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
-                        delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
-                        items = '""" + items + """';
-                    """
-            response = execute(query, 'post', conn)
-            print("New Changed Purchases Added to db response 1: ", response)
-            if response['code'] != 281:
-                return {"message": "Purchase Insert Error"}, 500
-
-            return charge_id
-
-        else:
-            # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
-            print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
-            query = """ 
-                    SELECT charge_id 
-                    FROM M4ME.payments
-                    WHERE payment_id = '""" + refund['payment_id'] + """'
-                        AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
-                    ORDER BY payment_time_stamp DESC;
-                    """
-            chargeIDresponse = execute(query, 'get', conn)
-            if chargeIDresponse['code'] != 280:
-                return {"message": "Related Transaction Error"}, 500
-            print("Related Puchase IDs: ", chargeIDresponse['result'])
-            num_transactions = len(chargeIDresponse['result'])
-            print("Number of Related Puchase IDs: ", num_transactions)
-
-            # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
-            print("\nInside Systematically Stepping Through Transactions")
-            n = 0
-            while num_transactions > 0 and amount_should_refund > 0 :
-                print("Number of Transactions: ", num_transactions)
-                print("Amount to Refund: ",amount_should_refund)
-                print("Counter is at: ", n)
-                stripe_process_id = chargeIDresponse['result'][n]['charge_id']
-                print("Stripe Purchase ID: ", stripe_process_id)
-
-                if stripe_process_id[:2] == "pi":
-                    stripe_process_id = stripe.PaymentIntent.retrieve(stripe_process_id).get("charges").get("data")[0].get("id")
-                    print("Update Purchase ID: ", stripe_process_id)
-                refundable_info = stripe.Charge.retrieve(stripe_process_id,)
-
-                stripe_captured = refundable_info['amount_captured']/100
-                stripe_refunded = refundable_info['amount_refunded']/100
-                refundable_amount = stripe_captured - stripe_refunded
-                # print("\nRefundable Amount: ", refundable_info)
-                print("\nAmount Captured: ", stripe_captured)
-                print("Amount Refunded: ", stripe_refunded)
-                print("Refundable Amount: ", refundable_amount)
-                print("Amount to be Refunded: ", amount_should_refund)
-
-                if refundable_amount == 0:
-                    num_transactions = num_transactions - 1
-                    n = n + 1
-                    continue
-
-                if refundable_amount >= amount_should_refund:
-                    # refund it right away => amount should be refund is equal refunded_amount
-                    print("In If Statement")
-
-                    # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-                    refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
-                    purchase_status = 'ACTIVE'
-                    stripe_refund = amount_should_refund
-                    amount_should_refund = 0
-                    print("Refund id: ", refund_id['id'])
-                else:
-                    print("In Else Statement")
-                    refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
-                    purchase_status = 'PARTIAL REFUND'
-                    stripe_refund = refundable_amount
-                    amount_should_refund = round(amount_should_refund - refundable_amount,2)
-                    print("Refund id: ", refund_id['id'])
-
-                num_transactions = num_transactions - 1
-                n = n + 1
-                print (num_transactions, n)
-
-                # STEP 4 WRITE TO DATABASE
-                print("\nSTEP 4:  WRITE TO DATABASE")
-                new_pur_id = get_new_purchaseID(conn)
-                new_pay_id = get_new_paymentID(conn)
-                
-
-                # UPDATE PAYMENT TABLE
-                # INSERT NEW ROW WITH REFUND AMOUNT AND SAME REFUND ID BUT NEW PURCHASE IDS
-                print(new_pay_id)
-                print(refund['payment_id'])
-                print(new_pur_id)
-                print(new_pur_id)
-                print(purchase_status)
-                print(str(getNow()))
-                print(str(refund['meal_refund']))
-                print(str(refund['service_fee']))
-                print(str(refund['delivery_fee']))
-                print(str(refund['driver_tip']))
-                print(str(refund['taxes']))
-                print(str(refund['ambassador_code']))
-                print("refund_res: ", refund_id['id'])
-
-                # FIND NEXT START DATE FOR CHANGED PLAN
-                date_query = '''
-                            SELECT DISTINCT menu_date FROM M4ME.menu
-                            WHERE menu_date > CURDATE()
-                            ORDER BY menu_date ASC
-                            LIMIT 1
-                            '''
-                sd_response = simple_get_execute(date_query, "Next Delivery Date", conn)
-                start_delivery_date = sd_response[0]['result'][0]['menu_date']
-                print("start_delivery_date: ", start_delivery_date)
-
-                # INSERT CHANGES INTO PAYMENT TABLE
-                print("\nInsert into Payment Table")
-                query = """
-                        INSERT INTO M4ME.payments
-                        SET payment_uid = '""" + new_pay_id + """',
-                            payment_id = '""" + refund['payment_id'] + """',
-                            pay_purchase_uid = '""" + new_pur_id + """',
-                            pay_purchase_id = '""" + new_pur_id + """',
-                            payment_time_stamp =  '""" + str(getNow()) + """',
-                            subtotal = '""" + str(new_meal_charge) + """',
-                            amount_discount = '""" + str(new_discount) + """',
-                            service_fee = '""" + str(refund['service_fee']) + """',
-                            delivery_fee = '""" + str(refund['delivery_fee']) + """',
-                            driver_tip = '""" + str(data["driver_tip"]) + """',
-                            taxes = '""" + str(new_tax) + """',
-                            amount_due = '""" + str(delta) + """',
-                            amount_paid = '""" + str(-stripe_refund) + """',
-                            cc_num = '""" + str(refund['cc_num']) + """',
-                            cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
-                            cc_cvv = '""" + str(refund['cc_cvv']) + """',
-                            cc_zip = '""" + str(refund['cc_zip']) + """',
-                            ambassador_code = '""" + str(refund['ambassador_code']) + """',
-                            charge_id = '""" + str(refund_id['id']) + """',
-                            start_delivery_date =  '""" + str(start_delivery_date) + """';
-                        """        
-                        
-                                
-                pay_insert_response = execute(query, 'post', conn)
-                print("Payments Update db response: ", pay_insert_response)
-                
-                if pay_insert_response['code'] != 281:
-                    return {"message": "Payment Insert Error"}, 500
-
-                # UPDATE PURCHASE TABLE
-                print("\nUpdate Purchases Table")
-                query = """
-                        UPDATE M4ME.purchases
-                        SET purchase_status = "CHANGED"
-                        where purchase_uid = '""" + pur_uid + """';
-                        """
-                pur_update_response = execute(query, 'post', conn)
-                print("Purchases Update db response: ", pur_update_response)
-                if pur_update_response['code'] != 281:
-                    return {"message": "Purchase Insert Error"}, 500
-
-                # WRITE NEW PURCHASE INFO TO PURCHASE TABLE
-                print("\nWrite New Purchases Table")
-                # GET EXISTING PURCHASE TABLE DATA    
-                query = """ 
-                        SELECT *
-                        FROM M4ME.purchases
-                        WHERE purchase_uid = '""" + pur_uid + """';
-                        """
-                response = execute(query, 'get', conn)
-                if response['code'] != 280:
-                    return {"message": "Purchase Table Lookup Error"}, 500
-                print("Get Purchase UID response: ", response)
-
-                # INSERT INTO PURCHASE TABLE
-                print("Insert into Purchases Table")
-                items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
-                print(items)
-
-                query = """
-                        INSERT INTO M4ME.purchases
-                        SET purchase_uid = '""" + new_pur_id + """',
-                            purchase_date = '""" + str(getNow()) + """',
-                            purchase_id = '""" + new_pur_id + """',
-                            purchase_status = '""" + purchase_status + """',
-                            pur_customer_uid = '""" + response['result'][0]['pur_customer_uid'] + """',
-                            pur_business_uid = '""" + data["items"][0]['itm_business_uid'] + """',
-                            delivery_first_name = '""" + response['result'][0]['delivery_first_name'] + """',
-                            delivery_last_name = '""" + response['result'][0]['delivery_last_name'] + """',
-                            delivery_email = '""" + response['result'][0]['delivery_email'] + """',
-                            delivery_phone_num = '""" + response['result'][0]['delivery_phone_num'] + """',
-                            delivery_address = '""" + response['result'][0]['delivery_address'] + """',
-                            delivery_unit = '""" + response['result'][0]['delivery_unit'] + """',
-                            delivery_city = '""" + response['result'][0]['delivery_city'] + """',
-                            delivery_state = '""" + response['result'][0]['delivery_state'] + """',
-                            delivery_zip = '""" + response['result'][0]['delivery_zip'] + """',
-                            delivery_instructions = '""" + response['result'][0]['delivery_instructions'] + """',
-                            delivery_longitude = '""" + response['result'][0]['delivery_longitude'] + """',
-                            delivery_latitude = '""" + response['result'][0]['delivery_latitude'] + """',
-                            items = '""" + items + """';
-                        """
-                pur_insert_response = execute(query, 'post', conn)
-                print("New Changed Purchases Added to db response 2: ", pur_insert_response)
-                if pur_insert_response['code'] != 281:
-                    return {"message": "Purchase Insert Error"}, 500
-
-                continue
-            
-            return refund_id['id']
-
-
-class cancel_purchase (Resource):
-    
-    def put(self):
-
-         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
-        conn = connect()
-        data = request.get_json(force=True)
-        print("\nSTEP 1:  In CANCEL PURCHASE\n", data)
-        # print("hello")
-        # print(data['purchase_uid'])
-        # print("goodbye")
-        
-        # WHAT THEY HAD
-        pur_uid = data["purchase_uid"]
-        print("What they have (CURRENT Purchase ID): ", pur_uid)
-
-        # STEP 2 CALCULATE REFUND
-        print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
-        print("Call Refund Calculator")
-        refund = calculator().refund(pur_uid)
-        print("\nRefund Calculator Return: ", refund)
-        amount_should_refund = round(refund['amount_due'],2)
-        print("Amount to be Refunded: ", amount_should_refund)
-
-        # STEP 3 PROCESS STRIPE
-        print("\nSTEP 3:  PROCESS STRIPE")
-        # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
-        print("\nSTEP 3A:  Get Stripe Key") 
-        delivery_instructions = refund['delivery_instructions']
-        print(delivery_instructions)
-        stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-        print("Stripe Key: ", stripe.api_key)
-        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
-
-        # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
-        print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
-        query = """ 
-                SELECT charge_id 
-                FROM M4ME.payments
-                WHERE payment_id = '""" + refund['payment_id'] + """'
-                    AND (LEFT(charge_id,2) = "pi" OR LEFT(charge_id,2) = "ch")
-                ORDER BY payment_time_stamp DESC;
-                """
-        chargeIDresponse = execute(query, 'get', conn)
-        if chargeIDresponse['code'] != 280:
-            return {"message": "Related Transaction Error"}, 500
-        print("Related Puchase IDs: ", chargeIDresponse['result'])
-        num_transactions = len(chargeIDresponse['result'])
-        print("Number of Related Puchase IDs: ", num_transactions)
-
-        # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
-        print("\nSTEP 3C: Systematically Step Through Transactions")
-        n = 0
-        print("Number of Transactions: ", num_transactions)
-        print("Amount to Refund: ",amount_should_refund)
-        if amount_should_refund <= 0:
-            # return ("Amount Should Refund less than zero! ", amount_should_refund)
-            print("Amount Should Refund less than zero! ", amount_should_refund)
-            return {"message": "Amount Should Refund less than zero!"}
-        while num_transactions > 0 and amount_should_refund > 0 :
-            print("Number of Transactions: ", num_transactions)
-            print("Amount to Refund: ",amount_should_refund)
-            print("Counter is at: ", n)
-            stripe_process_id = chargeIDresponse['result'][n]['charge_id']
-            print("Stripe Purchase ID: ", stripe_process_id)
-
-            if stripe_process_id[:2] == "pi":
-                stripe_process_id = stripe.PaymentIntent.retrieve(stripe_process_id).get("charges").get("data")[0].get("id")
-                print("Update Purchase ID: ", stripe_process_id)
-            refundable_info = stripe.Charge.retrieve(stripe_process_id,)
-
-            stripe_captured = refundable_info['amount_captured']/100
-            stripe_refunded = refundable_info['amount_refunded']/100
-            refundable_amount = stripe_captured - stripe_refunded
-            # print("\nRefundable Amount: ", refundable_info)
-            print("\nAmount Captured: ", stripe_captured)
-            print("Amount Refunded: ", stripe_refunded)
-            print("Refundable Amount: ", refundable_amount)
-            print("Amount to be Refunded: ", amount_should_refund)
-
-
- 
-            if refundable_amount == 0:
-                    num_transactions = num_transactions - 1
-                    n = n + 1
-                    continue
-            
-
-            if refundable_amount >= amount_should_refund:
-                # refund it right away => amount should be refund is equal refunded_amount
-                print("In If Statement")
-
-                # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-                refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
-                stripe_refund = amount_should_refund
-                amount_should_refund = 0
-                print("Refund id: ", refund_id['id'])
-            else:
-                print("In Else Statement")
-                refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
-                stripe_refund = refundable_amount
-                amount_should_refund = round(amount_should_refund - refundable_amount,2)
-                print("Refund id: ", refund_id['id'])
-
-            num_transactions = num_transactions - 1
-            n = n + 1
-            print (num_transactions, n)
-
-            # STEP 4 WRITE TO DATABASE
-            print("\nSTEP 4:  WRITE TO DATABASE")
-            # new_pur_id = get_new_purchaseID(conn) - DON'T NEED NEW PURCHASE UID FOR CANCEL
-            new_pay_id = get_new_paymentID(conn)
-
-            # UPDATE PAYMENT TABLE
-            # INSERT NEW ROW WITH REFUND AMOUNT AND SAME PAYMENT ID
-            print(new_pay_id)
-            print(refund['payment_id'])
-            print(pur_uid)
-            print(refund['purchase_id'])
-            print(str(getNow()))
-            print(str(refund['meal_refund']))
-            print(str(refund['service_fee']))
-            print(str(refund['delivery_fee']))
-            print(str(refund['driver_tip']))
-            print(str(refund['taxes']))
-            print(str(refund['ambassador_code']))
-            print("refund_res: ", refund_id['id'])
-
-            # UPDATE PAYMENT TABLE
-            query = """
-                    INSERT INTO M4ME.payments
-                    SET payment_uid = '""" + new_pay_id + """',
-                        payment_id = '""" + refund['payment_id'] + """',
-                        pay_purchase_uid = '""" + pur_uid + """',
-                        pay_purchase_id = '""" + refund['purchase_id'] + """',
-                        payment_time_stamp =  '""" + str(getNow()) + """',
-                        subtotal = '""" + str(refund['meal_refund']) + """',
-                        amount_discount = '""" + str(refund['amount_discount']) + """',
-                        service_fee = '""" + str(refund['service_fee']) + """',
-                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
-                        driver_tip = '""" + str(refund['driver_tip']) + """',
-                        taxes = '""" + str(refund['taxes']) + """',
-                        amount_due = '""" + str(refund['amount_due']) + """',
-                        amount_paid = '""" + str(-refund['amount_due']) + """',
-                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
-                        charge_id = '""" + str(refund_id['id']) + """';
-                    """        
-                            
-            response = execute(query, 'post', conn)
-            print("Payments Update db response: ", response)
-            
-            if response['code'] != 281:
-                return {"message": "Payment Insert Error"}, 500
-
-            # UPDATE PURCHASE TABLE
-            query = """
-                    UPDATE M4ME.purchases
-                    SET purchase_status = "CANCELLED and REFUNDED"
-                    where purchase_uid = '""" + pur_uid + """';
-                    """
-            cancel_response = execute(query, 'post', conn)
-            print("Purchases Update db response: ", cancel_response)
-            if cancel_response['code'] != 281:
-                return {"message": "Purchase Insert Error"}, 500
-
-            continue
-        
-        return refund_id['id']
-
-
-# VISHNU
 # CRON JOB
 def renew_subscription():
     # print("Entering CRON Job section")
@@ -11355,27 +11412,6 @@ class alert_message(Resource):
 
 class test_endpoint(Resource):
 
-    # TEST DATABASE QUERY
-    # def get(self):
-    #     try:
-            
-    #         
-    #         conn = connect()
-    #         query = """
-    #                 SELECT * FROM M4ME.alert_messages;
-    #                 """
-    #         items = execute(query, 'get', conn)
-
-    #         if items['code'] != 280:
-    #             items['message'] = 'check sql query'
-            
-    #         return items
-        
-    #     except:
-    #         raise BadRequest('Alert Message Request failed, please try again later.')
-    #     finally:
-    #         disconnect(conn)
-
     # TEST CALCULATION
     def get(self):
         try:
@@ -11390,74 +11426,12 @@ class test_endpoint(Resource):
             s_value = bytes.fromhex(hex_value).decode('utf-8') 
             print(s_value)
 
-#             print("1")
-#             hex_string = "0xAA"
-#             print(hex_string, type(hex_string))
-#             an_integer = int(hex_string, 16)
-#             print(an_integer)
-#             print(an_integer * 10)
-#             hex_value = hex(an_integer)
-#             print("1")
-#             print(hex_value)
-
-# s= 'Sample String'.encode('utf-8')
-# print(s.hex())
-
-
-# hex_string = "0xAA"
-
-# an_integer = int(hex_string, 16)
-# an_integer is a decimal value
-
-# hex_value = hex(an_integer)
-# print(hex_value)
-
-
             return hex_value
         except:
             print("error")
         finally:
             #disconnect(conn)
             print("done")
-
-
-
-
-
-
-
-# ONLY FOR TESTING CRON JOBS - WILL NOT WORK WHEN DEPLOYED ON ZAPPA            
-# if not app.debug  or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-#     scheduler = BackgroundScheduler()
-#     # Flask Related question: https://stackoverflow.com/questions/66698860/unable-to-schedule-a-python-job-in-intervals-with-specific-start-time-apschedu/68059278#68059278
-#     # SCHEDULER SAMPLES
-#     # scheduler.add_job(func=renew_subscription, trigger="cron", day_of_week='sun', second=40, minute=44, hour=11)
-#     # Schedule Runs every 12 hrs
-#     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60*60*12)
-#     # scheduler.add_job(func=renew_subscription, trigger="cron", second=30)
-
-#     # SCHEDULER FOR TESTING (TO SEE IF IT WORKS) - RUNS EVERY 60 SECONDS
-#     # scheduler.add_job(func=renew_subscription, trigger="interval", seconds=60)
-#     # scheduler.add_job(func=charge_addons, trigger="interval", seconds=60)
-
-#     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
-#     # scheduler.add_job(func=renew_subscription, trigger="cron", minute=6)
-#     # scheduler.add_job(func=charge_addons, trigger="cron", minute=25)
-
-#     # SCHEDULER FOR TESTING (IE SUBSTITUTE MINUTES FOR HOURS) - RUNS EVERY HOUR ON THE MINUTE SPECIFICED 
-#     # scheduler.add_job(func=renew_subscription, trigger="cron", hour=17)
-#     # scheduler.add_job(func=charge_addons, trigger="cron", hour=18)
-
-#     scheduler.start()
-# atexit.register(lambda: scheduler.shutdown())
-
-
-
-
-
-
-
-
 
 ### END PRASHANT CODE ################################################################################
 
@@ -12385,9 +12359,7 @@ class brandAmbassador2(Resource):
             disconnect(conn)
 
 
-
-
-
+# possible deletion (9/1)
 class orders_by_customers(Resource):
     def get(self):
         try:
@@ -12457,85 +12429,6 @@ class delivery_weekdays(Resource):
 
 
 
-
-class favourite_food(Resource):
-    
-    def post(self, action):
-        try:
-            conn = connect()
-            data = request.get_json(force=True)
-
-            if action == 'get':
-
-                query = """
-                        SELECT favorites 
-                        FROM customers 
-                        WHERE customer_uid = \'""" + data['customer_uid'] + """\';
-                        """
-                items = execute(query, 'get', conn)
-
-                if items['code'] != 280:
-                    items['message'] = 'Check sql query'
-                return items
-            
-            elif action == 'post':
-                #print(data)
-                #print("start q1 here")
-                query1 = """
-                        select favorites
-                        from customers
-                        where customer_uid = \'""" + data['customer_uid'] + """\';
-                        """
-                #print(query1)
-                items1 = execute(query1, 'get', conn)
-                #print("check 1")
-                #print(items1)
-                #print("check 2")
-                #print(items1["result"][0]["favorites"])
-                favorite = str(data['favorite']).replace("'", '"')
-                #print(favorite)
-                if items1["result"][0]["favorites"] == None:
-                    favorite = favorite
-                else:
-                    favorite=items1["result"][0]["favorites"]+ "," + favorite
-                #print("check 3")
-                #favorite=items1["result"][0]["favorites"]+ "," + favorite
-                #print(favorite)
-                query = """
-                        UPDATE customers 
-                        SET favorites = \'""" + favorite + """\'
-                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
-                        """
-                #print(query)
-                items = execute(query, 'post', conn)
-
-                if items['code'] != 281:
-                    items['message'] = 'Check sql query'
-                return items
-            elif action == 'update':
-                #print(data)
-                favorite = str(data['favorite']).replace("'", '"')
-                #print(favorite)
-                query = """
-                        UPDATE customers 
-                        SET favorites = \'""" + favorite + """\'
-                        WHERE (customer_uid = \'""" + data['customer_uid'] + """\');
-                        """
-                #print(query)
-                items = execute(query, 'post', conn)
-
-                if items['code'] != 281:
-                    items['message'] = 'Check sql query'
-                return items
-            else:
-                return 'choose correct option'
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
 class lplp_specific(Resource):
     def get(self, p_uid):
         try:
@@ -12563,10 +12456,6 @@ class lplp_specific(Resource):
         finally:
             disconnect(conn)
 
-
-
-
-            
 
 
 class update_pay_pur_mobile(Resource):
@@ -13223,7 +13112,7 @@ api.add_resource(update_guid_notification, '/api/v2/update_guid_notification/<st
 
 # api.add_resource(Categorical_Options, '/api/v2/Categorical_Options/<string:long>,<string:lat>') #NEED TO FIX, put it later, do we need it?
 
-api.add_resource(getItems, '/api/v2/getItems') #NEED  TO FIX, 
+# api.add_resource(getItems, '/api/v2/getItems') #NEED  TO FIX, 
 
 api.add_resource(Refund, '/api/v2/Refund')
 
