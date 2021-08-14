@@ -1041,6 +1041,243 @@ class createAccount(Resource):
         finally:
             disconnect(conn)
 
+
+class createAccount2(Resource):
+    def post(self):
+        response = {}
+        items = []
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            print(data)
+            email = data['email']
+            firstName = data['first_name']
+            lastName = data['last_name']
+            # phone = data['phone_number']
+            # address = data['address']
+            # unit = data['unit'] if data.get('unit') is not None else 'NULL'
+            # social_id = data['social_id'] if data.get('social_id') is not None else 'NULL'
+            # city = data['city']
+            # state = data['state']
+            # zip_code = data['zip_code']
+            # latitude = data['latitude']
+            # longitude = data['longitude']
+            referral = data['referral_source']
+            role = data['role']
+            cust_id = data['cust_id'] if data.get('cust_id') is not None else 'NULL'
+
+            if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False or data.get('social') == 'NULL':
+                social_signup = False
+            else:
+                social_signup = True
+
+            print(social_signup)
+            get_user_id_query = "CALL new_customer_uid();"
+            NewUserIDresponse = execute(get_user_id_query, 'get', conn)
+
+            if NewUserIDresponse['code'] == 490:
+                string = " Cannot get new User id. "
+                print("*" * (len(string) + 10))
+                print(string.center(len(string) + 10, "*"))
+                print("*" * (len(string) + 10))
+                response['message'] = "Internal Server Error."
+                return response, 500
+            NewUserID = NewUserIDresponse['result'][0]['new_id']
+
+            if social_signup == False:
+
+                salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+
+                password = sha512((data['password'] + salt).encode()).hexdigest()
+                print('password------', password)
+                algorithm = "SHA512"
+                mobile_access_token = 'NULL'
+                mobile_refresh_token = 'NULL'
+                user_access_token = 'NULL'
+                user_refresh_token = 'NULL'
+                user_social_signup = 'NULL'
+            else:
+
+                mobile_access_token = data['mobile_access_token']
+                mobile_refresh_token = data['mobile_refresh_token']
+                user_access_token = data['user_access_token']
+                user_refresh_token = data['user_refresh_token']
+                salt = 'NULL'
+                password = 'NULL'
+                algorithm = 'NULL'
+                user_social_signup = data['social']
+
+                print('ELSE- OUT')
+
+            if cust_id != 'NULL' and cust_id:
+
+                NewUserID = cust_id
+
+                query = '''
+                            SELECT user_access_token, user_refresh_token, mobile_access_token, mobile_refresh_token 
+                            FROM M4ME.customers
+                            WHERE customer_uid = \'''' + cust_id + '''\';
+                        '''
+                it = execute(query, 'get', conn)
+                print('it-------', it)
+
+                if it['result'][0]['user_access_token'] != 'FALSE':
+                    user_access_token = it['result'][0]['user_access_token']
+
+                if it['result'][0]['user_refresh_token'] != 'FALSE':
+                    user_refresh_token = it['result'][0]['user_refresh_token']
+
+                if it['result'][0]['mobile_access_token'] != 'FALSE':
+                    mobile_access_token = it['result'][0]['mobile_access_token']
+
+                if it['result'][0]['mobile_refresh_token'] != 'FALSE':
+                    mobile_refresh_token = it['result'][0]['mobile_refresh_token']
+
+                customer_insert_query =  ['''
+                    UPDATE 
+                        M4ME.customers 
+                    SET 
+                        customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
+                        customer_first_name = \'''' + firstName + '''\',
+                        customer_last_name = \'''' + lastName + '''\',
+                        customer_phone_num = \'''' + phone + '''\',
+                        password_salt = \'''' + salt + '''\',
+                        password_hashed = \'''' + password + '''\',
+                        password_algorithm = \'''' + algorithm + '''\',
+                        referral_source = \'''' + referral + '''\',
+                        role = \'''' + role + '''\',
+                        user_social_media = \'''' + user_social_signup + '''\',
+                        social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
+                    WHERE 
+                        customer_uid = \'''' + cust_id + '''\';
+                ''']
+
+
+            else:
+
+                # check if there is a same customer_id existing
+                query = """
+                        SELECT customer_email FROM M4ME.customers
+                        WHERE customer_email = \'""" + email + "\';"
+                print('email---------')
+                items = execute(query, 'get', conn)
+                if items['result']:
+
+                    items['result'] = ""
+                    items['code'] = 409
+                    items['message'] = "Email address has already been taken."
+
+                    return items
+
+                if items['code'] == 480:
+
+                    items['result'] = ""
+                    items['code'] = 480
+                    items['message'] = "Internal Server Error."
+                    return items
+
+
+                # write everything to database
+                # customer_insert_query = ["""
+                #                         INSERT INTO M4ME.customers 
+                #                         (
+                #                             customer_uid,
+                #                             customer_created_at,
+                #                             customer_first_name,
+                #                             customer_last_name,
+                #                             password_salt,
+                #                             password_hashed,
+                #                             password_algorithm,
+                #                             referral_source,
+                #                             role,
+                #                             user_social_media,
+                #                             user_access_token,
+                #                             social_timestamp,
+                #                             user_refresh_token,
+                #                             mobile_access_token,
+                #                             mobile_refresh_token,
+                #                             social_id
+                #                         )
+                #                         VALUES
+                #                         (
+                                        
+                #                             \'""" + NewUserID + """\',
+                #                             \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                #                             \'""" + firstName + """\',
+                #                             \'""" + lastName + """\',
+                #                             \'""" + salt + """\',
+                #                             \'""" + password + """\',
+                #                             \'""" + algorithm + """\',
+                #                             \'""" + referral + """\',
+                #                             \'""" + role + """\',
+                #                             \'""" + user_social_signup + """\',
+                #                             \'""" + user_access_token + """\',
+                #                             DATE_ADD(now() , INTERVAL 14 DAY),
+                #                             \'""" + user_refresh_token + """\',
+                #                             \'""" + mobile_access_token + """\',
+                #                             \'""" + mobile_refresh_token + """\',
+                #                             \'""" + social_id + """\');"""]
+                customer_insert_query = ["""
+                    INSERT INTO 
+                        M4ME.customers 
+                    SET
+                        customer_uid = \'""" + NewUserID + """\',
+                        customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                        customer_first_name = \'""" + firstName + """\',
+                        customer_last_name = \'""" + lastName + """\',
+                        password_salt = \'""" + salt + """\',
+                        password_hashed = \'""" + password + """\',
+                        password_algorithm = \'""" + algorithm + """\',
+                        referral_source = \'""" + referral + """\',
+                        role = \'""" + role + """\',
+                        user_social_media = \'""" + user_social_signup + """\',
+                        user_access_token = \'""" + user_access_token + """\',
+                        social_timestamp = DATE_ADD(now() , INTERVAL 14 DAY),
+                        user_refresh_token = \'""" + user_refresh_token + """\',
+                        mobile_access_token = \'""" + mobile_access_token + """\',
+                        mobile_refresh_token = \'""" + mobile_refresh_token + """\',
+                        social_id = \'""" + social_id + """\';                      
+                """]
+
+            print(customer_insert_query[0])
+            items = execute(customer_insert_query[0], 'post', conn)
+
+            if items['code'] != 281:
+                items['result'] = ""
+                items['code'] = 480
+                items['message'] = "Error while inserting values in database"
+
+                return items
+
+
+            items['result'] = {
+                'first_name': firstName,
+                'last_name': lastName,
+                'customer_uid': NewUserID,
+                'access_token': user_access_token,
+                'refresh_token': user_refresh_token,
+                'access_token': mobile_access_token,
+                'refresh_token': mobile_refresh_token,
+                'social_id': social_id
+
+
+            }
+            items['message'] = 'Signup successful'
+            items['code'] = 200
+
+            print('sss-----', social_signup)
+            return items
+
+        except:
+            print("Error happened while Sign Up")
+            if "NewUserID" in locals():
+                execute("""DELETE FROM customers WHERE customer_uid = '""" + NewUserID + """';""", 'post', conn)
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
 # delete account endpoint
 class deleteAccount(Resource):
     # delete account endpoint
@@ -6132,97 +6369,6 @@ class Edit_Recipe(Resource):
 
 
 
-class Add_New_Ingredient(Resource):
-    def post(self):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-            data = request.get_json(force=True)
-
-            ingredient_desc = data['ingredient_desc']
-            package_size = data['package_size']
-            ingredient_measure_id = data['ingredient_measure_id']
-            ingredient_cost = data['ingredient_cost']
-
-            print("(Add_New_Ingredient -- POST) 1")
-
-            ingredientIdQuery = execute(
-                """CALL get_new_ingredient_id();""", 'get', conn)
-
-            print("(Add_New_Ingredient -- POST) ingredientIdQuery: ", ingredientIdQuery)
-
-            ingredientId = ingredientIdQuery['result'][0]['new_id']
-
-            print("(Add_New_Ingredient -- POST) 1")
-
-            # REFACTOR
-            items['new_ingredient_insert'] = execute(""" INSERT INTO ingredients (
-                                                                ingredient_id, ingredient_desc, package_size,ingredient_measure_id,ingredient_cost, ingredient_measure
-                                                                ) 
-                                                                SELECT \'""" + str(ingredientId) + """\', \'""" + str(ingredient_desc) + """\',
-                                                                \'""" + str(package_size) + """\',\'""" + str(ingredient_measure_id) + """\',
-                                                                \'""" + str(ingredient_cost) + """\', mu.recipe_unit 
-                                                                FROM ptyd_conversion_units mu
-                                                                WHERE measure_unit_id=\'""" + str(ingredient_measure_id) + """\';
-                                                                """, 'post', conn)
-            # query = """ 
-            #     INSERT INTO 
-            #         ingredients 
-            #     (
-            #         ingredient_id, 
-            #         ingredient_desc, 
-            #         package_size,
-            #         ingredient_measure_id,
-            #         ingredient_cost, 
-            #         ingredient_measure
-            #     ) 
-            #     SELECT 
-            #         \'""" + str(ingredientId) + """\', 
-            #         \'""" + str(ingredient_desc) + """\',
-            #         \'""" + str(package_size) + """\',
-            #         \'""" + str(ingredient_measure_id) + """\',
-            #         \'""" + str(ingredient_cost) + """\', 
-            #         mu.recipe_unit 
-            #     FROM 
-            #         ptyd_conversion_units mu
-            #     WHERE 
-            #         measure_unit_id=\'""" + str(ingredient_measure_id) + """\';
-            # """
-            # items['new_ingredient_insert'] = execute(query, 'post', conn)
-            print("(Add_New_Ingredient -- POST) 2")
-
-            response['message'] = 'Request successful.'
-            response['result'] = items
-
-            return response, 200
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-    
-    def get(self):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-
-            items = execute(""" SELECT
-                                *
-                                FROM
-                                ptyd_ingredients;""", 'get', conn)
-
-            response['message'] = 'Request successful.'
-            response['result'] = items
-
-            return response, 200
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
 class Add_Meal_plan(Resource):
     def post(self):
         response = {}
@@ -7827,109 +7973,7 @@ class orders_by_business_specific(Resource): #need to fix
 
 
 
-class Orders_by_Purchase_Id_with_Pid(Resource):
-    def get(self, p_id):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-            query = """
-                    SELECT
-                        d_menu_date,
-                        d_purchase_id,
-                        group_concat(jt_name),
-                        group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    where d_purchase_id = \'""" + p_id + """\' and lplpibr_purchase_status = "ACTIVE"
-                    group by d_purchase_id, d_menu_date
-                    order by d_menu_date desc;
-                    """
 
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-class Orders_by_Purchase_Id_with_Pid_and_date(Resource):
-    def get(self, p_id, date):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-            query = """
-                    SELECT
-                        d_menu_date,
-                        d_purchase_id,
-                        group_concat(jt_name),
-                        group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    where d_purchase_id = \'""" + p_id + """\' and d_menu_date = \'""" + date + """\'
-                    group by d_purchase_id, d_menu_date;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-class Orders_by_Items_total_items(Resource):
-    def get(self):
-        try:
-            conn = connect()
-            # menu_date = request.args['menu_date']
-            query = """
-                    select d_menu_date,
-                            jt_name,
-                            sum(jt_qty)
-                    FROM fcs_items_by_row
-                    group by jt_name, d_menu_date
-                    order by d_menu_date desc;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
 
 
 #  -- ADMIN REVENUE RELATED ENDPOINTS    -----------------------------------------
@@ -8110,6 +8154,34 @@ class Update_Delivery_Info_Address (Resource):
         finally:
             disconnect(conn)
 
+class delivery_weekdays(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select distinct menu_date, weekday(menu_date)
+                    from menu
+                    where menu_date > now();
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "delivery weekdays selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 #  -- ADMIN BUSINESS RELATED ENDPOINTS    -----------------------------------------
 
@@ -8264,8 +8336,11 @@ class business_details_update_brandon(Resource):
                     # business_association = "'" + business_association.replace("'", "\"") + "'"
                     # business_hours = str(data['business_hours'])
                     # business_hours = "'" + business_hours.replace("'", "\"") + "'"
+
                     business_accepting_hours = str(data['business_accepting_hours'])
                     business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
+                    # business_accepting_hours = data['business_accepting_hours']
+
                     # business_delivery_hours = str(data['business_delivery_hours'])
                     # business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
                     print("(bdub) 0")
@@ -8290,9 +8365,9 @@ class business_details_update_brandon(Resource):
                             can_cancel = \'""" + data["can_cancel"] + """\',
                             delivery = \'""" + data["delivery"] + """\',
                             reusable = \'""" + data["reusable"] + """\',
-                            business_image = \'""" + data["business_image"] + """\',
+                            business_image = \'""" + data["business_image"] + """\'
                         WHERE 
-                            business_uid = \'""" + data["business_uid"] + """\' ;
+                            business_uid = \'""" + data["business_uid"] + """\';
                     """
                     print("(bdub) 1")
                     print(query)
@@ -9080,192 +9155,6 @@ class report_order_customer_pivot_detail(Resource):
 
 
 
-
-# possible deletion
-class Latest_activity(Resource):
-    def get(self, user_id):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-
-            items = execute(
-                """ select acc.*,pur.*,mp.meal_plan_desc,
-                        pay.*
-                        from ptyd_accounts acc
-                        left join ptyd_payments pay
-                        on acc.user_uid = pay.buyer_id
-                        left join ptyd_purchases pur
-                        on pay.purchase_id = pur.purchase_id
-                        left join ptyd_meal_plans mp
-                        on pur.meal_plan_id = mp.meal_plan_id
-                        where acc.user_uid = \'""" + user_id + """\'
-                        and pay.payment_time_stamp in
-                        (select latest_time_stamp from
-                            (SELECT buyer_id, purchase_id, MAX(payment_time_stamp) as "latest_time_stamp" FROM
-                                (SELECT * FROM ptyd_payments where buyer_id = \'""" + user_id + """\') temp
-                                group by buyer_id, purchase_id) temp1
-                        )
-                        order by pur.purchase_id
-                        ;
-                        """, 'get', conn)
-
-            response['message'] = 'successful'
-            response['result'] = items
-
-            return response, 200
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-
-#allows business to see who ordered what for each item
-# possible deletion
-class Orders_by_Items(Resource):
-    def get(self):
-        try:
-            conn = connect()
-            # menu_date = request.args['menu_date']
-            query = """
-                    select d_menu_date,
-                            jt_name,
-                            group_concat(lplpibr_customer_uid),
-                            group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    group by jt_name, d_menu_date;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-# possible deletion
-class Orders_by_Purchase_Id(Resource):
-    def get(self):
-        try:
-            conn = connect()
-            # menu_date = request.args['menu_date']
-            query = """
-                    SELECT
-                        d_menu_date,
-                        d_purchase_id,
-                        group_concat(jt_name),
-                        group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    group by d_purchase_id, d_menu_date;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-# possible deletion
-class Order_by_items_with_Date(Resource):
-    def get(self, date):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-            query = """
-                    select d_menu_date,
-                            jt_name,
-                            group_concat(lplpibr_customer_uid),
-                            group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    where d_menu_date = \'""" + date + """\'
-                    group by jt_name, d_menu_date;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-
-
-#make a copy that takes input of purchase_id
-# possible deletion
-class Orders_by_Purchase_Id_with_Date(Resource):
-    def get(self, date):
-        response = {}
-        items = {}
-        try:
-            conn = connect()
-            query = """
-                    SELECT
-                        d_menu_date,
-                        d_purchase_id,
-                        group_concat(jt_name),
-                        group_concat(jt_qty)
-                    FROM fcs_items_by_row
-                    where d_menu_date = \'""" + date + """\' 
-                    group by d_purchase_id, d_menu_date;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
 #  -- ZONES RELATED ENDPOINTS    -----------------------------------------
 
 class get_Fee_Tax(Resource):
@@ -9697,100 +9586,102 @@ class find_next_sat (Resource):
             print("done")
 
 
+## ADD SURPRISE USED IN MOBILE (8/13/21)
+
 # check this
 #if one is changed to skip, add extra surprise. if skip is changed to surprise, delete newest surprise
 # delete September 1
-# class add_surprise (Resource):
-#     def post(self, p_uid):
-#         try:
-#             conn = connect()
-#             # query = """
-#             #         select num_issues 
-#             #         from subscription_items
-#             #         where item_price=
-#             #         (SELECT json_extract(items, '$[0].price') price
-#             #         FROM purchases WHERE purchase_uid = \'""" + p_uid + """\');
-#             #         """
+class add_surprise (Resource):
+    def post(self, p_uid):
+        try:
+            conn = connect()
+            # query = """
+            #         select num_issues 
+            #         from subscription_items
+            #         where item_price=
+            #         (SELECT json_extract(items, '$[0].price') price
+            #         FROM purchases WHERE purchase_uid = \'""" + p_uid + """\');
+            #         """
 
-#             query = """
+            query = """
                     
-#                     SELECT json_extract(items, '$[0].qty') as qty
-#                     FROM purchases WHERE purchase_uid = \'""" + p_uid + """\';
-#                     """
-#             items = execute(query, 'get', conn)
-#             print(items)
-#             if items['code'] != 280:
-#                 items['message'] = 'Check sql query'
-#                 return items
-#             #items['result'] = items['result'][0]
-#             #print(int(items["result"][0]["num_issues"]))
-#             print("1")
-#             query1 ="""
-#                         select purchase_id
-#                         from purchases
-#                         where purchase_uid = \'""" + p_uid + """\';
-#                     """
-#             print("1.5")
-#             p_id = execute(query1, 'get', conn)
-#             print("1.7")
-#             tempstring = items["result"][0]["qty"].strip('\"')
-#             inty=int(tempstring)
-#             print(inty)
-#             intx=0
+                    SELECT json_extract(items, '$[0].qty') as qty
+                    FROM purchases WHERE purchase_uid = \'""" + p_uid + """\';
+                    """
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code'] != 280:
+                items['message'] = 'Check sql query'
+                return items
+            #items['result'] = items['result'][0]
+            #print(int(items["result"][0]["num_issues"]))
+            print("1")
+            query1 ="""
+                        select purchase_id
+                        from purchases
+                        where purchase_uid = \'""" + p_uid + """\';
+                    """
+            print("1.5")
+            p_id = execute(query1, 'get', conn)
+            print("1.7")
+            tempstring = items["result"][0]["qty"].strip('\"')
+            inty=int(tempstring)
+            print(inty)
+            intx=0
 
-#             print("2")
-#             query3 ="""
-#                         select distinct menu_date
-#                         from menu
-#                         where menu_date > now()
-#                         order by menu_date asc;
-#                     """
-#             print("3")
-#             menu_date = execute(query3, 'get', conn)
-#             intx=0
-#             print(menu_date['result'][intx]['menu_date'])
-#             for intx in range(0,inty):
-#                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
-#                 print("4")
-#                 print(intx)
-#                 #temparr= str(menu_date['result'][intx]['menu_date'])
-#                 #print(temparr)
-#                 print(p_id)
-#                 query2 ="""
-#                             insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
-#                             values(
-#                                 \'""" + res['result'][0]['new_id'] + """\',
-#                                 \'""" + p_id["result"][0]["purchase_id"] + """\',
-#                                 now(),
-#                                 \'""" + menu_date['result'][intx]['menu_date'] + """\',
-#                                 '[{
-#                                     "qty": "", 
-#                                     "name": "SURPRISE", 
-#                                     "price": "", 
-#                                     "item_uid": ""
-#                                 }]',
-#                                 "SUNDAY"
-#                             );
-#                         """
-#                 print("5")
-#                 sur_item = execute(query2, 'post', conn)
-#                 print(sur_item)
-#                 print("6")
-#                 # query3= """
-#                 #             update meals_selected
-#                 #             set
-#                 #             sel_menu_date = '""" + menu_date['result'][intx]['menu_date'] + """'
-#                 #             where selection_uid = \'""" + res['result'][0]['new_id'] + """\';
-#                 #         """
-#                 # udate = execute(query3, 'post', conn)
-#                 print("7")
-#             return sur_item
-#         except:
-#                 print("Error happened while getting payment info")
-#                 raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-#             print('process completed')
+            print("2")
+            query3 ="""
+                        select distinct menu_date
+                        from menu
+                        where menu_date > now()
+                        order by menu_date asc;
+                    """
+            print("3")
+            menu_date = execute(query3, 'get', conn)
+            intx=0
+            print(menu_date['result'][intx]['menu_date'])
+            for intx in range(0,inty):
+                res = execute("CALL new_meals_selected_uid();", 'get', conn)
+                print("4")
+                print(intx)
+                #temparr= str(menu_date['result'][intx]['menu_date'])
+                #print(temparr)
+                print(p_id)
+                query2 ="""
+                            insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
+                            values(
+                                \'""" + res['result'][0]['new_id'] + """\',
+                                \'""" + p_id["result"][0]["purchase_id"] + """\',
+                                now(),
+                                \'""" + menu_date['result'][intx]['menu_date'] + """\',
+                                '[{
+                                    "qty": "", 
+                                    "name": "SURPRISE", 
+                                    "price": "", 
+                                    "item_uid": ""
+                                }]',
+                                "SUNDAY"
+                            );
+                        """
+                print("5")
+                sur_item = execute(query2, 'post', conn)
+                print(sur_item)
+                print("6")
+                # query3= """
+                #             update meals_selected
+                #             set
+                #             sel_menu_date = '""" + menu_date['result'][intx]['menu_date'] + """'
+                #             where selection_uid = \'""" + res['result'][0]['new_id'] + """\';
+                #         """
+                # udate = execute(query3, 'post', conn)
+                print("7")
+            return sur_item
+        except:
+                print("Error happened while getting payment info")
+                raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
 
 
 # check this
@@ -11437,244 +11328,7 @@ class test_endpoint(Resource):
 
 
 
-
-
-class createAccount2(Resource):
-    def post(self):
-        response = {}
-        items = []
-        try:
-            conn = connect()
-            data = request.get_json(force=True)
-            print(data)
-            email = data['email']
-            firstName = data['first_name']
-            lastName = data['last_name']
-            # phone = data['phone_number']
-            # address = data['address']
-            # unit = data['unit'] if data.get('unit') is not None else 'NULL'
-            # social_id = data['social_id'] if data.get('social_id') is not None else 'NULL'
-            # city = data['city']
-            # state = data['state']
-            # zip_code = data['zip_code']
-            # latitude = data['latitude']
-            # longitude = data['longitude']
-            referral = data['referral_source']
-            role = data['role']
-            cust_id = data['cust_id'] if data.get('cust_id') is not None else 'NULL'
-
-            if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False or data.get('social') == 'NULL':
-                social_signup = False
-            else:
-                social_signup = True
-
-            print(social_signup)
-            get_user_id_query = "CALL new_customer_uid();"
-            NewUserIDresponse = execute(get_user_id_query, 'get', conn)
-
-            if NewUserIDresponse['code'] == 490:
-                string = " Cannot get new User id. "
-                print("*" * (len(string) + 10))
-                print(string.center(len(string) + 10, "*"))
-                print("*" * (len(string) + 10))
-                response['message'] = "Internal Server Error."
-                return response, 500
-            NewUserID = NewUserIDresponse['result'][0]['new_id']
-
-            if social_signup == False:
-
-                salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
-
-                password = sha512((data['password'] + salt).encode()).hexdigest()
-                print('password------', password)
-                algorithm = "SHA512"
-                mobile_access_token = 'NULL'
-                mobile_refresh_token = 'NULL'
-                user_access_token = 'NULL'
-                user_refresh_token = 'NULL'
-                user_social_signup = 'NULL'
-            else:
-
-                mobile_access_token = data['mobile_access_token']
-                mobile_refresh_token = data['mobile_refresh_token']
-                user_access_token = data['user_access_token']
-                user_refresh_token = data['user_refresh_token']
-                salt = 'NULL'
-                password = 'NULL'
-                algorithm = 'NULL'
-                user_social_signup = data['social']
-
-                print('ELSE- OUT')
-
-            if cust_id != 'NULL' and cust_id:
-
-                NewUserID = cust_id
-
-                query = '''
-                            SELECT user_access_token, user_refresh_token, mobile_access_token, mobile_refresh_token 
-                            FROM M4ME.customers
-                            WHERE customer_uid = \'''' + cust_id + '''\';
-                        '''
-                it = execute(query, 'get', conn)
-                print('it-------', it)
-
-                if it['result'][0]['user_access_token'] != 'FALSE':
-                    user_access_token = it['result'][0]['user_access_token']
-
-                if it['result'][0]['user_refresh_token'] != 'FALSE':
-                    user_refresh_token = it['result'][0]['user_refresh_token']
-
-                if it['result'][0]['mobile_access_token'] != 'FALSE':
-                    mobile_access_token = it['result'][0]['mobile_access_token']
-
-                if it['result'][0]['mobile_refresh_token'] != 'FALSE':
-                    mobile_refresh_token = it['result'][0]['mobile_refresh_token']
-
-                customer_insert_query =  ['''
-                    UPDATE 
-                        M4ME.customers 
-                    SET 
-                        customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
-                        customer_first_name = \'''' + firstName + '''\',
-                        customer_last_name = \'''' + lastName + '''\',
-                        customer_phone_num = \'''' + phone + '''\',
-                        password_salt = \'''' + salt + '''\',
-                        password_hashed = \'''' + password + '''\',
-                        password_algorithm = \'''' + algorithm + '''\',
-                        referral_source = \'''' + referral + '''\',
-                        role = \'''' + role + '''\',
-                        user_social_media = \'''' + user_social_signup + '''\',
-                        social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
-                    WHERE 
-                        customer_uid = \'''' + cust_id + '''\';
-                ''']
-
-
-            else:
-
-                # check if there is a same customer_id existing
-                query = """
-                        SELECT customer_email FROM M4ME.customers
-                        WHERE customer_email = \'""" + email + "\';"
-                print('email---------')
-                items = execute(query, 'get', conn)
-                if items['result']:
-
-                    items['result'] = ""
-                    items['code'] = 409
-                    items['message'] = "Email address has already been taken."
-
-                    return items
-
-                if items['code'] == 480:
-
-                    items['result'] = ""
-                    items['code'] = 480
-                    items['message'] = "Internal Server Error."
-                    return items
-
-
-                # write everything to database
-                # customer_insert_query = ["""
-                #                         INSERT INTO M4ME.customers 
-                #                         (
-                #                             customer_uid,
-                #                             customer_created_at,
-                #                             customer_first_name,
-                #                             customer_last_name,
-                #                             password_salt,
-                #                             password_hashed,
-                #                             password_algorithm,
-                #                             referral_source,
-                #                             role,
-                #                             user_social_media,
-                #                             user_access_token,
-                #                             social_timestamp,
-                #                             user_refresh_token,
-                #                             mobile_access_token,
-                #                             mobile_refresh_token,
-                #                             social_id
-                #                         )
-                #                         VALUES
-                #                         (
-                                        
-                #                             \'""" + NewUserID + """\',
-                #                             \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-                #                             \'""" + firstName + """\',
-                #                             \'""" + lastName + """\',
-                #                             \'""" + salt + """\',
-                #                             \'""" + password + """\',
-                #                             \'""" + algorithm + """\',
-                #                             \'""" + referral + """\',
-                #                             \'""" + role + """\',
-                #                             \'""" + user_social_signup + """\',
-                #                             \'""" + user_access_token + """\',
-                #                             DATE_ADD(now() , INTERVAL 14 DAY),
-                #                             \'""" + user_refresh_token + """\',
-                #                             \'""" + mobile_access_token + """\',
-                #                             \'""" + mobile_refresh_token + """\',
-                #                             \'""" + social_id + """\');"""]
-                customer_insert_query = ["""
-                    INSERT INTO 
-                        M4ME.customers 
-                    SET
-                        customer_uid = \'""" + NewUserID + """\',
-                        customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
-                        customer_first_name = \'""" + firstName + """\',
-                        customer_last_name = \'""" + lastName + """\',
-                        password_salt = \'""" + salt + """\',
-                        password_hashed = \'""" + password + """\',
-                        password_algorithm = \'""" + algorithm + """\',
-                        referral_source = \'""" + referral + """\',
-                        role = \'""" + role + """\',
-                        user_social_media = \'""" + user_social_signup + """\',
-                        user_access_token = \'""" + user_access_token + """\',
-                        social_timestamp = DATE_ADD(now() , INTERVAL 14 DAY),
-                        user_refresh_token = \'""" + user_refresh_token + """\',
-                        mobile_access_token = \'""" + mobile_access_token + """\',
-                        mobile_refresh_token = \'""" + mobile_refresh_token + """\',
-                        social_id = \'""" + social_id + """\';                      
-                """]
-
-            print(customer_insert_query[0])
-            items = execute(customer_insert_query[0], 'post', conn)
-
-            if items['code'] != 281:
-                items['result'] = ""
-                items['code'] = 480
-                items['message'] = "Error while inserting values in database"
-
-                return items
-
-
-            items['result'] = {
-                'first_name': firstName,
-                'last_name': lastName,
-                'customer_uid': NewUserID,
-                'access_token': user_access_token,
-                'refresh_token': user_refresh_token,
-                'access_token': mobile_access_token,
-                'refresh_token': mobile_refresh_token,
-                'social_id': social_id
-
-
-            }
-            items['message'] = 'Signup successful'
-            items['code'] = 200
-
-            print('sss-----', social_signup)
-            return items
-
-        except:
-            print("Error happened while Sign Up")
-            if "NewUserID" in locals():
-                execute("""DELETE FROM customers WHERE customer_uid = '""" + NewUserID + """';""", 'post', conn)
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
+#  -- AMBASSADOR/COUPONS RELATED ENDPOINTS    -----------------------------------------
 
 class brandAmbassador(Resource):
 
@@ -12359,74 +12013,6 @@ class brandAmbassador2(Resource):
             disconnect(conn)
 
 
-# possible deletion (9/1)
-class orders_by_customers(Resource):
-    def get(self):
-        try:
-            conn = connect()
-            # menu_date = request.args['menu_date']
-            query = """
-                    select d_menu_date,
-                            jt_name,
-                            customer_first_name as First_Name,
-                            customer_last_name as Last_Name,
-                            customer_uid,
-                            lplpibr_purchase_id,
-                            sum(jt_qty) as Qty
-                    FROM fcs_items_by_row
-                    inner join customers
-                        on customer_uid = lplpibr_customer_uid
-                    group by jt_name, d_menu_date, lplpibr_customer_uid
-                    order by d_menu_date, customer_uid, jt_name;
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "Order data selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
-
-
-class delivery_weekdays(Resource):
-    def get(self):
-        try:
-            conn = connect()
-            # menu_date = request.args['menu_date']
-            query = """
-                    select distinct menu_date, weekday(menu_date)
-                    from menu
-                    where menu_date > now();
-                    """
-
-            items = execute(query, 'get', conn)
-            print(items)
-            if items['code']!=280:
-                items['message'] = "Failed"
-                items['code'] = 404
-                #return items
-            if items['code']== 280:
-                items['message'] = "delivery weekdays selected"
-                items['code'] = 200
-                #return items
-            return items
-            #return simple_get_execute(query, __class__.__name__, conn)
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-
 
 
 class lplp_specific(Resource):
@@ -12906,6 +12492,424 @@ class orders_and_meals(Resource):
             disconnect(conn)
 
 
+#  -- SERVING FRESH RELATED ENDPOINTS    -----------------------------------------
+
+class Orders_by_Purchase_Id_with_Pid(Resource):
+    def get(self, p_id):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_purchase_id = \'""" + p_id + """\' and lplpibr_purchase_status = "ACTIVE"
+                    group by d_purchase_id, d_menu_date
+                    order by d_menu_date desc;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class Orders_by_Purchase_Id_with_Pid_and_date(Resource):
+    def get(self, p_id, date):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_purchase_id = \'""" + p_id + """\' and d_menu_date = \'""" + date + """\'
+                    group by d_purchase_id, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+class Orders_by_Items_total_items(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select d_menu_date,
+                            jt_name,
+                            sum(jt_qty)
+                    FROM fcs_items_by_row
+                    group by jt_name, d_menu_date
+                    order by d_menu_date desc;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+# possible deletion (9/1)
+class orders_by_customers(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select d_menu_date,
+                            jt_name,
+                            customer_first_name as First_Name,
+                            customer_last_name as Last_Name,
+                            customer_uid,
+                            lplpibr_purchase_id,
+                            sum(jt_qty) as Qty
+                    FROM fcs_items_by_row
+                    inner join customers
+                        on customer_uid = lplpibr_customer_uid
+                    group by jt_name, d_menu_date, lplpibr_customer_uid
+                    order by d_menu_date, customer_uid, jt_name;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+# possible deletion
+class Latest_activity(Resource):
+    def get(self, user_id):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+
+            items = execute(
+                """ select acc.*,pur.*,mp.meal_plan_desc,
+                        pay.*
+                        from ptyd_accounts acc
+                        left join ptyd_payments pay
+                        on acc.user_uid = pay.buyer_id
+                        left join ptyd_purchases pur
+                        on pay.purchase_id = pur.purchase_id
+                        left join ptyd_meal_plans mp
+                        on pur.meal_plan_id = mp.meal_plan_id
+                        where acc.user_uid = \'""" + user_id + """\'
+                        and pay.payment_time_stamp in
+                        (select latest_time_stamp from
+                            (SELECT buyer_id, purchase_id, MAX(payment_time_stamp) as "latest_time_stamp" FROM
+                                (SELECT * FROM ptyd_payments where buyer_id = \'""" + user_id + """\') temp
+                                group by buyer_id, purchase_id) temp1
+                        )
+                        order by pur.purchase_id
+                        ;
+                        """, 'get', conn)
+
+            response['message'] = 'successful'
+            response['result'] = items
+
+            return response, 200
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
+#allows business to see who ordered what for each item
+# possible deletion
+class Orders_by_Items(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    select d_menu_date,
+                            jt_name,
+                            group_concat(lplpibr_customer_uid),
+                            group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    group by jt_name, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+# possible deletion
+class Orders_by_Purchase_Id(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # menu_date = request.args['menu_date']
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    group by d_purchase_id, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+# possible deletion
+class Order_by_items_with_Date(Resource):
+    def get(self, date):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    select d_menu_date,
+                            jt_name,
+                            group_concat(lplpibr_customer_uid),
+                            group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_menu_date = \'""" + date + """\'
+                    group by jt_name, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+
+
+
+#make a copy that takes input of purchase_id
+# possible deletion
+class Orders_by_Purchase_Id_with_Date(Resource):
+    def get(self, date):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT
+                        d_menu_date,
+                        d_purchase_id,
+                        group_concat(jt_name),
+                        group_concat(jt_qty)
+                    FROM fcs_items_by_row
+                    where d_menu_date = \'""" + date + """\' 
+                    group by d_purchase_id, d_menu_date;
+                    """
+
+            items = execute(query, 'get', conn)
+            print(items)
+            if items['code']!=280:
+                items['message'] = "Failed"
+                items['code'] = 404
+                #return items
+            if items['code']== 280:
+                items['message'] = "Order data selected"
+                items['code'] = 200
+                #return items
+            return items
+            #return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class Add_New_Ingredient(Resource):
+    def post(self):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            ingredient_desc = data['ingredient_desc']
+            package_size = data['package_size']
+            ingredient_measure_id = data['ingredient_measure_id']
+            ingredient_cost = data['ingredient_cost']
+
+            print("(Add_New_Ingredient -- POST) 1")
+
+            ingredientIdQuery = execute(
+                """CALL get_new_ingredient_id();""", 'get', conn)
+
+            print("(Add_New_Ingredient -- POST) ingredientIdQuery: ", ingredientIdQuery)
+
+            ingredientId = ingredientIdQuery['result'][0]['new_id']
+
+            print("(Add_New_Ingredient -- POST) 1")
+
+            # REFACTOR
+            items['new_ingredient_insert'] = execute(""" INSERT INTO ingredients (
+                                                                ingredient_id, ingredient_desc, package_size,ingredient_measure_id,ingredient_cost, ingredient_measure
+                                                                ) 
+                                                                SELECT \'""" + str(ingredientId) + """\', \'""" + str(ingredient_desc) + """\',
+                                                                \'""" + str(package_size) + """\',\'""" + str(ingredient_measure_id) + """\',
+                                                                \'""" + str(ingredient_cost) + """\', mu.recipe_unit 
+                                                                FROM ptyd_conversion_units mu
+                                                                WHERE measure_unit_id=\'""" + str(ingredient_measure_id) + """\';
+                                                                """, 'post', conn)
+            # query = """ 
+            #     INSERT INTO 
+            #         ingredients 
+            #     (
+            #         ingredient_id, 
+            #         ingredient_desc, 
+            #         package_size,
+            #         ingredient_measure_id,
+            #         ingredient_cost, 
+            #         ingredient_measure
+            #     ) 
+            #     SELECT 
+            #         \'""" + str(ingredientId) + """\', 
+            #         \'""" + str(ingredient_desc) + """\',
+            #         \'""" + str(package_size) + """\',
+            #         \'""" + str(ingredient_measure_id) + """\',
+            #         \'""" + str(ingredient_cost) + """\', 
+            #         mu.recipe_unit 
+            #     FROM 
+            #         ptyd_conversion_units mu
+            #     WHERE 
+            #         measure_unit_id=\'""" + str(ingredient_measure_id) + """\';
+            # """
+            # items['new_ingredient_insert'] = execute(query, 'post', conn)
+            print("(Add_New_Ingredient -- POST) 2")
+
+            response['message'] = 'Request successful.'
+            response['result'] = items
+
+            return response, 200
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+    
+    def get(self):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+
+            items = execute(""" SELECT
+                                *
+                                FROM
+                                ptyd_ingredients;""", 'get', conn)
+
+            response['message'] = 'Request successful.'
+            response['result'] = items
+
+            return response, 200
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            
+
 # Define API routes
 # Customer APIs
 
@@ -13122,7 +13126,7 @@ api.add_resource(history, '/api/v2/history/<string:email>')
 
 api.add_resource(purchase_Data_SF, '/api/v2/purchase_Data_SF') # seems to be the same as checkout
 
-api.add_resource(addItems, '/api/v2/addItems/<string:action>') #check if theres something similar
+# api.add_resource(addItems, '/api/v2/addItems/<string:action>') #check if theres something similar
 
 api.add_resource(business_details_update, '/api/v2/business_details_update/<string:action>')
 api.add_resource(business_details_update_brandon, '/api/v2/business_details_update_brandon/<string:action>')
@@ -13145,7 +13149,7 @@ api.add_resource(Update_Registration_With_GUID_Android, '/api/v2/Update_Registra
 api.add_resource(Get_Tags_With_GUID_iOS, '/api/v2/Get_Tags_With_GUID_iOS/<string:tag>')
 
 #no need to verify below
-api.add_resource(update_all_items, '/api/v2/update_all_items/<string:uid>')
+# api.add_resource(update_all_items, '/api/v2/update_all_items/<string:uid>')
 
 api.add_resource(createAccount, '/api/v2/createAccount')
 
