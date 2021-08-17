@@ -3495,163 +3495,6 @@ class history(Resource):
         finally:
             disconnect(conn)
 
-#uses pur_business_uid 
-class purchase_Data_SF(Resource):
-    def post(self):
-            response = {}
-            items = {}
-            try:
-                conn = connect()
-                data = request.get_json(force=True)
-
-                # Purchases start here
-
-                query = "CALL M4ME.new_purchase_uid"
-                newPurchaseUID_query = execute(query, 'get', conn)
-                newPurchaseUID = newPurchaseUID_query['result'][0]['new_id']
-
-                purchase_uid = newPurchaseUID
-                purchase_date = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
-                purchase_id = purchase_uid
-                purchase_status = 'ACTIVE'
-                pur_customer_uid = data['pur_customer_uid']
-                #pur_business_uid = data['pur_business_uid']
-                #items_pur = data['items']
-                items_pur = "'[" + ", ".join([str(val).replace("'", "\"") if val else "NULL" for val in data['items']]) + "]'"
-
-                order_instructions = data['order_instructions']
-                delivery_instructions = data['delivery_instructions']
-                order_type = data['order_type']
-                delivery_first_name = data['delivery_first_name']
-                delivery_last_name = data['delivery_last_name']
-                delivery_phone_num = data['delivery_phone_num']
-                delivery_email = data['delivery_email']
-                delivery_address = data['delivery_address']
-                delivery_unit = data['delivery_unit']
-                delivery_city = data['delivery_city']
-                delivery_state = data['delivery_state']
-                delivery_zip = data['delivery_zip']
-                delivery_latitude = data['delivery_latitude']
-                delivery_longitude = data['delivery_longitude']
-                purchase_notes = data['purchase_notes']
-
-                query = "SELECT * FROM M4ME.customers " \
-                        "WHERE customer_email =\'"+delivery_email+"\';"
-
-                items = execute(query, 'get', conn)
-
-                print('ITEMS--------------', items)
-
-                if not items['result']:
-                    items['code'] = 404
-                    items['message'] = "User email doesn't exists"
-                    return items
-
-                print('in insert-------')
-
-                query_insert = """ 
-                                    INSERT INTO M4ME.purchases
-                                    SET
-                                    purchase_uid = \'""" + newPurchaseUID + """\',
-                                    purchase_date = \'""" + purchase_date + """\',
-                                    purchase_id = \'""" + purchase_id + """\',
-                                    purchase_status = \'""" + purchase_status + """\',
-                                    pur_customer_uid = \'""" + pur_customer_uid + """\',
-                                    items = """ + items_pur + """,
-                                    order_instructions = \'""" + order_instructions + """\',
-                                    delivery_instructions = \'""" + delivery_instructions + """\',
-                                    order_type = \'""" + order_type + """\',
-                                    delivery_first_name = \'""" + delivery_first_name + """\',
-                                    delivery_last_name = \'""" + delivery_last_name + """\',
-                                    delivery_phone_num = \'""" + delivery_phone_num + """\',
-                                    delivery_email = \'""" + delivery_email + """\',
-                                    delivery_address = \'""" + delivery_address + """\',
-                                    delivery_unit = \'""" + delivery_unit + """\',
-                                    delivery_city = \'""" + delivery_city + """\',
-                                    delivery_state = \'""" + delivery_state + """\',
-                                    delivery_zip = \'""" + delivery_zip + """\',
-                                    delivery_latitude = \'""" + delivery_latitude + """\',
-                                    delivery_longitude = \'""" + delivery_longitude + """\',
-                                    purchase_notes = \'""" + purchase_notes + """\';
-                                """
-                items = execute(query_insert, 'post', conn)
-
-                print('execute')
-                if items['code'] == 281:
-                    items['code'] = 200
-                    items['message'] = 'Purchase info updated'
-
-                else:
-                    items['message'] = 'check sql query'
-                    items['code'] = 490
-
-
-                # Payments start here
-
-
-                query = "CALL M4ME.new_payment_uid"
-                newPaymentUID_query = execute(query, 'get', conn)
-                newPaymentUID = newPaymentUID_query['result'][0]['new_id']
-
-                payment_uid = newPaymentUID
-                payment_id = payment_uid
-                pay_purchase_uid = newPurchaseUID
-                pay_purchase_id = newPurchaseUID
-                payment_time_stamp = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
-                start_delivery_date = data['start_delivery_date']
-                pay_coupon_id = data['pay_coupon_id']
-                amount_due = data['amount_due']
-                amount_discount = data['amount_discount']
-                amount_paid = data['amount_paid']
-                info_is_Addon = data['info_is_Addon']
-                cc_num = data['cc_num']
-                cc_exp_date = data['cc_exp_date']
-                cc_cvv = data['cc_cvv']
-                cc_zip = data['cc_zip']
-                charge_id = data['charge_id']
-                payment_type = data['payment_type']
-
-                query_insert = [""" 
-                                    INSERT INTO  M4ME.payments
-                                    SET
-                                    payment_uid = \'""" + payment_uid + """\',
-                                    payment_id = \'""" + payment_id + """\',
-                                    pay_purchase_uid = \'""" + pay_purchase_uid + """\',
-                                    pay_purchase_id = \'""" + pay_purchase_id + """\',
-                                    payment_time_stamp = \'""" + payment_time_stamp + """\',
-                                    start_delivery_date = \'""" + start_delivery_date + """\',
-                                    pay_coupon_id = \'""" + pay_coupon_id + """\',
-                                    amount_due = \'""" + amount_due + """\',
-                                    amount_discount = \'""" + amount_discount + """\',
-                                    amount_paid = \'""" + amount_paid + """\',
-                                    info_is_Addon = \'""" + info_is_Addon + """\',
-                                    cc_num = \'""" + cc_num + """\',
-                                    cc_exp_date = \'""" + cc_exp_date + """\',
-                                    cc_cvv = \'""" + cc_cvv + """\',
-                                    cc_zip = \'""" + cc_zip + """\',
-                                    charge_id = \'""" + charge_id + """\',
-                                    payment_type = \'""" + payment_type + """\';
-                                    
-                                """]
-
-                print(query_insert)
-                item = execute(query_insert[0], 'post', conn)
-
-                if item['code'] == 281:
-                    item['code'] = 200
-                    item['message'] = 'Payment info updated'
-                else:
-                    item['message'] = 'check sql query'
-                    item['code'] = 490
-
-                return item
-
-            except:
-                print("Error happened while inserting in purchase table")
-
-                raise BadRequest('Request failed, please try again later.')
-            finally:
-                disconnect(conn)
 
 class pid_history(Resource):
     # Fetches ALL DETAILS FOR A SPECIFIC USER
@@ -3926,11 +3769,15 @@ class Stripe_Intent(Resource):
 class checkAutoPay(Resource):
     def get(self):
 
+        print("(cAutoPay -- GET) 1")
+
         def next_weekday(d, weekday):
             days_ahead = weekday - d.weekday()
             if days_ahead <= 0: # Target day already happened this week
                 days_ahead += 7
             return d + timedelta(days_ahead)
+
+        print("(cAutoPay -- GET) 2")
 
         conn = connect()
         res = []
@@ -3942,6 +3789,8 @@ class checkAutoPay(Resource):
         days_num = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         x = datetime.now()
         day_of_week = x.strftime("%a").lower()
+
+        print("(cAutoPay -- GET) 3")
         
         query = """
                 SELECT pur.*, pay.*, ms.delivery_day
@@ -3954,15 +3803,27 @@ class checkAutoPay(Resource):
             items['message'] = 'check sql query for purchases'
             return items
         
-        
+        print("(cAutoPay -- GET) 4")
+
+        send_emails = []
+
         for vals in items['result']:
+            print("(cAutoPay -- GET) 4.1")
+
             #------------------########
             cust_email = vals['delivery_email']
-            
-            if vals['purchase_uid'] != '400-000095':
-                continue
+
+            print("(cAutoPay -- GET) 4.2")
+
+            # if vals['purchase_uid'] != '400-000095':
+            #     continue
+
             print('********#####TEST********#####', vals['purchase_uid'])
+
             sub_id = json.loads(vals['items'])
+
+            print("(cAutoPay -- GET) 5")
+
             query = """
                     SELECT sub.*
                     FROM M4ME.subscription_items sub
@@ -3980,6 +3841,8 @@ class checkAutoPay(Resource):
             start_delivery_date = vals['start_delivery_date']
             end_day = datetime.strftime(datetime.now(utc),"%Y-%m-%d")
             
+            print("(cAutoPay -- GET) 6")
+
             query = """
                     SELECT COUNT(delivery_day) AS skip_count FROM 
                     (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
@@ -4000,6 +3863,8 @@ class checkAutoPay(Resource):
             if items['code'] != 280:
                 items['message'] = 'check sql query for skips'
                 return items
+
+            print("(cAutoPay -- GET) 7")
             
             skips = items['result'][0]['skip_count']
             print('skips',skips)
@@ -4009,18 +3874,23 @@ class checkAutoPay(Resource):
 
             print(delivered, freq, end_day - start_delivery_date)
 
-            send_emails = []
+            # send_emails = []
+
+            print("(cAutoPay -- GET) 8")
             
             if delivered == freq:
+                print("(cAutoPay -- GET) 8.1")
                 # if it's delivery day then just send emails
                 # if it's autopay day then start charging
                 d = datetime.now().date()
                 
                 if day_of_week[:3] in delivery_days:
+                    print("(cAutoPay -- GET) 8.2")
                     #shoot email
                     idx = days_num.index(vals['delivery_day'].lower()[:3])
                     start_delivery_date = str(next_weekday(d, idx)) + " 00:00:00" # 0 = Monday, 1=Tuesday, 2=Wednesday...
-                    
+                    print("(cAutoPay -- GET) start_delivery_date: ", start_delivery_date)
+                    print("(cAutoPay -- GET) 8.3")
                     send_emails.append(sendAutopayEmails(cust_email, start_delivery_date, vals['purchase_uid']))
                 
                 elif day_of_week[:3] in autoPay_days:
@@ -4040,12 +3910,14 @@ class checkAutoPay(Resource):
                 fat_res.append(vals['purchase_uid'])
                 print('fatal error check database')
         
-        print(res)
+        print("(cAutoPay -- GET) res: ", res)
+
+        print("(cAutoPay -- GET) 9")
         
         # email error to prashant once cron job is done
         pay_er = ''
         for vals in res:
-            if vals != 'successfull':
+            if vals != 'successful':
                 pay_er += vals + ","
         pay_er = pay_er[:-1]
         if len(pay_er) == 0:
@@ -4057,18 +3929,23 @@ class checkAutoPay(Resource):
         if len(fat_res) == 0:
             fat_res = 'No Errors'
 
+        print("(cAutoPay -- GET) 10")
+        print("(cAutoPay -- GET) send_emails: ", send_emails)
+        print("(cAutoPay -- GET) 10.1")
         
         email_er = ''
         for vals in send_emails:
-            if vals != 'successfull':
+            if vals != 'successful':
                 email_er += vals + ","
         email_er = email_er[:-1]
         if len(email_er) == 0:
             email_er = 'No Errors'
 
+        print("(cAutoPay -- GET) 11")
         
         # send email
-        msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=['parva.shah808@gmail.com'])
+        # msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=['parva.shah808@gmail.com'])
+        msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=['bmhuss33@gmail.com'])
         #pmarathay@gmail.com
         print('MESSAGE----', msg)
         print('message complete')
@@ -8192,7 +8069,10 @@ class business_details_update(Resource):
                 data = request.get_json(force=True)
 
                 if action == 'Get':
-                    query = "SELECT * FROM M4ME.businesses WHERE business_uid = \'" + data['business_uid'] + "\';"
+                    query = """
+                        SELECT * FROM M4ME.businesses 
+                        WHERE business_uid = \'""" + data['business_uid'] + """\';
+                    """
                     item = execute(query, 'get', conn)
                     if item['code'] == 280:
                         if not item['result']:
@@ -8209,7 +8089,6 @@ class business_details_update(Resource):
                     print(data)
                     print('IN')
 
-
                     business_association = str(data['business_association'])
                     business_association = "'" + business_association.replace("'", "\"") + "'"
                     business_hours = str(data['business_hours'])
@@ -8218,43 +8097,48 @@ class business_details_update(Resource):
                     business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
                     business_delivery_hours = str(data['business_delivery_hours'])
                     business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
+
                     print("0")
+
                     query = """
-                               UPDATE M4ME.businesses
-                               SET 
-                               business_created_at = \'""" + data["business_created_at"] + """\',
-                               business_name = \'""" + data["business_name"] + """\',
-                               business_type = \'""" + data["business_type"] + """\',
-                               business_desc = \'""" + data["business_desc"] + """\',
-                               business_association = """ + business_association + """,
-                               business_contact_first_name = \'""" + data["business_contact_first_name"] + """\',
-                               business_contact_last_name = \'""" + data["business_contact_last_name"] + """\',
-                               business_phone_num = \'""" + data["business_phone_num"] + """\',
-                               business_phone_num2 = \'""" + data["business_phone_num2"] + """\',
-                               business_email = \'""" + data["business_email"] + """\',
-                               business_hours = """ + business_hours + """,
-                               business_accepting_hours = """ + business_accepting_hours + """,
-                               business_delivery_hours = """ + business_delivery_hours + """,
-                               business_address = \'""" + data["business_address"] + """\',
-                               business_unit = \'""" + data["business_unit"] + """\',
-                               business_city = \'""" + data["business_city"] + """\',
-                               business_state = \'""" + data["business_state"] + """\',
-                               business_zip = \'""" + data["business_zip"] + """\',
-                               business_longitude = \'""" + data["business_longitude"] + """\',
-                               business_latitude = \'""" + data["business_latitude"] + """\',
-                               business_EIN = \'""" + data["business_EIN"] + """\',
-                               business_WAUBI = \'""" + data["business_WAUBI"] + """\',
-                               business_license = \'""" + data["business_license"] + """\',
-                               business_USDOT = \'""" + data["business_USDOT"] + """\',
-                               bus_notification_approval = \'""" + data["bus_notification_approval"] + """\',
-                               -- bus_notification_device_id = \'""" + data["bus_notification_device_id"] + """\',
-                               can_cancel = \'""" + data["can_cancel"] + """\',
-                               delivery = \'""" + data["delivery"] + """\',
-                               reusable = \'""" + data["reusable"] + """\',
-                               business_image = \'""" + data["business_image"] + """\',
-                               business_password = \'""" + data["business_password"] + """\'
-                               WHERE business_uid = \'""" + data["business_uid"] + """\' ;
-                             """
+                        UPDATE 
+                            M4ME.businesses
+                        SET 
+                            business_created_at = \'""" + data["business_created_at"] + """\',
+                            business_name = \'""" + data["business_name"] + """\',
+                            business_type = \'""" + data["business_type"] + """\',
+                            business_desc = \'""" + data["business_desc"] + """\',
+                            business_association = """ + business_association + """,
+                            business_contact_first_name = \'""" + data["business_contact_first_name"] + """\',
+                            business_contact_last_name = \'""" + data["business_contact_last_name"] + """\',
+                            business_phone_num = \'""" + data["business_phone_num"] + """\',
+                            business_phone_num2 = \'""" + data["business_phone_num2"] + """\',
+                            business_email = \'""" + data["business_email"] + """\',
+                            business_hours = """ + business_hours + """,
+                            business_accepting_hours = """ + business_accepting_hours + """,
+                            business_delivery_hours = """ + business_delivery_hours + """,
+                            business_address = \'""" + data["business_address"] + """\',
+                            business_unit = \'""" + data["business_unit"] + """\',
+                            business_city = \'""" + data["business_city"] + """\',
+                            business_state = \'""" + data["business_state"] + """\',
+                            business_zip = \'""" + data["business_zip"] + """\',
+                            business_longitude = \'""" + data["business_longitude"] + """\',
+                            business_latitude = \'""" + data["business_latitude"] + """\',
+                            business_EIN = \'""" + data["business_EIN"] + """\',
+                            business_WAUBI = \'""" + data["business_WAUBI"] + """\',
+                            business_license = \'""" + data["business_license"] + """\',
+                            business_USDOT = \'""" + data["business_USDOT"] + """\',
+                            bus_notification_approval = \'""" + data["bus_notification_approval"] + """\',
+                            -- bus_notification_device_id = \'""" + data["bus_notification_device_id"] + """\',
+                            can_cancel = \'""" + data["can_cancel"] + """\',
+                            delivery = \'""" + data["delivery"] + """\',
+                            reusable = \'""" + data["reusable"] + """\',
+                            business_image = \'""" + data["business_image"] + """\',
+                            business_password = \'""" + data["business_password"] + """\'
+                        WHERE 
+                            business_uid = \'""" + data["business_uid"] + """\' ;
+                    """
+
                     print("1")
                     print(query)
                     item = execute(query, 'post', conn)
@@ -8309,7 +8193,11 @@ class business_details_update_brandon(Resource):
                             transaction_fee,
                             revenue_sharing,
                             profit_sharing,
-                            business_status
+                            business_status,
+                            business_facebook_url,
+                            business_instagram_url,
+                            business_twitter_url,
+                            business_website_url
                         FROM 
                             M4ME.businesses
                         WHERE 
@@ -8336,14 +8224,42 @@ class business_details_update_brandon(Resource):
                     # business_association = "'" + business_association.replace("'", "\"") + "'"
                     # business_hours = str(data['business_hours'])
                     # business_hours = "'" + business_hours.replace("'", "\"") + "'"
+                    print("(bdub) -3")
 
                     business_accepting_hours = str(data['business_accepting_hours'])
+                    print("(bdub) -2")
                     business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
+                    print("(bdub) -1")
                     # business_accepting_hours = data['business_accepting_hours']
 
                     # business_delivery_hours = str(data['business_delivery_hours'])
                     # business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
                     print("(bdub) 0")
+                    # query = """
+                    #     UPDATE 
+                    #         M4ME.businesses
+                    #     SET 
+                    #         business_name = \'""" + data["business_name"] + """\',
+                    #         business_type = \'""" + data["business_type"] + """\',
+                    #         business_desc = \'""" + data["business_desc"] + """\',
+                    #         business_contact_first_name = \'""" + data["business_contact_first_name"] + """\',
+                    #         business_contact_last_name = \'""" + data["business_contact_last_name"] + """\',
+                    #         business_phone_num = \'""" + data["business_phone_num"] + """\',
+                    #         business_phone_num2 = \'""" + data["business_phone_num2"] + """\',
+                    #         business_email = \'""" + data["business_email"] + """\',
+                    #         business_accepting_hours = """ + business_accepting_hours + """,
+                    #         business_address = \'""" + data["business_address"] + """\',
+                    #         business_unit = \'""" + data["business_unit"] + """\',
+                    #         business_city = \'""" + data["business_city"] + """\',
+                    #         business_state = \'""" + data["business_state"] + """\',
+                    #         business_zip = \'""" + data["business_zip"] + """\',
+                    #         can_cancel = \'""" + data["can_cancel"] + """\',
+                    #         delivery = \'""" + data["delivery"] + """\',
+                    #         reusable = \'""" + data["reusable"] + """\',
+                    #         business_image = \'""" + data["business_image"] + """\'
+                    #     WHERE 
+                    #         business_uid = \'""" + data["business_uid"] + """\';
+                    # """
                     query = """
                         UPDATE 
                             M4ME.businesses
@@ -8365,10 +8281,15 @@ class business_details_update_brandon(Resource):
                             can_cancel = \'""" + data["can_cancel"] + """\',
                             delivery = \'""" + data["delivery"] + """\',
                             reusable = \'""" + data["reusable"] + """\',
-                            business_image = \'""" + data["business_image"] + """\'
+                            business_image = \'""" + data["business_image"] + """\',
+                            business_facebook_url = \'""" + data["business_facebook_url"] + """\',
+                            business_instagram_url = \'""" + data["business_instagram_url"] + """\',
+                            business_twitter_url = \'""" + data["business_twitter_url"] + """\',
+                            business_website_url = \'""" + data["business_website_url"] + """\'
                         WHERE 
-                            business_uid = \'""" + data["business_uid"] + """\';
+                            business_uid = \'""" + data["business_uid"] + """\' ;
                     """
+                    
                     print("(bdub) 1")
                     print(query)
                     item = execute(query, 'post', conn)
@@ -8494,7 +8415,11 @@ class all_businesses_brandon(Resource):
                     transaction_fee,
                     revenue_sharing,
                     profit_sharing,
-                    business_status
+                    business_status,
+                    business_facebook_url,
+                    business_instagram_url,
+                    business_twitter_url,
+                    business_website_url
                 FROM 
                     M4ME.businesses; 
             """
@@ -8512,25 +8437,25 @@ class all_businesses_brandon(Resource):
             disconnect(conn)
 
 
-    def post(self):
-        try:
-            conn = connect()
+    # def post(self):
+    #     try:
+    #         conn = connect()
 
-            query = """
-                    SELECT * FROM M4ME.businesses; 
-                    """
-            items = execute(query, 'get', conn)
-            if items['code'] == 280:
-                items['message'] = 'Business data returned successfully'
-                items['code'] = 200
-            else:
-                items['message'] = 'Check sql query'
-            return items
+    #         query = """
+    #                 SELECT * FROM M4ME.businesses; 
+    #                 """
+    #         items = execute(query, 'get', conn)
+    #         if items['code'] == 280:
+    #             items['message'] = 'Business data returned successfully'
+    #             items['code'] = 200
+    #         else:
+    #             items['message'] = 'Check sql query'
+    #         return items
 
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
+    #     except:
+    #         raise BadRequest('Request failed, please try again later.')
+    #     finally:
+    #         disconnect(conn)
 
 
 #  -- ADMIN MOBILE REGISTRATION RELATED ENDPOINTS    -----------------------------------------
@@ -8946,212 +8871,6 @@ class Get_Tags_With_GUID_iOS(Resource):
 #             raise BadRequest("Request failed, please try again later.")
 #         finally:
 #             disconnect(conn)
-
-
-
-
-
-# maybe SF only
-# possible deletion
-class report_order_customer_pivot_detail(Resource):
-
-    def get(self, report, uid):
-
-        try:
-            conn = connect()
-            if report == 'order':
-                query = """
-                        SELECT purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from M4ME.businesses WHERE business_uid = itm_business_uid) AS business_name
-                        FROM M4ME.purchases, M4ME.payments,
-                             JSON_TABLE(items, '$[*]' COLUMNS (
-                                        qty VARCHAR(255)  PATH '$.qty',
-                                        name VARCHAR(255)  PATH '$.name',
-                                        price VARCHAR(255)  PATH '$.price',
-                                        item_uid VARCHAR(255)  PATH '$.item_uid',
-                                        itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
-                             ) AS deconstruct
-                        WHERE purchase_uid = pay_purchase_uid AND purchase_status = 'ACTIVE' AND itm_business_uid = \'""" + uid + """\';
-                        """
-
-                items = execute(query, 'get', conn)
-
-                if items['code'] != 280:
-                    items['message'] = 'Check sql query'
-                    return items
-                else:
-
-                    items['message'] = 'Report data successful'
-                    items['code'] = 200
-                    result = items['result']
-                    dict = {}
-                    for vals in result:
-                        if vals['purchase_uid'] in dict:
-                            dict[vals['purchase_uid']].append(vals)
-                        else:
-                            dict[vals['purchase_uid']] = [vals]
-
-                    data = []
-
-                    for key, vals in dict.items():
-
-                        tmp = vals[0]
-                        print('tmp----', tmp)
-                        data.append([tmp['purchase_date'],
-                                     tmp['delivery_first_name'],
-                                     tmp['delivery_last_name'],
-                                     tmp['delivery_phone_num'],
-                                     tmp['delivery_email'],
-                                     tmp['delivery_address'],
-                                     tmp['delivery_unit'],
-                                     tmp['delivery_city'],
-                                     tmp['delivery_state'],
-                                     tmp['delivery_zip'],
-                                     tmp['amount_paid']
-                                     ])
-                        for items in vals:
-                            data.append([items['name'],
-                                        items['qty'],
-                                        items['price']
-                                        ])
-
-
-                    si = io.StringIO()
-                    cw = csv.writer(si)
-                    cw.writerow(['Open Orders'])
-                    for item in data:
-                        cw.writerow(item)
-
-                    orders = si.getvalue()
-                    output = make_response(orders)
-                    output.headers["Content-Disposition"] = "attachment; filename=order_details.csv"
-                    output.headers["Content-type"] = "text/csv"
-                    return output
-            elif report == 'customer':
-                query = """
-                        SELECT pur_customer_uid, purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, sum(price) as Amount
-                        FROM M4ME.purchases, M4ME.payments,
-                             JSON_TABLE(items, '$[*]' COLUMNS (
-                                        qty VARCHAR(255)  PATH '$.qty',
-                                        name VARCHAR(255)  PATH '$.name',
-                                        price VARCHAR(255)  PATH '$.price',
-                                        item_uid VARCHAR(255)  PATH '$.item_uid',
-                                        itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
-                             ) AS deconstruct
-                        WHERE purchase_uid = pay_purchase_uid AND purchase_status = 'ACTIVE' AND itm_business_uid = \'""" + uid + """\'
-                        GROUP BY pur_customer_uid;
-                        """
-
-                items = execute(query, 'get', conn)
-
-                if items['code'] != 280:
-                    items['message'] = 'Check sql query'
-                    return items
-                else:
-
-                    items['message'] = 'Report data successful'
-                    items['code'] = 200
-                    result = items['result']
-                    print('result------', result)
-                    data = []
-
-                    for vals in result:
-
-                        tmp = vals
-                        print('tmp----', tmp)
-                        data.append([tmp['delivery_first_name'],
-                                     tmp['delivery_last_name'],
-                                     tmp['delivery_phone_num'],
-                                     tmp['delivery_email'],
-                                     tmp['delivery_address'],
-                                     tmp['delivery_unit'],
-                                     tmp['delivery_city'],
-                                     tmp['delivery_state'],
-                                     tmp['delivery_zip'],
-                                     tmp['Amount']
-                                     ])
-
-
-
-                    si = io.StringIO()
-                    cw = csv.writer(si)
-                    for item in data:
-                        cw.writerow(item)
-
-                    orders = si.getvalue()
-                    output = make_response(orders)
-                    output.headers["Content-Disposition"] = "attachment; filename=customer_details.csv"
-                    output.headers["Content-type"] = "text/csv"
-                    return output
-            elif report == 'pivot':
-                query = """
-                        SELECT pur_customer_uid, purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from M4ME.businesses WHERE business_uid = itm_business_uid) AS business_name
-                        FROM M4ME.purchases, M4ME.payments,
-                             JSON_TABLE(items, '$[*]' COLUMNS (
-                                        qty VARCHAR(255)  PATH '$.qty',
-                                        name VARCHAR(255)  PATH '$.name',
-                                        price VARCHAR(255)  PATH '$.price',
-                                        item_uid VARCHAR(255)  PATH '$.item_uid',
-                                        itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
-                             ) AS deconstruct
-                        WHERE purchase_uid = pay_purchase_uid AND purchase_status = 'ACTIVE' AND itm_business_uid = \'""" + uid + """\';
-                        """
-
-                items = execute(query, 'get', conn)
-
-                if items['code'] != 280:
-                    items['message'] = 'Check sql query'
-                    return items
-                else:
-
-                    items['message'] = 'Report data successful'
-                    items['code'] = 200
-                    result = items['result']
-                    itm_dict = {}
-                    for vals in result:
-                        if vals['name'] in itm_dict:
-                            itm_dict[vals['name']] += int(vals['qty'])
-                        else:
-                            itm_dict[vals['name']] = int(vals['qty'])
-                    print('ddddddd------', itm_dict)
-                    dict = {}
-                    for vals in result:
-                        if vals['pur_customer_uid'] in dict:
-                            dict[vals['pur_customer_uid']].append(vals)
-                        else:
-                            dict[vals['pur_customer_uid']] = [vals]
-
-                    print('dict----', dict)
-                    si = io.StringIO()
-                    cw = csv.DictWriter(si, ['Name', 'Email', 'Phone', 'Total'] + list(itm_dict.keys()))
-                    cw.writeheader()
-                    glob_tot = 0
-                    for key, vals in dict.items():
-                        print('VALSSS---', vals)
-                        items = {groc['name']:groc['qty'] for groc in vals}
-                        total_sum = 0
-                        for tp_key, tp_vals in items.items():
-                            total_sum += int(tp_vals)
-                        glob_tot += total_sum
-                        print('items-----------------', items)
-                        items['Name'] = vals[0]['delivery_first_name'] + vals[0]['delivery_last_name']
-                        items['Email'] = vals[0]['delivery_email']
-                        items['Phone'] = vals[0]['delivery_phone_num']
-                        items['Total'] = total_sum
-                        cw.writerow(items)
-
-                    cw.writerow({'Name': 'Total', 'Total': glob_tot, **itm_dict})
-
-                    orders = si.getvalue()
-                    output = make_response(orders)
-                    output.headers["Content-Disposition"] = "attachment; filename=pivot_table.csv"
-                    output.headers["Content-type"] = "text/csv"
-                    return output
-            else:
-                return "choose correct option"
-        except:
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
 
 
 
@@ -9590,7 +9309,7 @@ class find_next_sat (Resource):
 
 # check this
 #if one is changed to skip, add extra surprise. if skip is changed to surprise, delete newest surprise
-# delete September 1
+# delete September 1 (actually don't because mobile)
 class add_surprise (Resource):
     def post(self, p_uid):
         try:
@@ -9713,7 +9432,7 @@ class discount_percentage (Resource): #edit to take in purchase_uid
 
 # Parva Code  ----------------------------------------------------------------------------------------------------------
 
-### Code by Parva (copied in 040221)################################################################################
+### Code by Parva (copied in 040221) ################################################################################
 
 def sendAutopayEmails(email, start_delivery_date, id):
 
@@ -9724,7 +9443,7 @@ def sendAutopayEmails(email, start_delivery_date, id):
         print('message complete')
         
         msg.body =  "Hi,\n\n"\
-                    "Thank you for orderding your meals from MTYD\n"\
+                    "Thank you for ordering your meals from MTYD\n"\
                     "We want to let you know that we will be charging you for your next subscription which will start on "+start_delivery_date[:10]+".\n"\
                     "If you want to cancel this subscription please do it witihin 1 day of this email. \n\n"\
                     "Thx - MTYD Team"
@@ -9732,7 +9451,7 @@ def sendAutopayEmails(email, start_delivery_date, id):
 
         print('msg-bd----', msg.body)
         mail.send(msg)
-        return 'successfull'
+        return 'successful'
     except:
         print('error occured')
         return id
@@ -9978,7 +9697,7 @@ def createNewPurchase(id, start_delivery_date):
                 print('incorect response delete')
                 return id
         
-        return 'successfull'
+        return 'successful'
     except:
         return id
     finally:
@@ -12494,6 +12213,165 @@ class orders_and_meals(Resource):
 
 #  -- SERVING FRESH RELATED ENDPOINTS    -----------------------------------------
 
+# Checkout but for SF?
+#uses pur_business_uid 
+class purchase_Data_SF(Resource):
+    def post(self):
+            response = {}
+            items = {}
+            try:
+                conn = connect()
+                data = request.get_json(force=True)
+
+                # Purchases start here
+
+                query = "CALL M4ME.new_purchase_uid"
+                newPurchaseUID_query = execute(query, 'get', conn)
+                newPurchaseUID = newPurchaseUID_query['result'][0]['new_id']
+
+                purchase_uid = newPurchaseUID
+                purchase_date = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+                purchase_id = purchase_uid
+                purchase_status = 'ACTIVE'
+                pur_customer_uid = data['pur_customer_uid']
+                #pur_business_uid = data['pur_business_uid']
+                #items_pur = data['items']
+                items_pur = "'[" + ", ".join([str(val).replace("'", "\"") if val else "NULL" for val in data['items']]) + "]'"
+
+                order_instructions = data['order_instructions']
+                delivery_instructions = data['delivery_instructions']
+                order_type = data['order_type']
+                delivery_first_name = data['delivery_first_name']
+                delivery_last_name = data['delivery_last_name']
+                delivery_phone_num = data['delivery_phone_num']
+                delivery_email = data['delivery_email']
+                delivery_address = data['delivery_address']
+                delivery_unit = data['delivery_unit']
+                delivery_city = data['delivery_city']
+                delivery_state = data['delivery_state']
+                delivery_zip = data['delivery_zip']
+                delivery_latitude = data['delivery_latitude']
+                delivery_longitude = data['delivery_longitude']
+                purchase_notes = data['purchase_notes']
+
+                query = "SELECT * FROM M4ME.customers " \
+                        "WHERE customer_email =\'"+delivery_email+"\';"
+
+                items = execute(query, 'get', conn)
+
+                print('ITEMS--------------', items)
+
+                if not items['result']:
+                    items['code'] = 404
+                    items['message'] = "User email doesn't exists"
+                    return items
+
+                print('in insert-------')
+
+                query_insert = """ 
+                                    INSERT INTO M4ME.purchases
+                                    SET
+                                    purchase_uid = \'""" + newPurchaseUID + """\',
+                                    purchase_date = \'""" + purchase_date + """\',
+                                    purchase_id = \'""" + purchase_id + """\',
+                                    purchase_status = \'""" + purchase_status + """\',
+                                    pur_customer_uid = \'""" + pur_customer_uid + """\',
+                                    items = """ + items_pur + """,
+                                    order_instructions = \'""" + order_instructions + """\',
+                                    delivery_instructions = \'""" + delivery_instructions + """\',
+                                    order_type = \'""" + order_type + """\',
+                                    delivery_first_name = \'""" + delivery_first_name + """\',
+                                    delivery_last_name = \'""" + delivery_last_name + """\',
+                                    delivery_phone_num = \'""" + delivery_phone_num + """\',
+                                    delivery_email = \'""" + delivery_email + """\',
+                                    delivery_address = \'""" + delivery_address + """\',
+                                    delivery_unit = \'""" + delivery_unit + """\',
+                                    delivery_city = \'""" + delivery_city + """\',
+                                    delivery_state = \'""" + delivery_state + """\',
+                                    delivery_zip = \'""" + delivery_zip + """\',
+                                    delivery_latitude = \'""" + delivery_latitude + """\',
+                                    delivery_longitude = \'""" + delivery_longitude + """\',
+                                    purchase_notes = \'""" + purchase_notes + """\';
+                                """
+                items = execute(query_insert, 'post', conn)
+
+                print('execute')
+                if items['code'] == 281:
+                    items['code'] = 200
+                    items['message'] = 'Purchase info updated'
+
+                else:
+                    items['message'] = 'check sql query'
+                    items['code'] = 490
+
+
+                # Payments start here
+
+
+                query = "CALL M4ME.new_payment_uid"
+                newPaymentUID_query = execute(query, 'get', conn)
+                newPaymentUID = newPaymentUID_query['result'][0]['new_id']
+
+                payment_uid = newPaymentUID
+                payment_id = payment_uid
+                pay_purchase_uid = newPurchaseUID
+                pay_purchase_id = newPurchaseUID
+                payment_time_stamp = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+                start_delivery_date = data['start_delivery_date']
+                pay_coupon_id = data['pay_coupon_id']
+                amount_due = data['amount_due']
+                amount_discount = data['amount_discount']
+                amount_paid = data['amount_paid']
+                info_is_Addon = data['info_is_Addon']
+                cc_num = data['cc_num']
+                cc_exp_date = data['cc_exp_date']
+                cc_cvv = data['cc_cvv']
+                cc_zip = data['cc_zip']
+                charge_id = data['charge_id']
+                payment_type = data['payment_type']
+
+                query_insert = [""" 
+                                    INSERT INTO  M4ME.payments
+                                    SET
+                                    payment_uid = \'""" + payment_uid + """\',
+                                    payment_id = \'""" + payment_id + """\',
+                                    pay_purchase_uid = \'""" + pay_purchase_uid + """\',
+                                    pay_purchase_id = \'""" + pay_purchase_id + """\',
+                                    payment_time_stamp = \'""" + payment_time_stamp + """\',
+                                    start_delivery_date = \'""" + start_delivery_date + """\',
+                                    pay_coupon_id = \'""" + pay_coupon_id + """\',
+                                    amount_due = \'""" + amount_due + """\',
+                                    amount_discount = \'""" + amount_discount + """\',
+                                    amount_paid = \'""" + amount_paid + """\',
+                                    info_is_Addon = \'""" + info_is_Addon + """\',
+                                    cc_num = \'""" + cc_num + """\',
+                                    cc_exp_date = \'""" + cc_exp_date + """\',
+                                    cc_cvv = \'""" + cc_cvv + """\',
+                                    cc_zip = \'""" + cc_zip + """\',
+                                    charge_id = \'""" + charge_id + """\',
+                                    payment_type = \'""" + payment_type + """\';
+                                    
+                                """]
+
+                print(query_insert)
+                item = execute(query_insert[0], 'post', conn)
+
+                if item['code'] == 281:
+                    item['code'] = 200
+                    item['message'] = 'Payment info updated'
+                else:
+                    item['message'] = 'check sql query'
+                    item['code'] = 490
+
+                return item
+
+            except:
+                print("Error happened while inserting in purchase table")
+
+                raise BadRequest('Request failed, please try again later.')
+            finally:
+                disconnect(conn)
+
 class Orders_by_Purchase_Id_with_Pid(Resource):
     def get(self, p_id):
         response = {}
@@ -12909,6 +12787,209 @@ class Add_New_Ingredient(Resource):
         finally:
             disconnect(conn)
             
+# maybe SF only
+# possible deletion
+class report_order_customer_pivot_detail(Resource):
+
+    def get(self, report, uid):
+
+        try:
+            conn = connect()
+            if report == 'order':
+                query = """
+                        SELECT purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from M4ME.businesses WHERE business_uid = itm_business_uid) AS business_name
+                        FROM M4ME.purchases, M4ME.payments,
+                             JSON_TABLE(items, '$[*]' COLUMNS (
+                                        qty VARCHAR(255)  PATH '$.qty',
+                                        name VARCHAR(255)  PATH '$.name',
+                                        price VARCHAR(255)  PATH '$.price',
+                                        item_uid VARCHAR(255)  PATH '$.item_uid',
+                                        itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
+                             ) AS deconstruct
+                        WHERE purchase_uid = pay_purchase_uid AND purchase_status = 'ACTIVE' AND itm_business_uid = \'""" + uid + """\';
+                        """
+
+                items = execute(query, 'get', conn)
+
+                if items['code'] != 280:
+                    items['message'] = 'Check sql query'
+                    return items
+                else:
+
+                    items['message'] = 'Report data successful'
+                    items['code'] = 200
+                    result = items['result']
+                    dict = {}
+                    for vals in result:
+                        if vals['purchase_uid'] in dict:
+                            dict[vals['purchase_uid']].append(vals)
+                        else:
+                            dict[vals['purchase_uid']] = [vals]
+
+                    data = []
+
+                    for key, vals in dict.items():
+
+                        tmp = vals[0]
+                        print('tmp----', tmp)
+                        data.append([tmp['purchase_date'],
+                                     tmp['delivery_first_name'],
+                                     tmp['delivery_last_name'],
+                                     tmp['delivery_phone_num'],
+                                     tmp['delivery_email'],
+                                     tmp['delivery_address'],
+                                     tmp['delivery_unit'],
+                                     tmp['delivery_city'],
+                                     tmp['delivery_state'],
+                                     tmp['delivery_zip'],
+                                     tmp['amount_paid']
+                                     ])
+                        for items in vals:
+                            data.append([items['name'],
+                                        items['qty'],
+                                        items['price']
+                                        ])
+
+
+                    si = io.StringIO()
+                    cw = csv.writer(si)
+                    cw.writerow(['Open Orders'])
+                    for item in data:
+                        cw.writerow(item)
+
+                    orders = si.getvalue()
+                    output = make_response(orders)
+                    output.headers["Content-Disposition"] = "attachment; filename=order_details.csv"
+                    output.headers["Content-type"] = "text/csv"
+                    return output
+            elif report == 'customer':
+                query = """
+                        SELECT pur_customer_uid, purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, sum(price) as Amount
+                        FROM M4ME.purchases, M4ME.payments,
+                             JSON_TABLE(items, '$[*]' COLUMNS (
+                                        qty VARCHAR(255)  PATH '$.qty',
+                                        name VARCHAR(255)  PATH '$.name',
+                                        price VARCHAR(255)  PATH '$.price',
+                                        item_uid VARCHAR(255)  PATH '$.item_uid',
+                                        itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
+                             ) AS deconstruct
+                        WHERE purchase_uid = pay_purchase_uid AND purchase_status = 'ACTIVE' AND itm_business_uid = \'""" + uid + """\'
+                        GROUP BY pur_customer_uid;
+                        """
+
+                items = execute(query, 'get', conn)
+
+                if items['code'] != 280:
+                    items['message'] = 'Check sql query'
+                    return items
+                else:
+
+                    items['message'] = 'Report data successful'
+                    items['code'] = 200
+                    result = items['result']
+                    print('result------', result)
+                    data = []
+
+                    for vals in result:
+
+                        tmp = vals
+                        print('tmp----', tmp)
+                        data.append([tmp['delivery_first_name'],
+                                     tmp['delivery_last_name'],
+                                     tmp['delivery_phone_num'],
+                                     tmp['delivery_email'],
+                                     tmp['delivery_address'],
+                                     tmp['delivery_unit'],
+                                     tmp['delivery_city'],
+                                     tmp['delivery_state'],
+                                     tmp['delivery_zip'],
+                                     tmp['Amount']
+                                     ])
+
+
+
+                    si = io.StringIO()
+                    cw = csv.writer(si)
+                    for item in data:
+                        cw.writerow(item)
+
+                    orders = si.getvalue()
+                    output = make_response(orders)
+                    output.headers["Content-Disposition"] = "attachment; filename=customer_details.csv"
+                    output.headers["Content-type"] = "text/csv"
+                    return output
+            elif report == 'pivot':
+                query = """
+                        SELECT pur_customer_uid, purchase_uid, purchase_date, delivery_first_name, delivery_last_name, delivery_phone_num, delivery_email, delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, deconstruct.*, amount_paid, (SELECT business_name from M4ME.businesses WHERE business_uid = itm_business_uid) AS business_name
+                        FROM M4ME.purchases, M4ME.payments,
+                             JSON_TABLE(items, '$[*]' COLUMNS (
+                                        qty VARCHAR(255)  PATH '$.qty',
+                                        name VARCHAR(255)  PATH '$.name',
+                                        price VARCHAR(255)  PATH '$.price',
+                                        item_uid VARCHAR(255)  PATH '$.item_uid',
+                                        itm_business_uid VARCHAR(255) PATH '$.itm_business_uid')
+                             ) AS deconstruct
+                        WHERE purchase_uid = pay_purchase_uid AND purchase_status = 'ACTIVE' AND itm_business_uid = \'""" + uid + """\';
+                        """
+
+                items = execute(query, 'get', conn)
+
+                if items['code'] != 280:
+                    items['message'] = 'Check sql query'
+                    return items
+                else:
+
+                    items['message'] = 'Report data successful'
+                    items['code'] = 200
+                    result = items['result']
+                    itm_dict = {}
+                    for vals in result:
+                        if vals['name'] in itm_dict:
+                            itm_dict[vals['name']] += int(vals['qty'])
+                        else:
+                            itm_dict[vals['name']] = int(vals['qty'])
+                    print('ddddddd------', itm_dict)
+                    dict = {}
+                    for vals in result:
+                        if vals['pur_customer_uid'] in dict:
+                            dict[vals['pur_customer_uid']].append(vals)
+                        else:
+                            dict[vals['pur_customer_uid']] = [vals]
+
+                    print('dict----', dict)
+                    si = io.StringIO()
+                    cw = csv.DictWriter(si, ['Name', 'Email', 'Phone', 'Total'] + list(itm_dict.keys()))
+                    cw.writeheader()
+                    glob_tot = 0
+                    for key, vals in dict.items():
+                        print('VALSSS---', vals)
+                        items = {groc['name']:groc['qty'] for groc in vals}
+                        total_sum = 0
+                        for tp_key, tp_vals in items.items():
+                            total_sum += int(tp_vals)
+                        glob_tot += total_sum
+                        print('items-----------------', items)
+                        items['Name'] = vals[0]['delivery_first_name'] + vals[0]['delivery_last_name']
+                        items['Email'] = vals[0]['delivery_email']
+                        items['Phone'] = vals[0]['delivery_phone_num']
+                        items['Total'] = total_sum
+                        cw.writerow(items)
+
+                    cw.writerow({'Name': 'Total', 'Total': glob_tot, **itm_dict})
+
+                    orders = si.getvalue()
+                    output = make_response(orders)
+                    output.headers["Content-Disposition"] = "attachment; filename=pivot_table.csv"
+                    output.headers["Content-type"] = "text/csv"
+                    return output
+            else:
+                return "choose correct option"
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
 
 # Define API routes
 # Customer APIs
@@ -12984,10 +13065,13 @@ api.add_resource(AccountSalt, '/api/v2/accountsalt')
 #  * The "accountsalt" endpoint accepts only GET request with one required param. #
 #  It will return the information of password hashed and password salt for an     #
 # associated email account.
-api.add_resource(Checkout, '/api/v2/checkout')
+
+# api.add_resource(Checkout, '/api/v2/checkout')
 #  * The "checkout" accepts POST request with appropriate parameters. Please read#
 # the documentation for these parameters and its formats.                        #
-api.add_resource(Checkout2, '/api/v2/checkout2')
+# api.add_resource(Checkout2, '/api/v2/checkout2')
+api.add_resource(Checkout2, '/api/v2/checkout')
+
 ##################################################################################
 api.add_resource(Meals_Selection, '/api/v2/meals_selection')
 #  * The "Meals_Selection" accepts POST request with appropriate parameters      #
@@ -13128,8 +13212,9 @@ api.add_resource(purchase_Data_SF, '/api/v2/purchase_Data_SF') # seems to be the
 
 # api.add_resource(addItems, '/api/v2/addItems/<string:action>') #check if theres something similar
 
-api.add_resource(business_details_update, '/api/v2/business_details_update/<string:action>')
-api.add_resource(business_details_update_brandon, '/api/v2/business_details_update_brandon/<string:action>')
+# api.add_resource(business_details_update, '/api/v2/business_details_update/<string:action>')
+# api.add_resource(business_details_update_brandon, '/api/v2/business_details_update_brandon/<string:action>')
+api.add_resource(business_details_update_brandon, '/api/v2/business_details_update/<string:action>')
 
 #needs to be checked
 api.add_resource(orders_by_business, '/api/v2/orders_by_business')# fixed
@@ -13158,8 +13243,9 @@ api.add_resource(deleteAccount, '/api/v2/deleteAccount')
 
 api.add_resource(email_verification, '/api/v2/email_verification')
 
-api.add_resource(all_businesses, '/api/v2/all_businesses')
-api.add_resource(all_businesses_brandon, '/api/v2/all_businesses_brandon')
+# api.add_resource(all_businesses, '/api/v2/all_businesses')
+# api.add_resource(all_businesses_brandon, '/api/v2/all_businesses_brandon')
+api.add_resource(all_businesses_brandon, '/api/v2/all_businesses')
 
 api.add_resource(pid_history, '/api/v2/pid_history/<string:pid>')
 
@@ -13263,9 +13349,9 @@ api.add_resource(stripe_key, '/api/v2/stripe_key/<string:desc>')
 
 api.add_resource(createAccount2, '/api/v2/createAccount2')
 
-api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
-
-api.add_resource(brandAmbassador2, '/api/v2/brandAmbassador2/<string:action>')
+# api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
+# api.add_resource(brandAmbassador2, '/api/v2/brandAmbassador2/<string:action>')
+api.add_resource(brandAmbassador2, '/api/v2/brandAmbassador/<string:action>')
 
 api.add_resource(orders_by_customers, '/api/v2/orders_by_customers')
 
