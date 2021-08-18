@@ -5103,7 +5103,7 @@ class Meals (Resource):
         finally:
             disconnect(conn)
 
-
+# 5106
 class create_update_meals(Resource):
     def post(self):
         lists={}
@@ -5268,19 +5268,19 @@ class create_update_meals(Resource):
             # meal_photo = helper_upload_meal_img(meal_photo_url, key)
             valid_photo = True
             try: 
-                print("(create_update_meals) meal photo try 1")
+                # print("(create_update_meals) meal photo try 1")
                 meal_photo = helper_upload_meal_img(meal_photo_url, key)
-                print("(create_update_meals) meal photo try 2")
+                # print("(create_update_meals) meal photo try 2")
             except: 
-                print("(create_update_meals) meal photo except 1")
+                # print("(create_update_meals) meal photo except 1")
                 valid_photo = False
-                get_all_s3_keys('mtyd')
-                print("(create_update_meals) meal photo except 2")
+                # get_all_s3_keys('mtyd')
+            #     print("(create_update_meals) meal photo except 2")
 
-            print("2")
-            print(meal_uid)
-            print(meal_notes)
-            print("(create_update_meals -- PUT) query 1")
+            # print("2")
+            # print(meal_uid)
+            # print(meal_notes)
+            # print("(create_update_meals -- PUT) query 1")
             query = """
                 UPDATE 
                     meals
@@ -5300,9 +5300,9 @@ class create_update_meals(Resource):
                 WHERE 
                     meal_uid = '""" + meal_uid + """';
             """
-            print("(create_update_meals -- PUT) query 2")
+            # print("(create_update_meals -- PUT) query 2")
             if valid_photo == True:
-                print("(create_update_meals) valid photo false")
+                # print("(create_update_meals) valid photo false")
                 query = """
                     UPDATE 
                         meals
@@ -6073,7 +6073,7 @@ class Edit_Meal(Resource):
 
 
 class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECATED
-    print("Meal Creation Endpoint")
+    print("Meal Creation Endpoint (why is this running automatically??)")
     def listIngredients(self, result):
         response = {}
         print("1")
@@ -8310,6 +8310,201 @@ class business_details_update_brandon(Resource):
                 disconnect(conn)
                 print('process completed')
 
+# 8313 -- updated to take in form/file data instead of JSON data
+class business_details_update_brandon_v2(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            business_uid = request.args['business_uid']
+
+            query = """
+                SELECT 
+                    business_uid, 
+                    business_name,
+                    business_type,
+                    business_desc,
+                    business_contact_first_name,
+                    business_contact_last_name,
+                    business_phone_num,
+                    business_phone_num2,
+                    business_email,
+                    business_accepting_hours,
+                    business_address,
+                    business_unit,
+                    business_city,
+                    business_state,
+                    business_zip,
+                    can_cancel,
+                    delivery,
+                    reusable,
+                    business_image,
+                    platform_fee,
+                    transaction_fee,
+                    revenue_sharing,
+                    profit_sharing,
+                    business_status,
+                    business_facebook_url,
+                    business_instagram_url,
+                    business_twitter_url,
+                    business_website_url
+                FROM 
+                    M4ME.businesses
+                WHERE 
+                    business_uid = \'""" + business_uid + """\';
+            """
+            item = execute(query, 'get', conn)
+            if item['code'] == 280:
+                if not item['result']:
+                    item['message'] = 'No such business uid exists'
+                else:
+                    item['message'] = 'Business table loaded successfully'
+                item['code'] = 200
+            else:
+                item['message'] = 'check sql query'
+                item['code'] = 490
+            return item
+
+        except:
+            print("Error happened while outputting from business table")
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
+
+    def post(self):
+        try:
+            conn = connect()
+
+            # get form/file data
+            business_name = request.form.get('business_name') if request.form.get('business_name') is not None else 'NULL'
+            business_type = request.form.get('business_type') if request.form.get('business_type') is not None else 'NULL'
+            business_desc = request.form.get('business_desc') if request.form.get('business_desc') is not None else 'NULL'
+            business_contact_first_name = request.form.get('business_contact_first_name') if request.form.get('business_contact_first_name') is not None else 'NULL'
+            business_contact_last_name = request.form.get('business_contact_last_name') if request.form.get('business_contact_last_name') is not None else 'NULL'
+            business_phone_num = request.form.get('business_phone_num') if request.form.get('business_phone_num') is not None else 'NULL'
+            business_phone_num2 = request.form.get('business_phone_num2') if request.form.get('business_phone_num2') is not None else 'NULL'
+            business_email = request.form.get('business_email') if request.form.get('business_email') is not None else 'NULL'
+            business_accepting_hours = request.form.get('business_accepting_hours') if request.form.get('business_accepting_hours') is not None else 'NULL'
+            business_address = request.form.get('business_address') if request.form.get('business_address') is not None else 'NULL'
+            business_unit = request.form.get('business_unit') if request.form.get('business_unit') is not None else 'NULL'
+            business_city = request.form.get('business_city') if request.form.get('business_city') is not None else 'NULL'
+            business_state = request.form.get('business_state') if request.form.get('business_state') is not None else 'NULL'
+            business_zip = request.form.get('business_zip') if request.form.get('business_zip') is not None else 'NULL'
+            can_cancel = request.form.get('can_cancel') if request.form.get('can_cancel') is not None else 'NULL'
+            delivery = request.form.get('delivery') if request.form.get('delivery') is not None else 'NULL'
+            reusable = request.form.get('reusable') if request.form.get('reusable') is not None else 'NULL'
+
+            business_image_url = request.files.get('business_image') if request.files.get('business_image') is not None else 'NULL'
+
+            business_facebook_url = request.form.get('business_facebook_url') if request.form.get('business_facebook_url') is not None else 'NULL'
+            business_instagram_url = request.form.get('business_instagram_url') if request.form.get('business_instagram_url') is not None else 'NULL'
+            business_twitter_url = request.form.get('business_twitter_url') if request.form.get('business_twitter_url') is not None else 'NULL'
+            business_website_url = request.form.get('business_website_url') if request.form.get('business_website_url') is not None else 'NULL'
+
+            business_uid = request.form.get('business_uid') 
+
+            TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            key =  "items/" + str(business_uid) + "_" + TimeStamp_test
+
+            valid_photo = True
+            try: 
+                print("(bdubv2) try 1")
+                business_image = helper_upload_meal_img(business_image_url, key)
+                print("(bdubv2) try 2")
+            except: 
+                print("(bdubv2) except 1")
+                valid_photo = False
+                print("(bdubv2) except 2")
+
+            print("(bdub) -2")
+
+            business_accepting_hours = str(business_accepting_hours)
+
+            print("(bdub) -1")
+
+            business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
+
+            print("(bdub) 0")
+
+
+            query = """
+                UPDATE 
+                    M4ME.businesses
+                SET 
+                    business_name = \'""" + business_name + """\',
+                    business_type = \'""" + business_type + """\',
+                    business_desc = \'""" + business_desc + """\',
+                    business_contact_first_name = \'""" + business_contact_first_name + """\',
+                    business_contact_last_name = \'""" + business_contact_last_name + """\',
+                    business_phone_num = \'""" + business_phone_num + """\',
+                    business_phone_num2 = \'""" + business_phone_num2 + """\',
+                    business_email = \'""" + business_email + """\',
+                    business_accepting_hours = """ + business_accepting_hours + """,
+                    business_address = \'""" + business_address + """\',
+                    business_unit = \'""" + business_unit + """\',
+                    business_city = \'""" + business_city + """\',
+                    business_state = \'""" + business_state + """\',
+                    business_zip = \'""" + business_zip + """\',
+                    can_cancel = \'""" + can_cancel + """\',
+                    delivery = \'""" + delivery + """\',
+                    reusable = \'""" + reusable + """\',
+                    business_facebook_url = \'""" + business_facebook_url + """\',
+                    business_instagram_url = \'""" + business_instagram_url + """\',
+                    business_twitter_url = \'""" + business_twitter_url + """\',
+                    business_website_url = \'""" + business_website_url + """\'
+                WHERE 
+                    business_uid = \'""" + business_uid + """\' ;
+            """
+            if valid_photo == True:
+                query = """
+                    UPDATE 
+                        M4ME.businesses
+                    SET 
+                        business_name = \'""" + business_name + """\',
+                        business_type = \'""" + business_type + """\',
+                        business_desc = \'""" + business_desc + """\',
+                        business_contact_first_name = \'""" + business_contact_first_name + """\',
+                        business_contact_last_name = \'""" + business_contact_last_name + """\',
+                        business_phone_num = \'""" + business_phone_num + """\',
+                        business_phone_num2 = \'""" + business_phone_num2 + """\',
+                        business_email = \'""" + business_email + """\',
+                        business_accepting_hours = """ + business_accepting_hours + """,
+                        business_address = \'""" + business_address + """\',
+                        business_unit = \'""" + business_unit + """\',
+                        business_city = \'""" + business_city + """\',
+                        business_state = \'""" + business_state + """\',
+                        business_zip = \'""" + business_zip + """\',
+                        can_cancel = \'""" + can_cancel + """\',
+                        delivery = \'""" + delivery + """\',
+                        reusable = \'""" + reusable + """\',
+                        business_image = \'""" + business_image + """\',
+                        business_facebook_url = \'""" + business_facebook_url + """\',
+                        business_instagram_url = \'""" + business_instagram_url + """\',
+                        business_twitter_url = \'""" + business_twitter_url + """\',
+                        business_website_url = \'""" + business_website_url + """\'
+                    WHERE 
+                        business_uid = \'""" + business_uid + """\' ;
+                """
+
+            print("(bdub) 1")
+            print(query)
+            item = execute(query, 'post', conn)
+            print("(bdub) 2")
+            print(item)
+            if item['code'] == 281:
+                item['code'] = 200
+                item['message'] = 'Business info updated'
+            else:
+                item['message'] = 'check sql query'
+                item['code'] = 490
+            return item
+
+        except:
+            print("Error happened while outputting from business table")
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+            print('process completed')
 
 class orders_by_business(Resource): #need to fix
 
@@ -10322,7 +10517,7 @@ def renew_subscription():
     # print("Entering CRON Job section")
 
     try:
-        print("CRON Job running")
+        print("CRON Job running 1")
 
         conn = connect()
         query = """
@@ -10476,12 +10671,178 @@ def renew_subscription():
     finally:
         print('done')
 
+# def calculate_billing ():
+    # try:
+
+# CRON JOB
+def renew_subscription_test():
+    # print("Entering CRON Job section")
+
+    try:
+        print("CRON Job running 2")
+
+        conn = connect()
+        query = """
+                SELECT *
+                FROM M4ME.next_billing_date 
+                WHERE next_billing_date < now()
+                    AND purchase_status = "ACTIVE"
+                    AND purchase_uid = "400-000002"
+                    -- AND pur_customer_uid != "100-000119";
+                """
+        renew = execute(query, 'get', conn)
+        print(datetime.now())
+        print("Next Billing Date: ", renew)
+        print("\nNumber of records: ", len(renew['result']))
+
+        for subscriptions in renew['result']:
+            print("\nSubscription Record: ", subscriptions)
+            # print("\n", subscriptions['purchase_uid'])
+            # print("\n", subscriptions['items'])
+
+            # STEP 1: WHAT THEY HAD
+            print("\nSTEP 1: What they had:")
+            pur_uid = subscriptions['purchase_uid']
+            pur_id  = subscriptions['purchase_id']
+            pay_uid = subscriptions['payment_uid']
+            pay_id  = subscriptions['payment_id']
+            print("  Existing purchase ids : ", pur_uid, pur_id)
+            print("  Existing payment ids  : ", pay_uid, pay_id)
+
+            items = json.loads(subscriptions['items'])
+            print(items, type(items))
+            item_uid = items[0]["item_uid"]
+            num_deliveries = items[0]["qty"]
+            print("  JSON item_uid : ", item_uid)
+            print("  JSON qty      : ", num_deliveries)
+
+            # STEP 2: CALCULATE THE NEW RENEWAL CHARGE
+            print("\nSTEP 2B: Inside Calculate New Charge")
+            new_charge = calculator().billing(item_uid, num_deliveries)
+            # print("Returned JSON Object: \n", new_charge)
+            
+            item_price = new_charge['result'][0]['item_price']
+            num_deliveries = new_charge['result'][0]['num_deliveries']
+            new_meal_charge = float(item_price) * int(num_deliveries)
+            new_discount_percent = new_charge['result'][0]['delivery_discount']
+            new_discount = round(new_meal_charge * new_discount_percent/100,2)
+            new_service_fee = float(subscriptions["service_fee"])
+            new_delivery_fee = float(subscriptions["delivery_fee"])
+            new_driver_tip = float(subscriptions["driver_tip"])
+            new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
+            new_ambassador = float(subscriptions["ambassador_code"])
+            amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
+
+            print("\nAmount for new Plan: ", item_price)
+            print("Number of Deliveries: ", num_deliveries)
+            print("Delivery Discount: ", new_discount)
+            
+            print("\nNew Meal Charge: ", new_meal_charge, type(new_meal_charge))
+            print("New Discount %: ", new_discount_percent, type(new_discount_percent))
+            print("Actual Discount: ", new_discount, type(new_discount))
+            print("Service Fee: ", new_service_fee, type(new_service_fee))
+            print("Delivery Fee: ", new_delivery_fee, type(new_delivery_fee))
+            print("Driver Tip: ", new_driver_tip, type(new_driver_tip))
+            print("Actual Tax: ", new_tax, type(new_tax))
+            print("Ambassador Discount: ", new_ambassador, type(new_ambassador))
+            print("New Charge: ", amount_should_charge, type(amount_should_charge))
+
+            print("before continue")
+            continue
+            print("after continue")
+
+            # STEP 3: CHARGE STRIPE
+            print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
+                # GET STRIPE KEY
+            delivery_instructions = subscriptions['delivery_instructions']
+            stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+            print("Stripe Key: ", stripe.api_key)
+            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+                # CHARGE STRIPE
+            print("Stripe Transaction Inputs: ", subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], amount_should_charge)
+            charge_id = stripe_transaction().purchase(subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], -1 * amount_should_charge)
+            print("Return from Stripe Charge Transaction: ", charge_id)           
+            
+            # STEP 4: WRITE TO DATABASE
+            print("STEP 4:  WRITE TO DATABASE")
+
+            # CHECK IF VALID CHARGE ID WAS RETURNED
+            if 'ch_' in str(charge_id):
+
+                # PART 1: INSERT NEW ROW WITH NEW CHARGE AMOUNT AND CHARGE ID BUT EXISTING PURCHASE IDS
+                new_pay_id = get_new_paymentID(conn)
+                print(new_pay_id)
+                print(str(getNow()))
+
+                # FIND NEXT START DATE FOR CHANGED PLAN
+                date_query = '''
+                            SELECT DISTINCT menu_date FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1
+                            '''
+                response = simple_get_execute(date_query, "Next Delivery Date", conn)
+                start_delivery_date = response[0]['result'][0]['menu_date']
+                print("start_delivery_date: ", start_delivery_date)
+            
+                # UPDATE PAYMENT TABLE
+                query = """
+                        INSERT INTO M4ME.payments
+                        SET payment_uid = '""" + new_pay_id + """',
+                            payment_id = '""" + new_pay_id + """',
+                            pay_purchase_uid = '""" + pur_uid + """',
+                            pay_purchase_id = '""" + pur_id + """',
+                            payment_time_stamp =  '""" + str(getNow()) + """',
+                            subtotal = '""" + str(new_meal_charge) + """',
+                            amount_discount = '""" + str(new_discount) + """',
+                            service_fee = '""" + str(new_service_fee) + """',
+                            delivery_fee = '""" + str(new_delivery_fee) + """',
+                            driver_tip = '""" + str(new_driver_tip) + """',
+                            taxes = '""" + str(new_tax) + """',
+                            amount_due = '""" + str(amount_should_charge) + """',
+                            amount_paid = '""" + str(- amount_should_charge) + """',
+                            cc_num = '""" + str(subscriptions['cc_num']) + """',
+                            cc_exp_date = '""" + str(subscriptions['cc_exp_date']) + """',
+                            cc_cvv = '""" + str(subscriptions['cc_cvv']) + """',
+                            cc_zip = '""" + str(subscriptions['cc_zip']) + """',
+                            ambassador_code = '""" + str(new_ambassador) + """',
+                            charge_id = '""" + str(charge_id) + """',
+                            start_delivery_date =  '""" + str(start_delivery_date) + """';
+                        """        
+                        
+                                
+                response = execute(query, 'post', conn)
+                print("Payments Update db response: ", response)
+                
+                if response['code'] != 281:
+                    return {"message": "Payment Insert Error"}, 500
+            
+            # else:
+            #     continue
+
+            # PART 2: CHANGE EXISTING SUBSCRIPTION TO RENEWED - NOT SURE WE NEED TO DO THIS
+            # UPDATE PURCHASE TABLE
+                # query = """
+                #         UPDATE M4ME.purchases
+                #         SET purchase_status = "RENEWED"
+                #         where purchase_uid = '""" + pur_uid + """';
+                #         """
+                # update_response = execute(query, 'post', conn)
+                # print("Purchases Update db response: ", update_response)
+                # if update_response['code'] != 281:
+                #     return {"message": "Purchase Insert Error"}, 500
+
+    except:
+        print('error')
+        return 'error occured'
+    finally:
+        print('done')
 
 def charge_addons():
     # print("Entering CRON Job section")
 
     try:
-        print("CRON Job running")
+        print("CRON Job running 3")
         conn = connect()
         query = """
                 SELECT billable_addons.*,
@@ -13216,6 +13577,8 @@ api.add_resource(purchase_Data_SF, '/api/v2/purchase_Data_SF') # seems to be the
 # api.add_resource(business_details_update_brandon, '/api/v2/business_details_update_brandon/<string:action>')
 api.add_resource(business_details_update_brandon, '/api/v2/business_details_update/<string:action>')
 
+api.add_resource(business_details_update_brandon_v2, '/api/v2/business_details')
+
 #needs to be checked
 api.add_resource(orders_by_business, '/api/v2/orders_by_business')# fixed
 
@@ -13424,6 +13787,13 @@ api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
 if __name__ == '__main__':
+    # print("\n")
+    # print("==========| renew_subscription_test |==========")
+    # renew_subscription_test()
+    # print("\n")
+    # print("==========| calculator().billing    |==========")
+    # print("billing (4m, 3d): ", calculator().billing('320-000054','3'))
+    # print("\n")
     app.run(host='127.0.0.1', port=2000)
     #app.run(host='0.0.0.0', port=2000)
 
