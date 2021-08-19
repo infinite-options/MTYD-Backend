@@ -2699,7 +2699,8 @@ class Checkout2(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("(checkout) json data: ", data)
+            # print("(checkout) json data: ", data)
+            print("(checkout2) 1")
 
             customer_uid = data['customer_uid']
             business_uid = data['business_uid'] if data.get('business_uid') is not None else 'NULL'
@@ -2718,17 +2719,28 @@ class Checkout2(Resource):
             delivery_longitude = data['delivery_longitude']
             delivery_latitude = data['delivery_latitude']
             # print("Item Info")
+
+            print("(checkout2) 2")
+
             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
             order_instructions = "'" + data['order_instructions'] + "'" if data.get('order_instructions') is not None else 'NULL'
             purchase_notes = "'" + data['purchase_notes'] + "'" if data.get('purchase_notes') is not None else 'NULL'
             # print("Payment Info")
+
+            print("(checkout2) 2.1")
+            
             amount_due = data['amount_due']
             amount_discount = data['amount_discount']
             amount_paid = data['amount_paid']
+
+            print("(checkout2) 2.2")
+
             amb_code = data['ambassador_code']
             # print("amount due: ", amount_due)
             # print("amount paid: ", amount_paid)
             # print("amount discount: ", amount_discount)
+
+            print("(checkout2) 3")
 
             # print("Credit Card Info")
             cc_num = data['cc_num']
@@ -2741,6 +2753,8 @@ class Checkout2(Resource):
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
 
+            print("(checkout2) 4")
+
             charge_id = data['charge_id']
             payment_type = data['payment_type']
             amb = data['amb'] if data.get('amb') is not None else '0'
@@ -2750,6 +2764,8 @@ class Checkout2(Resource):
             delivery_fee = data['delivery_fee']
             subtotal = data['subtotal']
 
+            print("(checkout2) 5")
+
 
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
 
@@ -2758,6 +2774,8 @@ class Checkout2(Resource):
             # must pass these check first
             if items == "'[]'":
                 raise BadRequest()
+
+            print("(checkout2) 6")
             
             purchaseId = get_new_purchaseID(conn)
             # print(purchaseId)
@@ -5108,7 +5126,7 @@ class create_update_meals(Resource):
     def post(self):
         lists={}
         items = {}
-        # print("\nInside create_update_meals")
+        print("\nInside create_update_meals")
         try:
             conn = connect()
             # data = request.get_json(force=True)
@@ -5156,14 +5174,14 @@ class create_update_meals(Resource):
 
             valid_photo = True
             try: 
-                # print("(create_update_meals) meal photo try 1")
+                # print("(create_update_meals -- POST) meal photo try 1")
                 meal_photo = helper_upload_meal_img(meal_photo_url, key)
-                # print("(create_update_meals) meal photo try 2")
+                # print("(create_update_meals -- POST) meal photo try 2")
             except: 
-                # print("(create_update_meals) meal photo except 1")
+                # print("(create_update_meals -- POST) meal photo except 1")
                 valid_photo = False
                 # get_all_s3_keys('mtyd')
-                # print("(create_update_meals) meal photo except 2")
+                # print("(create_update_meals -- POST) meal photo except 2")
 
             # print("(create_update_meals) 3")
             # print("(create_update_meals) meal_uid: ", meal_uid)
@@ -5242,6 +5260,8 @@ class create_update_meals(Resource):
             conn = connect()
             # data = request.get_json(force=True)
 
+            print("(create_update_meal -- PUT) 1")
+
             meal_category = request.form.get('meal_category')
             meal_name = request.form.get('meal_name') if request.form.get('meal_name') is not None else 'NULL'
             meal_desc = request.form.get('meal_desc') if request.form.get('meal_desc') is not None else 'NULL'
@@ -5264,6 +5284,8 @@ class create_update_meals(Resource):
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
             print(key)
+
+            print("(create_update_meal -- PUT) 2")
             
             # meal_photo = helper_upload_meal_img(meal_photo_url, key)
             valid_photo = True
@@ -8390,12 +8412,29 @@ class business_details_update_brandon_v2(Resource):
             business_city = request.form.get('business_city') if request.form.get('business_city') is not None else 'NULL'
             business_state = request.form.get('business_state') if request.form.get('business_state') is not None else 'NULL'
             business_zip = request.form.get('business_zip') if request.form.get('business_zip') is not None else 'NULL'
+
+            # --can_cancel,
+            # --delivery,
+            # --reusable,
+            # --business_image,
+            # platform_fee,
+            # transaction_fee,
+            # revenue_sharing,
+            # profit_sharing,
+            # business_status,
+
             can_cancel = request.form.get('can_cancel') if request.form.get('can_cancel') is not None else 'NULL'
             delivery = request.form.get('delivery') if request.form.get('delivery') is not None else 'NULL'
             reusable = request.form.get('reusable') if request.form.get('reusable') is not None else 'NULL'
 
             business_image_url = request.files.get('business_image') if request.files.get('business_image') is not None else 'NULL'
 
+            # platform_fee = request.form.get('platform_fee') if request.form.get('platform_fee') is not None else 'NULL',
+            # transaction_fee = request.form.get('transaction_fee') if request.form.get('transaction_fee') is not None else 'NULL',
+            # revenue_sharing = request.form.get('revenue_sharing') if request.form.get('revenue_sharing') is not None else 'NULL',
+            # profit_sharing = request.form.get('profit_sharing') if request.form.get('profit_sharing') is not None else 'NULL',
+            # business_status = request.form.get('business_status') if request.form.get('business_status') is not None else 'NULL',
+            business_status = request.form.get('business_status') if request.form.get('business_status') is not None else 'NULL'
             business_facebook_url = request.form.get('business_facebook_url') if request.form.get('business_facebook_url') is not None else 'NULL'
             business_instagram_url = request.form.get('business_instagram_url') if request.form.get('business_instagram_url') is not None else 'NULL'
             business_twitter_url = request.form.get('business_twitter_url') if request.form.get('business_twitter_url') is not None else 'NULL'
@@ -8427,6 +8466,39 @@ class business_details_update_brandon_v2(Resource):
             print("(bdub) 0")
 
 
+            # query = """
+            #     UPDATE 
+            #         M4ME.businesses
+            #     SET 
+            #         business_name = \'""" + business_name + """\',
+            #         business_type = \'""" + business_type + """\',
+            #         business_desc = \'""" + business_desc + """\',
+            #         business_contact_first_name = \'""" + business_contact_first_name + """\',
+            #         business_contact_last_name = \'""" + business_contact_last_name + """\',
+            #         business_phone_num = \'""" + business_phone_num + """\',
+            #         business_phone_num2 = \'""" + business_phone_num2 + """\',
+            #         business_email = \'""" + business_email + """\',
+            #         business_accepting_hours = """ + business_accepting_hours + """,
+            #         business_address = \'""" + business_address + """\',
+            #         business_unit = \'""" + business_unit + """\',
+            #         business_city = \'""" + business_city + """\',
+            #         business_state = \'""" + business_state + """\',
+            #         business_zip = \'""" + business_zip + """\',
+            #         can_cancel = \'""" + can_cancel + """\',
+            #         delivery = \'""" + delivery + """\',
+            #         reusable = \'""" + reusable + """\',
+            #         business_status = \'""" + business_status + """\',
+            #         business_facebook_url = \'""" + business_facebook_url + """\',
+            #         business_instagram_url = \'""" + business_instagram_url + """\',
+            #         business_twitter_url = \'""" + business_twitter_url + """\',
+            #         business_website_url = \'""" + business_website_url + """\'
+            #     WHERE 
+            #         business_uid = \'""" + business_uid + """\' ;
+            # """
+            print("request.form: ", request.form)
+            print("business_name: ", business_name)
+            print("business_email: ", business_email)
+            print("business_status: ", business_status)
             query = """
                 UPDATE 
                     M4ME.businesses
@@ -8448,6 +8520,7 @@ class business_details_update_brandon_v2(Resource):
                     can_cancel = \'""" + can_cancel + """\',
                     delivery = \'""" + delivery + """\',
                     reusable = \'""" + reusable + """\',
+                    business_status = \'""" + business_status + """\',
                     business_facebook_url = \'""" + business_facebook_url + """\',
                     business_instagram_url = \'""" + business_instagram_url + """\',
                     business_twitter_url = \'""" + business_twitter_url + """\',
@@ -8455,7 +8528,9 @@ class business_details_update_brandon_v2(Resource):
                 WHERE 
                     business_uid = \'""" + business_uid + """\' ;
             """
+            print("(bdub) 0.1")
             if valid_photo == True:
+                print("(bdub) 0.2")
                 query = """
                     UPDATE 
                         M4ME.businesses
@@ -8478,6 +8553,7 @@ class business_details_update_brandon_v2(Resource):
                         delivery = \'""" + delivery + """\',
                         reusable = \'""" + reusable + """\',
                         business_image = \'""" + business_image + """\',
+                        business_status = \'""" + business_status + """\',
                         business_facebook_url = \'""" + business_facebook_url + """\',
                         business_instagram_url = \'""" + business_instagram_url + """\',
                         business_twitter_url = \'""" + business_twitter_url + """\',
@@ -8485,6 +8561,7 @@ class business_details_update_brandon_v2(Resource):
                     WHERE 
                         business_uid = \'""" + business_uid + """\' ;
                 """
+                print("(bdub) 0.3")
 
             print("(bdub) 1")
             print(query)
@@ -10671,8 +10748,85 @@ def renew_subscription():
     finally:
         print('done')
 
-# def calculate_billing ():
-    # try:
+class calculate_billing(Resource):
+
+    def post(self):
+
+        response = {}
+        items = {}
+
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            items['input_data'] = data
+
+            # get base subscription price
+            plan_data = calculator().billing(data['item_uid'], data['num_deliveries'])
+            print("\n==========| (calc_bill) plan_data |==========")
+            item_price = plan_data['result'][0]['item_price']
+            delivery_discount = plan_data['result'][0]['delivery_discount']
+            print("item_price: ", item_price)
+            print("delivery_discount: ", delivery_discount)
+
+            # get fees and taxes
+            zone_data = categoricalOptions().get(data["customer_long"], data["customer_lat"])
+            print("\n==========| (calc_bill) zone_data |==========")
+            print("zone_data result: ", zone_data['result'])
+
+            if len(zone_data['result']) == 0:
+                items['code'] = 400
+                items['message'] = "Coordinates out of service range"
+                return items
+
+            tax_rate = zone_data['result'][1]['tax_rate']
+            service_fee = zone_data['result'][1]['service_fee']
+            delivery_fee = zone_data['result'][1]['delivery_fee']
+            print("tax_rate: ", tax_rate)
+            print("service_fee: ", service_fee)
+            print("delivery_fee: ", delivery_fee)
+            print("\n")
+
+            # item_price = new_charge['result'][0]['item_price']
+            # num_deliveries = new_charge['result'][0]['num_deliveries']
+            # new_meal_charge = float(item_price) * int(num_deliveries)
+            # new_discount_percent = new_charge['result'][0]['delivery_discount']
+            # new_discount = round(new_meal_charge * new_discount_percent/100,2)
+            # new_service_fee = float(subscriptions["service_fee"])
+            # new_delivery_fee = float(subscriptions["delivery_fee"])
+            # new_driver_tip = float(subscriptions["driver_tip"])
+            # new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
+            # new_ambassador = float(subscriptions["ambassador_code"])
+            # amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
+            meal_sub_price = float(item_price) * int(data['num_deliveries'])
+            discount_amount = round(meal_sub_price * delivery_discount/100,2)
+            tax_amount = round(tax_rate * 0.01 * (meal_sub_price - discount_amount + delivery_fee), 2)
+            # tax_amount = round(.0925 * (meal_sub_price - discount_amount + delivery_fee), 2)
+            total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + tax_amount, 2)
+
+            output_data = {
+                "item_price": item_price,                   
+                "meal_sub_price": meal_sub_price,       # meal subscription (payment details row 1)
+                "discount_percent": delivery_discount,
+                "discount_amount": discount_amount,     # discount (payment details row 2)
+                "delivery_fee": delivery_fee,           # delivery fee (payment details row 3)
+                "service_fee": service_fee,             # service fee (payment details row 4)
+                "tax_rate": tax_rate,
+                "tax_amount": tax_amount,               # service fee (payment details row 5)
+                "total": total                          # total (payment details row 7)
+            }
+            items['output_data'] = output_data
+
+            print("final items: ", items)
+
+            # if items['code'] != 280:
+            #     items['message'] = 'check sql query'
+            return items
+        
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 # CRON JOB
 def renew_subscription_test():
@@ -10687,8 +10841,7 @@ def renew_subscription_test():
                 FROM M4ME.next_billing_date 
                 WHERE next_billing_date < now()
                     AND purchase_status = "ACTIVE"
-                    AND purchase_uid = "400-000002"
-                    -- AND pur_customer_uid != "100-000119";
+                    AND purchase_uid = "500-000002"
                 """
         renew = execute(query, 'get', conn)
         print(datetime.now())
@@ -13761,7 +13914,7 @@ api.add_resource(meals_ordered_by_date, '/api/v2/meals_ordered_by_date/<string:i
 
 api.add_resource(menu_with_orders_by_date, '/api/v2/menu_with_orders_by_date/<string:id>')
 
-
+api.add_resource(calculate_billing, '/api/v2/calculate_billing')
 
 api.add_resource(revenue_by_date, '/api/v2/revenue_by_date/<string:id>')
 
