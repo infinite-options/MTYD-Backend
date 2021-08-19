@@ -10752,12 +10752,14 @@ class calculate_billing(Resource):
 
     def post(self):
 
-        response = {}
         items = {}
 
         try:
             conn = connect()
             data = request.get_json(force=True)
+
+            driver_tip = float(data['driver_tip']) if data.get('driver_tip') is not None else 0.0
+            ambassador_discount = float(data['ambassador_discount']) if data.get('ambassador_discount') is not None else 0.0
 
             items['input_data'] = data
 
@@ -10798,11 +10800,19 @@ class calculate_billing(Resource):
             # new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
             # new_ambassador = float(subscriptions["ambassador_code"])
             # amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
+
             meal_sub_price = float(item_price) * int(data['num_deliveries'])
             discount_amount = round(meal_sub_price * delivery_discount/100,2)
+
+            # stuff 1
+            print("\n")
+            print("charge 1: ", meal_sub_price)
+            print("discount 1: ", discount_amount)
+            print("delivery 1: ", delivery_fee)
+            print("\n")
             tax_amount = round(tax_rate * 0.01 * (meal_sub_price - discount_amount + delivery_fee), 2)
-            # tax_amount = round(.0925 * (meal_sub_price - discount_amount + delivery_fee), 2)
-            total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + tax_amount, 2)
+
+            total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount - ambassador_discount, 2)
 
             output_data = {
                 "item_price": item_price,                   
@@ -10812,7 +10822,9 @@ class calculate_billing(Resource):
                 "delivery_fee": delivery_fee,           # delivery fee (payment details row 3)
                 "service_fee": service_fee,             # service fee (payment details row 4)
                 "tax_rate": tax_rate,
-                "tax_amount": tax_amount,               # service fee (payment details row 5)
+                "tax_amount": tax_amount,               # tax (payment details row 5)
+                "driver_tip": driver_tip,
+                "ambassador_discount": ambassador_discount,
                 "total": total                          # total (payment details row 7)
             }
             items['output_data'] = output_data
@@ -10821,6 +10833,9 @@ class calculate_billing(Resource):
 
             # if items['code'] != 280:
             #     items['message'] = 'check sql query'
+            items['code'] = 200
+            items['message'] = 'Receipt calculated'
+            print("items to return: ", items)
             return items
         
         except:
@@ -10836,12 +10851,21 @@ def renew_subscription_test():
         print("CRON Job running 2")
 
         conn = connect()
+        # query = """
+        #         SELECT *
+        #         FROM M4ME.next_billing_date 
+        #         WHERE next_billing_date < now()
+        #             AND purchase_status = "ACTIVE"
+        #             AND purchase_uid = "400-000002"
+        #         """
         query = """
                 SELECT *
-                FROM M4ME.next_billing_date 
-                WHERE next_billing_date < now()
-                    AND purchase_status = "ACTIVE"
-                    AND purchase_uid = "500-000002"
+                FROM 
+                    M4ME.next_billing_date 
+                WHERE
+                    purchase_status = "ACTIVE"
+                AND 
+                    purchase_uid = "400-000002"
                 """
         renew = execute(query, 'get', conn)
         print(datetime.now())
@@ -10873,6 +10897,7 @@ def renew_subscription_test():
             print("\nSTEP 2B: Inside Calculate New Charge")
             new_charge = calculator().billing(item_uid, num_deliveries)
             # print("Returned JSON Object: \n", new_charge)
+            # stuff 2
             
             item_price = new_charge['result'][0]['item_price']
             num_deliveries = new_charge['result'][0]['num_deliveries']
@@ -10882,6 +10907,13 @@ def renew_subscription_test():
             new_service_fee = float(subscriptions["service_fee"])
             new_delivery_fee = float(subscriptions["delivery_fee"])
             new_driver_tip = float(subscriptions["driver_tip"])
+
+            print("\n")
+            print("charge 2: ", new_meal_charge)
+            print("discount 2: ", new_discount)
+            print("delivery 2: ", new_delivery_fee)
+            print("\n")
+
             new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
             new_ambassador = float(subscriptions["ambassador_code"])
             amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
@@ -13940,10 +13972,10 @@ api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
 if __name__ == '__main__':
-    # print("\n")
-    # print("==========| renew_subscription_test |==========")
-    # renew_subscription_test()
-    # print("\n")
+    print("\n")
+    print("==========| renew_subscription_test |==========")
+    renew_subscription_test()
+    print("\n")
     # print("==========| calculator().billing    |==========")
     # print("billing (4m, 3d): ", calculator().billing('320-000054','3'))
     # print("\n")
