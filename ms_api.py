@@ -3981,6 +3981,75 @@ class checkAutoPay(Resource):
         disconnect(conn)
 
 # JAYDEVA
+class make_purchase (Resource):
+    
+    def put(self):
+        
+        # STEP 1 GET INPUT INFO (WHAT ARE THEY BUYING)
+        conn = connect()
+        data = request.get_json(force=True)
+        print("\nSTEP 1:  I MAKE PURCHASE\n", data)
+        
+        
+        # WHAT THEY ARE CHANGING TO (NEW PLAN)
+        print("What they are changing to:")
+        item_uid = data["items"][0]['item_uid']
+        print("  NEW item_uid : ", item_uid)
+        num_deliveries = data["items"][0]['qty']
+        print("  NEW days : ", num_deliveries)
+
+        # STEP 1B GET ZONE FEES (TAX, DELIVERY, SERVICE)
+        zone_data = categoricalOptions().get(data["customer_long"], data["customer_lat"])
+        if len(zone_data['result']) == 0:
+            return "Coordinates out of service range"
+
+
+        
+        tax_rate = zone_data['result'][1]['tax_rate']
+        service_fee = zone_data['result'][1]['service_fee']
+        delivery_fee = zone_data['result'][1]['delivery_fee']
+        print("tax_rate: ", tax_rate)
+        print("service_fee: ", service_fee)
+        print("delivery_fee: ", delivery_fee)
+        print("\n")
+
+        # STEP 2B CALCULATE NEW CHARGE AMOUNT
+        print("\nSTEP 2B:  Inside Calculate New Charge")
+        new_charge = calculator().billing(item_uid, num_deliveries)
+        # print("Returned JSON Object: \n", new_charge)
+        print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
+        print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
+        print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
+        new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
+        print(new_meal_charge, type(new_meal_charge))
+        new_discount = new_charge['result'][0]['delivery_discount']
+        print(new_discount, type(new_discount))
+        new_discount = round(new_meal_charge * new_discount/100,2)
+        print(new_discount, type(new_discount))
+        new_driver_tip = float(data["driver_tip"])
+        print(new_driver_tip, type(new_driver_tip))
+        new_tax = round(.0925*(new_meal_charge  - new_discount),2)
+        print(new_tax, type(new_tax))
+        delta = round(new_meal_charge  - new_discount + service_fee + delivery_fee + new_driver_tip + new_tax,2)
+        print(delta, type(delta))
+        # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
+        # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
+        # print("Amount for new Plan: ", new_charge)
+        print("New Meal Plan Charges: ", delta)
+        # delta = round(delta - amount_should_refund,2)
+        # print("Additional Charge/Refund after discount: ", delta)
+
+        # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
+        amount_should_charge = round(delta,2)
+        print("Charge after discount: ", amount_should_charge, type(amount_should_charge))
+
+        # return service_fee
+        # return amount_should_charge
+        # return service_fee, amount_should_charge
+        return [new_meal_charge, new_discount, new_driver_tip, new_tax, service_fee, amount_should_charge] 
+        
+        
+
 class change_purchase (Resource):
     
     def put(self):
@@ -4406,7 +4475,6 @@ class change_purchase (Resource):
                 continue
             
             return refund_id['id']
-
 
 class cancel_purchase (Resource):
     
@@ -13842,6 +13910,8 @@ api.add_resource(Orders_by_Items_total_items, '/api/v2/Orders_by_Items_total_ite
 api.add_resource(categoricalOptions, '/api/v2/categoricalOptions/<string:long>,<string:lat>')
 
 api.add_resource(create_update_meals, '/api/v2/create_update_meals')
+
+api.add_resource(make_purchase, '/api/v2/make_purchase')
 
 api.add_resource(cancel_purchase, '/api/v2/cancel_purchase')
 
