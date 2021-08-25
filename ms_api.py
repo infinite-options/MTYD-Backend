@@ -2830,207 +2830,223 @@ class Checkout2(Resource):
 
                 # ============== START AMBASSADOR STUFF ==============
                 print("(checkout) ============== START AMBASSADOR STUFF ==============")
+                if amb_code == "":
+                    print("(checkout) amb code EMPTY")
+                else:
+                    print("(checkout) amb code NOT EMPTY")
 
-                # print("(brandAmbassador/discount_checker) check referral")
+                    # print("(brandAmbassador/discount_checker) check referral")
 
-                #     for vals in items_cust['result']:
-                #         if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits']:
-                #             return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
-                #         elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
-                #             print("(brandAmbassador/discount_checker) let use referral")
-                #             return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
+                    #     for vals in items_cust['result']:
+                    #         if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits']:
+                    #             return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
+                    #         elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
+                    #             print("(brandAmbassador/discount_checker) let use referral")
+                    #             return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
+                            
+                    #     print("(brandAmbassador/discount_checker) after referral")
+
+                    # 1.) Get coupon based on code
+                    print("(checkout) amb test 1")
+                    print("(checkout) amb_code: ", amb_code)
+                    query_amb = """
+                            SELECT * FROM coupons
+                            WHERE email_id = \'""" + amb_code + """\';
+                            """
+                    items_amb = execute(query_amb, 'get', conn)
+                    print("(checkout) items_amb: ", items_amb)
+
+                    print("(checkout) amb stuff 1")
+
+                    # 2.) Handle errors with query
+                    if items_amb['code'] != 280:
+                        items_amb['message'] = 'check sql query'
+                        return items_amb
+
+                    print("(checkout) amb stuff 2")
+
+                    # 3.) Check if coupon with code exists
+                    if not items_amb['result']:
+                        return {"message":'No code exists',"code":501,"discount":"","uids":""}
+
+                        print("(checkout) amb stuff 3")
+                    
+                    # 4.) Check if coupon with code exists
+                    final_res = ''
+                    for vals in items_amb['result']:
+                        if vals['notes'] == 'Ambassador':
+                            type_code = 'Ambassador'
+                            rf_id = vals['coupon_uid']
+                            num_used = vals['num_used']
+                            limits = vals['limits']
+                            final_res = vals
+                        elif vals['notes'] == 'Discount':
+                            type_code = 'Discount'
+                            rf_id = vals['coupon_uid']
+                            num_used = vals['num_used']
+                            limits = vals['limits']
+                            final_res = vals
+
+                    print("(checkout) amb stuff 4")
                         
-                #     print("(brandAmbassador/discount_checker) after referral")
-
-                # 1.) Get coupon based on code
-                print("(checkout) amb test 1")
-                print("(checkout) amb_code: ", amb_code)
-                query_amb = """
-                        SELECT * FROM coupons
-                        WHERE email_id = \'""" + amb_code + """\';
-                        """
-                items_amb = execute(query_amb, 'get', conn)
-                print("(checkout) items_amb: ", items_amb)
-
-                # 2.) Handle errors with query
-                if items_amb['code'] != 280:
-                    items_amb['message'] = 'check sql query'
-                    return items_amb
-
-                # 3.) Check if coupon with code exists
-                if not items_amb['result']:
-                    return {"message":'No code exists',"code":501,"discount":"","uids":""}
-                
-                # 4.) Check if coupon with code exists
-                final_res = ''
-                for vals in items_amb['result']:
-                    if vals['notes'] == 'Ambassador':
-                        type_code = 'Ambassador'
-                        rf_id = vals['coupon_uid']
-                        num_used = vals['num_used']
-                        limits = vals['limits']
-                        final_res = vals
-                    elif vals['notes'] == 'Discount':
-                        type_code = 'Discount'
-                        rf_id = vals['coupon_uid']
-                        num_used = vals['num_used']
-                        limits = vals['limits']
-                        final_res = vals
+                    if type_code not in ['Discount','Ambassador']:
+                        return {"message":'Got a different kind of discount please check code',"code":502,"discount":"","uids":""}
                     
-                if type_code not in ['Discount','Ambassador']:
-                    return {"message":'Got a different kind of discount please check code',"code":502,"discount":"","uids":""}
-                
-                # if not data.get('IsGuest') or not data.get('info'):
-                #     return {"message":'Please enter IsGuest and info',"code":503,"discount":"","uids":""}
-                
-                # IsGuest = data['IsGuest']
-                cust_email = data['delivery_email']
-                print("(checkout) cust_email: ", cust_email)
-                print("(checkout) amb_code: ", amb_code)
-                # if type_code == 'Ambassador' and IsGuest == 'True':
-                #     return {"message":'Please login',"code":504,"discount":"","uids":""}
-                
-                if type_code == 'Ambassador':
-                    print("(checkout) type_code == Ambassador")
-                    # print("Ambassador")
-                    # check if customer is already a ambassador because ambassador cannot refer himself or get referred
-                    query_cust = """
-                        SELECT * FROM coupons
-                        WHERE email_id = \'""" + cust_email + """\';
-                        """
-                    items_cust = execute(query_cust, 'get', conn)
-                    # print("items_cust", items_cust)
-                    for vals in items_cust['result']:
-                        if vals['coupon_id'] == 'Ambassador':
-                            return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
+                    print("(checkout) amb stuff 5")
+
+                    # if not data.get('IsGuest') or not data.get('info'):
+                    #     return {"message":'Please enter IsGuest and info',"code":503,"discount":"","uids":""}
                     
+                    # IsGuest = data['IsGuest']
+                    cust_email = data['delivery_email']
+                    print("(checkout) cust_email: ", cust_email)
+                    print("(checkout) amb_code: ", amb_code)
+                    # if type_code == 'Ambassador' and IsGuest == 'True':
+                    #     return {"message":'Please login',"code":504,"discount":"","uids":""}
 
-                    # customer can be referred only once so check that
-
-                    print("(checkout) check referral")
-                    print("(checkout) items_cust[result]: ", items_cust['result'])
-                    print("(checkout) items_cust[result] len: ", len(items_cust['result']))
-
-                    for vals in items_cust['result']:
-
-                        # Need to update brandAmbassador to check if referral exists and is valid,
-                        # then this case will not be necessary
-                        if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits']:
-                            print("(checkout) coupon exists but uses have been exceeded")
-                            return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
-
-                        elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
-                            print("(checkout) valid coupon exists")
-                            # return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
-
-                            # Expend a use of the referral
-                            # print('updating amb')
-                            use_referral_query = """
-                                    UPDATE coupons SET num_used = num_used + 1 
-                                    WHERE coupon_id = 'Referral' 
-                                    AND email_id = \'""" + cust_email + """\'
-                                    AND notes = \'""" + amb_code + """\'
-                                    """
-                            print("(checkout) valid coupon 1")
-                            items_up_amb = execute(use_referral_query, 'post', conn)
-                            print("(checkout) valid coupon 2")
-                            if items_up_amb['code'] != 281:
-                                print("(checkout) ERROR with use_referral_query")
-                                items_up_amb['message'] = "check sql query"
-                                # return items_up_amb
-                            print("(checkout) valid coupon 3")
-
-                        # else:
-                        #     print("(checkout) coupon does not exist, creating new one...")
-
-                        #     new_coupon_id_query = ["CALL new_coupons_uid;"]
-                        #     couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
-                        #     couponID = couponIDresponse['result'][0]['new_id']
-
-                        #     dateObject = datetime.now()
-                        #     exp_date = dateObject.replace(year=dateObject.year + 1)
-                        #     exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                        #     print(final_res)
-
-                        #     query = """
-                        #     INSERT INTO coupons 
-                        #     (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        #     VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
-                        #     """
-                        #     items = execute(query, 'post', conn)
-                        #     if items['code'] != 281:
-                        #         print("(checkout) ERROR with query")
-                        #         items['message'] = "check sql query"
-                        #         # return items
-
-                        #     print("(checkout) new coupon created")
-
-                    print("(checkout) creating new coupon if none found")
-                    if len(items_cust['result']) == 0:
-                        print("(checkout) coupon does not exist, creating new one...")
-
-                        print("(checkout) coupon creation 1")
-                        new_coupon_id_query = ["CALL new_coupons_uid;"]
-                        couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
-                        couponID = couponIDresponse['result'][0]['new_id']
-                        print("(checkout) coupon creation 2")
-
-                        dateObject = datetime.now()
-                        exp_date = dateObject.replace(year=dateObject.year + 1)
-                        exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                        print("(checkout) coupon creation 3")
-                        print("(checkout) final_res:", final_res)
-
-                        query = """
-                        INSERT INTO coupons 
-                        (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + amb_code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
-                        """
-                        print("(checkout) coupon creation 4")
-                        coupon_items = execute(query, 'post', conn)
-                        print("(checkout) coupon creation 5")
-                        if coupon_items['code'] != 281:
-                            print("(checkout) ERROR with query")
-                            coupon_items['message'] = "check sql query"
-                            # return items
-
-                        print("(checkout) new coupon created")
+                    print("(checkout) amb stuff 6")
+                    
+                    if type_code == 'Ambassador':
+                        print("(checkout) type_code == Ambassador")
+                        # print("Ambassador")
+                        # check if customer is already a ambassador because ambassador cannot refer himself or get referred
+                        query_cust = """
+                            SELECT * FROM coupons
+                            WHERE email_id = \'""" + cust_email + """\';
+                            """
+                        items_cust = execute(query_cust, 'get', conn)
+                        # print("items_cust", items_cust)
+                        for vals in items_cust['result']:
+                            if vals['coupon_id'] == 'Ambassador':
+                                return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
                         
-                    print("(checkout) after referral")
 
-                    # generate coupon for referred customer
+                        # customer can be referred only once so check that
 
-                    # query = ["CALL new_coupons_uid;"]
-                    # couponIDresponse = execute(query[0], 'get', conn)
-                    # couponID = couponIDresponse['result'][0]['new_id']
-                    
-                    # dateObject = datetime.now()
-                    # exp_date = dateObject.replace(year=dateObject.year + 1)
-                    # exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                    # print(final_res)
-                    # query = """
-                    # INSERT INTO coupons 
-                    # (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                    # VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
-                    # """
-                    # items = execute(query, 'post', conn)
-                    # if items['code'] != 281:
-                    #     items['message'] = "check sql query"
-                    #     return items
+                        print("(checkout) check referral")
+                        print("(checkout) items_cust[result]: ", items_cust['result'])
+                        print("(checkout) items_cust[result] len: ", len(items_cust['result']))
 
-                    # # Now update ambasaddor coupon
-                    # print('updating amb')
-                    # query = """
-                    #         UPDATE coupons SET limits = limits + 2 
-                    #         WHERE coupon_id = 'Ambassador' AND email_id = \'""" + amb_code + """\'
-                    #         """
-                    # items_up_amb = execute(query, 'post', conn)
-                    # if items_up_amb['code'] != 281:
-                    #     items_up_amb['message'] = "check sql query"
-                    #     return items_up_amb
+                        for vals in items_cust['result']:
 
-                # ============== END AMBASSADOR STUFF ==============
-                print("(checkout) ============== END AMBASSADOR STUFF ==============")
+                            # Need to update brandAmbassador to check if referral exists and is valid,
+                            # then this case will not be necessary
+                            if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits']:
+                                print("(checkout) coupon exists but uses have been exceeded")
+                                return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
+
+                            elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
+                                print("(checkout) valid coupon exists")
+                                # return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
+
+                                # Expend a use of the referral
+                                # print('updating amb')
+                                use_referral_query = """
+                                        UPDATE coupons SET num_used = num_used + 1 
+                                        WHERE coupon_id = 'Referral' 
+                                        AND email_id = \'""" + cust_email + """\'
+                                        AND notes = \'""" + amb_code + """\'
+                                        """
+                                print("(checkout) valid coupon 1")
+                                items_up_amb = execute(use_referral_query, 'post', conn)
+                                print("(checkout) valid coupon 2")
+                                if items_up_amb['code'] != 281:
+                                    print("(checkout) ERROR with use_referral_query")
+                                    items_up_amb['message'] = "check sql query"
+                                    # return items_up_amb
+                                print("(checkout) valid coupon 3")
+
+                            # else:
+                            #     print("(checkout) coupon does not exist, creating new one...")
+
+                            #     new_coupon_id_query = ["CALL new_coupons_uid;"]
+                            #     couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
+                            #     couponID = couponIDresponse['result'][0]['new_id']
+
+                            #     dateObject = datetime.now()
+                            #     exp_date = dateObject.replace(year=dateObject.year + 1)
+                            #     exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                            #     print(final_res)
+
+                            #     query = """
+                            #     INSERT INTO coupons 
+                            #     (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                            #     VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
+                            #     """
+                            #     items = execute(query, 'post', conn)
+                            #     if items['code'] != 281:
+                            #         print("(checkout) ERROR with query")
+                            #         items['message'] = "check sql query"
+                            #         # return items
+
+                            #     print("(checkout) new coupon created")
+
+                        print("(checkout) creating new coupon if none found")
+                        if len(items_cust['result']) == 0:
+                            print("(checkout) coupon does not exist, creating new one...")
+
+                            print("(checkout) coupon creation 1")
+                            new_coupon_id_query = ["CALL new_coupons_uid;"]
+                            couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
+                            couponID = couponIDresponse['result'][0]['new_id']
+                            print("(checkout) coupon creation 2")
+
+                            dateObject = datetime.now()
+                            exp_date = dateObject.replace(year=dateObject.year + 1)
+                            exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                            print("(checkout) coupon creation 3")
+                            print("(checkout) final_res:", final_res)
+
+                            query = """
+                            INSERT INTO coupons 
+                            (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                            VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + amb_code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
+                            """
+                            print("(checkout) coupon creation 4")
+                            coupon_items = execute(query, 'post', conn)
+                            print("(checkout) coupon creation 5")
+                            if coupon_items['code'] != 281:
+                                print("(checkout) ERROR with query")
+                                coupon_items['message'] = "check sql query"
+                                # return items
+
+                            print("(checkout) new coupon created")
+                            
+                        print("(checkout) after referral")
+
+                        # generate coupon for referred customer
+
+                        # query = ["CALL new_coupons_uid;"]
+                        # couponIDresponse = execute(query[0], 'get', conn)
+                        # couponID = couponIDresponse['result'][0]['new_id']
+                        
+                        # dateObject = datetime.now()
+                        # exp_date = dateObject.replace(year=dateObject.year + 1)
+                        # exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                        # print(final_res)
+                        # query = """
+                        # INSERT INTO coupons 
+                        # (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                        # VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
+                        # """
+                        # items = execute(query, 'post', conn)
+                        # if items['code'] != 281:
+                        #     items['message'] = "check sql query"
+                        #     return items
+
+                        # # Now update ambasaddor coupon
+                        # print('updating amb')
+                        # query = """
+                        #         UPDATE coupons SET limits = limits + 2 
+                        #         WHERE coupon_id = 'Ambassador' AND email_id = \'""" + amb_code + """\'
+                        #         """
+                        # items_up_amb = execute(query, 'post', conn)
+                        # if items_up_amb['code'] != 281:
+                        #     items_up_amb['message'] = "check sql query"
+                        #     return items_up_amb
+
+                    # ============== END AMBASSADOR STUFF ==============
+                    print("(checkout) ============== END AMBASSADOR STUFF ==============")
 
                 # FIND TAX, DELIVERY FEE FROM ZONES TABLE
                 print("I don't think ZONES is used")
@@ -10759,12 +10775,34 @@ class calculate_billing(Resource):
             data = request.get_json(force=True)
 
             driver_tip = float(data['driver_tip']) if data.get('driver_tip') is not None else 0.0
-            ambassador_discount = float(data['ambassador_discount']) if data.get('ambassador_discount') is not None else 0.0
+            # ambassador_discount = float(data['ambassador_discount']) if data.get('ambassador_discount') is not None else 0.0
+            ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
+            print("(cb) ambassador_coupon: ", ambassador_coupon, type(ambassador_coupon))
+
+            # calculate ambassador discount
+            amb_coupon_uid = None
+            amb_coupon_used = False
+            amb_discount_amount = 0
+            amb_discount_percent = 0
+            amb_discount_shipping = 0
+            amb_threshold = 0
+            if type(ambassador_coupon) is dict:
+                print("(cb) in amb code conditional")
+                amb_coupon_uid = ambassador_coupon['coupon_uid']
+                amb_discount_amount = ambassador_coupon['discount_amount']
+                amb_discount_percent = ambassador_coupon['discount_percent']
+                amb_discount_shipping = ambassador_coupon['discount_shipping']
+                amb_threshold = ambassador_coupon['threshold']
+
+            item_uid = data['items'][0]['item_uid']
+            num_deliveries = data['items'][0]['qty']
+            print("item_uid: ", item_uid)
+            print("num_deliveries: ", num_deliveries)
 
             items['input_data'] = data
 
             # get base subscription price
-            plan_data = calculator().billing(data['item_uid'], data['num_deliveries'])
+            plan_data = calculator().billing(item_uid, num_deliveries)
             print("\n==========| (calc_bill) plan_data |==========")
             item_price = plan_data['result'][0]['item_price']
             delivery_discount = plan_data['result'][0]['delivery_discount']
@@ -10801,10 +10839,11 @@ class calculate_billing(Resource):
             # new_ambassador = float(subscriptions["ambassador_code"])
             # amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
 
-            meal_sub_price = float(item_price) * int(data['num_deliveries'])
+            meal_sub_price = float(item_price) * int(num_deliveries)
             discount_amount = round(meal_sub_price * delivery_discount/100,2)
 
             # stuff 1
+            delivery_fee = 1.5
             print("\n")
             print("charge 1: ", meal_sub_price)
             print("discount 1: ", discount_amount)
@@ -10812,7 +10851,20 @@ class calculate_billing(Resource):
             print("\n")
             tax_amount = round(tax_rate * 0.01 * (meal_sub_price - discount_amount + delivery_fee), 2)
 
-            total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount - ambassador_discount, 2)
+            # total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount - ambassador_discount, 2)
+            total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount, 2)
+
+            # recalculate total with ambassador discounts if total exceeds threshold and ambassador code exists
+            if amb_coupon_uid is not None:
+                print("(cb) in amb threshold/total conditional")
+                print("amb total 1: ", total)
+                amb_total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount - amb_discount_amount - amb_discount_shipping, 2)
+                print("amb total 2: ", amb_total)
+                amb_total = round(amb_total - (amb_total * amb_discount_percent * 0.01), 2)
+                print("amb total 3: ", amb_total)
+                if amb_total > amb_threshold:
+                    total = amb_total
+                    amb_coupon_used = True
 
             output_data = {
                 "item_price": item_price,                   
@@ -10824,18 +10876,24 @@ class calculate_billing(Resource):
                 "tax_rate": tax_rate,
                 "tax_amount": tax_amount,               # tax (payment details row 5)
                 "driver_tip": driver_tip,
-                "ambassador_discount": ambassador_discount,
+                "amb_coupon_uid": amb_coupon_uid,
+                "amb_discount_amount": amb_discount_amount,
+                "amb_discount_percent": amb_discount_percent,
+                "amb_discount_shipping": amb_discount_shipping,
+                "amb_threshold": amb_threshold,
+                "amb_coupon_used": amb_coupon_used,
                 "total": total                          # total (payment details row 7)
             }
             items['output_data'] = output_data
 
-            print("final items: ", items)
+            # print("final items: ", items)
 
             # if items['code'] != 280:
             #     items['message'] = 'check sql query'
             items['code'] = 200
             items['message'] = 'Receipt calculated'
-            print("items to return: ", items)
+            # print("items to return: ", items)
+            print("\n")
             return items
         
         except:
@@ -12120,9 +12178,10 @@ class brandAmbassador2(Resource):
 
                     print("(brandAmbassador/discount_checker) check referral")
                     print("(brandAmbassador/discount_checker) items_cust: ", items_cust)
+                    print("(brandAmbassador/discount_checker) input data: ", data)
 
                     for vals in items_cust['result']:
-                        if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits']:
+                        if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == code:
                             return {"message":'Customer has exceeded their uses for this coupon',"code":506,"discount":"","uids":""}
                             # return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
                     #     elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
@@ -13972,10 +14031,10 @@ api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
 # lambda function at: https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev
 if __name__ == '__main__':
-    print("\n")
-    print("==========| renew_subscription_test |==========")
-    renew_subscription_test()
-    print("\n")
+    # print("\n")
+    # print("==========| renew_subscription_test |==========")
+    # renew_subscription_test()
+    # print("\n")
     # print("==========| calculator().billing    |==========")
     # print("billing (4m, 3d): ", calculator().billing('320-000054','3'))
     # print("\n")
