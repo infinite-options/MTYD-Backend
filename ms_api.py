@@ -359,7 +359,7 @@ stripe_public_live_key = os.environ.get('stripe_public_live_key')
 stripe_secret_live_key = os.environ.get('stripe_secret_live_key')
 
 #use below for local testing
-#stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+#stripe.api_key = "sk_test_51HyqrgLMj...jLVC4h7TZhdu000mBRlnir9" 
 
 STRIPE_PUBLISHABLE_KEY=stripe_public_test_key
 stripe.api_key = stripe_secret_test_key
@@ -531,7 +531,7 @@ class get_stripe_key(Resource):
         if notes == "M4METEST":
             print('TEST')
             #return stripe_secret_test_key 
-            return "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK" 
+            return "sk_test_51HyqrgLMju5RPMEvwirVtSGoCPyU1IaorHsOI1Pr1ABkR8dEpk2MAWBAIT9ZHPtbWHhjvEFwP11jLVC4h7TZhdu000mBRlnir9" 
             
         else:
             print('LIVE')
@@ -604,7 +604,7 @@ class stripe_transaction(Resource):
 
 @app.route('/api/v2/customer', methods=['GET'])
 def stripe_customer():
-    stripe.api_key = "sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+    stripe.api_key = "sk_test_51HyqrgLMju5RPMEvwirVtSGoCPyU1IaorHsOI1Pr1ABkR8dEpk2MAWBAIT9ZHPtbWHhjvEFwP11jLVC4h7TZhdu000mBRlnir9"
 
     key=get_stripe_key.get_key('M4METEST')
     try:
@@ -730,8 +730,8 @@ def generate_response(intent):
 @app.route('/api/v2/charge-stripe-list', methods=['GET'])
 def charge_stripe_list():
 
-        STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
-        stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+        STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEvtVH4G5lX2XoAjV9dTn0gE9dJ31UW4oy2joF7qjo3lP1Z90pADoMwIS9YY8UTyYfjxwdN1BrV007QZEgxtf"
+        stripe.api_key="sk_test_51HyqrgLMju5RPMEvwirVtSGoCPyU1IaorHsOI1Pr1ABkR8dEpk2MAWBAIT9ZHPtbWHhjvEFwP11jLVC4h7TZhdu000mBRlnir9"
         stripe.api_version = None
 
         return str(stripe.PaymentMethod.list(
@@ -745,8 +745,8 @@ def charge_stripe_list():
 def create_off_session_payment():
     data = json.loads(request.data)
 
-    STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
-    stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+    STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEvtVH4G5lX2XoAjV9dTn0gE9dJ31UW4oy2joF7qjo3lP1Z90pADoMwIS9YY8UTyYfjxwdN1BrV007QZEgxtf"
+    stripe.api_key="sk_test_51HyqrgLMju5RPMEvwirVtSGoCPyU1IaorHsOI1Pr1ABkR8dEpk2MAWBAIT9ZHPtbWHhjvEFwP11jLVC4h7TZhdu000mBRlnir9"
     stripe.api_version = None
 
     try:
@@ -817,8 +817,8 @@ def create_off_session_payment():
 class customer_lists(Resource):
     def get_list(self, c_uid, card_type):
         try:
-            STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEv5ai8f5nU87HWQFNXOZmLTWLIrqlNFMPjrboGfQsj4FDUvaHRAhxyRBQrfhmXC3kMnxEYRiKO00m4W3jj5a"
-            stripe.api_key="sk_test_51HyqrgLMju5RPMEvowxoZHOI9LjFSxI9X3KPsOM7KVA4pxtJqlEwEkjLJ3GCL56xpIQuVImkSwJQ5TqpGkl299bo00yD1lTRNK"
+            STRIPE_PUBLISHABLE_KEY="pk_test_51HyqrgLMju5RPMEvtVH4G5lX2XoAjV9dTn0gE9dJ31UW4oy2joF7qjo3lP1Z90pADoMwIS9YY8UTyYfjxwdN1BrV007QZEgxtf"
+            stripe.api_key="sk_test_51HyqrgLMju5RPMEvwirVtSGoCPyU1IaorHsOI1Pr1ABkR8dEpk2MAWBAIT9ZHPtbWHhjvEFwP11jLVC4h7TZhdu000mBRlnir9"
             stripe.api_version = None
 
             return(stripe.PaymentMethod.list(
@@ -3764,7 +3764,7 @@ class Stripe_Intent(Resource):
         print(note, type(note))
         if note == "M4METEST":
             stripe.api_key = stripe_secret_test_key
-            #stripe.api_key = "sk_test_51HyqrgLMju5RPM***299bo00yD1lTRNK" 
+            #stripe.api_key = "sk_test_51HyqrgL...pk2MAWBAIT9ZHPtbWHhjvEFwP11jLVC4h7TZhdu000mBRlnir9"
             print('TEST')
         else:
             stripe.api_key = stripe_secret_live_key
@@ -4072,7 +4072,7 @@ class change_purchase (Resource):
         print(delivery_instructions)
         stripe.api_key = get_stripe_key().get_key(delivery_instructions)
         print("Stripe Key: ", stripe.api_key)
-        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvw...jvEFwP11jLVC4h7TZhdu000mBRlnir9")
 
         print("\nSTEP 3B:  Charge or Refund Stripe")
         if amount_should_refund < 0:
@@ -4456,7 +4456,7 @@ class cancel_purchase (Resource):
         print(delivery_instructions)
         stripe.api_key = get_stripe_key().get_key(delivery_instructions)
         print("Stripe Key: ", stripe.api_key)
-        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLM...4h7TZhdu000mBRlnir9")
 
         # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
         print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
@@ -10683,7 +10683,7 @@ def renew_subscription():
             delivery_instructions = subscriptions['delivery_instructions']
             stripe.api_key = get_stripe_key().get_key(delivery_instructions)
             print("Stripe Key: ", stripe.api_key)
-            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvw...HhjvEFwP11jLVC4h7TZhdu000mBRlnir9")
                 # CHARGE STRIPE
             print("Stripe Transaction Inputs: ", subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], amount_should_charge)
             charge_id = stripe_transaction().purchase(subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], -1 * amount_should_charge)
@@ -11000,7 +11000,7 @@ def renew_subscription_test():
             delivery_instructions = subscriptions['delivery_instructions']
             stripe.api_key = get_stripe_key().get_key(delivery_instructions)
             print("Stripe Key: ", stripe.api_key)
-            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvwirVtSG...BAIT9ZHPtbWHhjvEFwP11jLVC4h7TZhdu000mBRlnir9")
                 # CHARGE STRIPE
             print("Stripe Transaction Inputs: ", subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], amount_should_charge)
             charge_id = stripe_transaction().purchase(subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], -1 * amount_should_charge)
@@ -11146,7 +11146,7 @@ def charge_addons():
             delivery_instructions = addon['delivery_instructions']
             stripe.api_key = get_stripe_key().get_key(delivery_instructions)
             print("Stripe Key: ", stripe.api_key)
-            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvowxoZHOI9...JQ5TqpGkl299bo00yD1lTRNK")
+            print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5...00mBRlnir9")
                 # CHARGE STRIPE
             print("Stripe Addon Transaction Inputs: ", addon['pur_customer_uid'], addon['delivery_instructions'], addon['addon_total'])
             charge_id = stripe_transaction().purchase(addon['pur_customer_uid'], addon['delivery_instructions'], -1 * addon['addon_total'])
