@@ -3119,6 +3119,12 @@ class Checkout2(Resource):
                             '''
                             ]
                 print("(checkout) before queries")
+                print("tip before: ", tip, type(tip))
+                print("amb_code before: ", amb_code, type(amb_code))
+                # tip = '12.4'
+                # amb_code = '46.7'
+                # print("tip after: ", tip, type(tip))
+                # print("amb_code after: ", amb_code, type(amb_code))
                 queries = [
                             '''
                             INSERT INTO M4ME.payments
@@ -3144,7 +3150,7 @@ class Checkout2(Resource):
                                 service_fee = \'''' + service_fee + '''\',
                                 delivery_fee = \'''' + service_fee + '''\',
                                 subtotal = \'''' + subtotal + '''\',
-                                ambassador_code = \'''' + amb + '''\';
+                                ambassador_code = \'''' + amb_code + '''\';
                             ''',
                             '''
                             INSERT INTO M4ME.purchases
@@ -3995,6 +4001,245 @@ class checkAutoPay(Resource):
         print('msg-bd----', msg.body)
         mail.send(msg)
         disconnect(conn)
+
+
+class calculate_billing(Resource):
+
+    def post(self):
+
+        items = {}
+
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            driver_tip = float(data['driver_tip']) if data.get('driver_tip') is not None else 0.0
+            # ambassador_discount = float(data['ambassador_discount']) if data.get('ambassador_discount') is not None else 0.0
+            ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
+            print("(cb) ambassador_coupon: ", ambassador_coupon, type(ambassador_coupon))
+
+            # calculate ambassador discount
+            amb_coupon_uid = None
+            amb_coupon_used = False
+            amb_discount_amount = 0
+            amb_discount_percent = 0
+            amb_discount_shipping = 0
+            amb_threshold = 0
+            if type(ambassador_coupon) is dict:
+                print("(cb) in amb code conditional")
+                amb_coupon_uid = ambassador_coupon['coupon_uid']
+                amb_discount_amount = ambassador_coupon['discount_amount']
+                amb_discount_percent = ambassador_coupon['discount_percent']
+                amb_discount_shipping = ambassador_coupon['discount_shipping']
+                amb_threshold = ambassador_coupon['threshold']
+
+            item_uid = data['items'][0]['item_uid']
+            num_deliveries = data['items'][0]['qty']
+            print("item_uid: ", item_uid)
+            print("num_deliveries: ", num_deliveries)
+
+            items['input_data'] = data
+
+            # get base subscription price
+            plan_data = calculator().billing(item_uid, num_deliveries)
+            print("\n==========| (calc_bill) plan_data |==========")
+            item_price = plan_data['result'][0]['item_price']
+            delivery_discount = plan_data['result'][0]['delivery_discount']
+            print("item_price: ", item_price)
+            print("delivery_discount: ", delivery_discount)
+
+            # get fees and taxes
+            zone_data = categoricalOptions().get(data["customer_long"], data["customer_lat"])
+            print("\n==========| (calc_bill) zone_data |==========")
+            print("zone_data result: ", zone_data['result'])
+
+            if len(zone_data['result']) == 0:
+                items['code'] = 400
+                items['message'] = "Coordinates out of service range"
+                return items
+
+            tax_rate = zone_data['result'][1]['tax_rate']
+            service_fee = zone_data['result'][1]['service_fee']
+            delivery_fee = zone_data['result'][1]['delivery_fee']
+            print("tax_rate: ", tax_rate)
+            print("service_fee: ", service_fee)
+            print("delivery_fee: ", delivery_fee)
+            print("\n")
+
+            # item_price = new_charge['result'][0]['item_price']
+            # num_deliveries = new_charge['result'][0]['num_deliveries']
+            # new_meal_charge = float(item_price) * int(num_deliveries)
+            # new_discount_percent = new_charge['result'][0]['delivery_discount']
+            # new_discount = round(new_meal_charge * new_discount_percent/100,2)
+            # new_service_fee = float(subscriptions["service_fee"])
+            # new_delivery_fee = float(subscriptions["delivery_fee"])
+            # new_driver_tip = float(subscriptions["driver_tip"])
+            # new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
+            # new_ambassador = float(subscriptions["ambassador_code"])
+            # amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
+
+            meal_sub_price = float(item_price) * int(num_deliveries)
+            discount_amount = round(meal_sub_price * delivery_discount/100,2)
+
+            # stuff 1
+            delivery_fee = 1.5
+            print("\n")
+            print("charge 1: ", meal_sub_price)
+            print("discount 1: ", discount_amount)
+            print("delivery 1: ", delivery_fee)
+            print("\n")
+            tax_amount = round(tax_rate * 0.01 * (meal_sub_price - discount_amount + delivery_fee), 2)
+
+            # total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount - ambassador_discount, 2)
+            total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount, 2)
+
+            # recalculate total with ambassador discounts if total exceeds threshold and ambassador code exists
+            if amb_coupon_uid is not None:
+                print("(cb) in amb threshold/total conditional")
+                print("amb total 1: ", total)
+                amb_total = round(meal_sub_price - discount_amount + service_fee + delivery_fee + driver_tip + tax_amount - amb_discount_amount - amb_discount_shipping, 2)
+                print("amb total 2: ", amb_total)
+                amb_total = round(amb_total - (amb_total * amb_discount_percent * 0.01), 2)
+                print("amb total 3: ", amb_total)
+                if amb_total > amb_threshold:
+                    total = amb_total
+                    amb_coupon_used = True
+
+            output_data = {
+                "item_price": item_price,                   
+                "meal_sub_price": meal_sub_price,       # meal subscription (payment details row 1)
+                "discount_percent": delivery_discount,
+                "discount_amount": discount_amount,     # discount (payment details row 2)
+                "delivery_fee": delivery_fee,           # delivery fee (payment details row 3)
+                "service_fee": service_fee,             # service fee (payment details row 4)
+                "tax_rate": tax_rate,
+                "tax_amount": tax_amount,               # tax (payment details row 5)
+                "driver_tip": driver_tip,
+                "amb_coupon_uid": amb_coupon_uid,
+                "amb_discount_amount": amb_discount_amount,
+                "amb_discount_percent": amb_discount_percent,
+                "amb_discount_shipping": amb_discount_shipping,
+                "amb_threshold": amb_threshold,
+                "amb_coupon_used": amb_coupon_used,
+                "total": total                          # total (payment details row 7)
+            }
+            items['output_data'] = output_data
+
+            # print("final items: ", items)
+
+            # if items['code'] != 280:
+            #     items['message'] = 'check sql query'
+            items['code'] = 200
+            items['message'] = 'Receipt calculated'
+            # print("items to return: ", items)
+            print("\n")
+            return items
+        
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+# JAYDEVA
+class make_purchase (Resource):
+    
+    def put(self):
+        
+        # STEP 1 GET INPUT INFO (WHAT ARE THEY BUYING)
+        conn = connect()
+        data = request.get_json(force=True)
+        print("\nSTEP 1:  I MAKE PURCHASE\n", data)
+
+        ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
+
+        # calculate ambassador discount
+        amb_coupon_uid = None
+        amb_coupon_used = False
+        amb_discount_amount = 0
+        amb_discount_percent = 0
+        amb_discount_shipping = 0
+        amb_threshold = 0
+        if type(ambassador_coupon) is dict:
+            print("(cb) in amb code conditional")
+            amb_coupon_uid = ambassador_coupon['coupon_uid']
+            amb_discount_amount = ambassador_coupon['discount_amount']
+            amb_discount_percent = ambassador_coupon['discount_percent']
+            amb_discount_shipping = ambassador_coupon['discount_shipping']
+            amb_threshold = ambassador_coupon['threshold']
+        
+        
+        # WHAT THEY ARE CHANGING TO (NEW PLAN)
+        print("What they are changing to:")
+        item_uid = data["items"][0]['item_uid']
+        print("  NEW item_uid : ", item_uid)
+        num_deliveries = data["items"][0]['qty']
+        print("  NEW days : ", num_deliveries)
+
+        # STEP 1B GET ZONE FEES (TAX, DELIVERY, SERVICE)
+        zone_data = categoricalOptions().get(data["customer_long"], data["customer_lat"])
+        if len(zone_data['result']) == 0:
+            return "Coordinates out of service range"
+        
+        tax_rate = zone_data['result'][1]['tax_rate']
+        service_fee = zone_data['result'][1]['service_fee']
+        delivery_fee = zone_data['result'][1]['delivery_fee']
+        print("tax_rate: ", tax_rate)
+        print("service_fee: ", service_fee)
+        print("delivery_fee: ", delivery_fee)
+        print("\n")
+
+        # STEP 2B CALCULATE NEW CHARGE AMOUNT
+        print("\nSTEP 2B:  Inside Calculate New Charge")
+        new_charge = calculator().billing(item_uid, num_deliveries)
+        # print("Returned JSON Object: \n", new_charge)
+        print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
+        print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
+        print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
+        new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
+        print(new_meal_charge, type(new_meal_charge))
+        new_discount = new_charge['result'][0]['delivery_discount']
+        print(new_discount, type(new_discount))
+        new_discount = round(new_meal_charge * new_discount/100,2)
+        print(new_discount, type(new_discount))
+        new_driver_tip = float(data["driver_tip"])
+        print(new_driver_tip, type(new_driver_tip))
+        new_tax = round(tax_rate * 0.01 *(new_meal_charge  - new_discount),2)
+        print(new_tax, type(new_tax))
+        delta = round(new_meal_charge  - new_discount + service_fee + delivery_fee + new_driver_tip + new_tax,2)
+        print(delta, type(delta))
+        # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
+        # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
+        # print("Amount for new Plan: ", new_charge)
+        print("New Meal Plan Charges: ", delta)
+        # delta = round(delta - amount_should_refund,2)
+        # print("Additional Charge/Refund after discount: ", delta)
+
+        # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
+        amount_should_charge = round(delta,2)
+        print("Charge after discount: ", amount_should_charge, type(amount_should_charge))
+
+        # recalculate total with ambassador discounts if total exceeds threshold and ambassador code exists
+        if amb_coupon_uid is not None:
+            delivery_fee = delivery_fee - amb_discount_shipping
+            if delivery_fee < 0:
+                delivery_fee = 0
+            print("(cb) in amb threshold/total conditional")
+            # print("amb total 1: ", total)
+            amb_total = round(new_meal_charge - new_discount + service_fee + delivery_fee + new_driver_tip + new_tax - amb_discount_amount, 2)
+            print("amb total 2: ", amb_total)
+            amb_total = round(amb_total - (amb_total * amb_discount_percent * 0.01), 2)
+            print("amb total 3: ", amb_total)
+            if amb_total > amb_threshold:
+                amount_should_charge = amb_total
+                amb_coupon_used = True
+
+        # return service_fee
+        # return amount_should_charge
+        # return service_fee, amount_should_charge
+        # return [new_meal_charge, new_discount, new_driver_tip, new_tax, service_fee, amount_should_charge] 
+        return {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_code_used": amb_coupon_used}
+        
+        
 
 # JAYDEVA
 class change_purchase (Resource):
@@ -10764,7 +11009,7 @@ def renew_subscription():
     finally:
         print('done')
 
-class calculate_billing(Resource):
+class old_calculate_billing(Resource):
 
     def post(self):
 
@@ -14021,6 +14266,7 @@ api.add_resource(calculator, '/api/v2/calculator/<string:pur_uid>')
 # api.add_resource(calculator, '/api/v2/calculator/<string:pur_id>/<string:items_uid>/<string:qty>')
 
 # api.add_resource(change_purchase_pm, '/api/v2/change_purchase_pm')
+api.add_resource(make_purchase, '/api/v2/make_purchase')
 
 api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
 
