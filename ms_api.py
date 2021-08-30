@@ -2915,7 +2915,7 @@ class Checkout2(Resource):
                             WHERE email_id = \'""" + cust_email + """\';
                             """
                         items_cust = execute(query_cust, 'get', conn)
-                        # print("items_cust", items_cust)
+                        print("items_cust", items_cust)
                         for vals in items_cust['result']:
                             if vals['coupon_id'] == 'Ambassador':
                                 return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
@@ -2927,38 +2927,43 @@ class Checkout2(Resource):
                         print("(checkout) items_cust[result]: ", items_cust['result'])
                         print("(checkout) items_cust[result] len: ", len(items_cust['result']))
 
+                        code_exists = False
                         for vals in items_cust['result']:
 
-                            # Need to update brandAmbassador to check if referral exists and is valid,
-                            # then this case will not be necessary
-                            if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == amb_code:
-                                print("(referral -- query) coupon_id: ", vals['coupon_id'])
-                                print("(referral -- query) num_used: ", vals['num_used'])
-                                print("(referral -- query) notes: ", vals['notes'])
-                                print("(referral -- json) amb_code: ", amb_code)
-                                print("(checkout) coupon exists but uses have been exceeded")
-                                return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
+                            if vals['notes'] == amb_code:
+                                code_exists = True
 
-                            elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
-                                print("(checkout) valid coupon exists")
-                                # return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
+                                # Need to update brandAmbassador to check if referral exists and is valid,
+                                # then this case will not be necessary
+                                if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == amb_code:
+                                    print("(referral -- query) coupon_id: ", vals['coupon_id'])
+                                    print("(referral -- query) num_used: ", vals['num_used'])
+                                    print("(referral -- query) notes: ", vals['notes'])
+                                    print("(referral -- json) amb_code: ", amb_code)
+                                    print("(checkout) coupon exists but uses have been exceeded")
+                                    return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
 
-                                # Expend a use of the referral
-                                # print('updating amb')
-                                use_referral_query = """
-                                        UPDATE coupons SET num_used = num_used + 1 
-                                        WHERE coupon_id = 'Referral' 
-                                        AND email_id = \'""" + cust_email + """\'
-                                        AND notes = \'""" + amb_code + """\'
-                                        """
-                                print("(checkout) valid coupon 1")
-                                items_up_amb = execute(use_referral_query, 'post', conn)
-                                print("(checkout) valid coupon 2")
-                                if items_up_amb['code'] != 281:
-                                    print("(checkout) ERROR with use_referral_query")
-                                    items_up_amb['message'] = "check sql query"
-                                    # return items_up_amb
-                                print("(checkout) valid coupon 3")
+                                elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
+                                    print("(checkout) valid coupon exists")
+                                    # return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
+
+                                    # Expend a use of the referral
+                                    # print('updating amb')
+                                    use_referral_query = """
+                                            UPDATE coupons SET num_used = num_used + 1 
+                                            WHERE coupon_id = 'Referral' 
+                                            AND email_id = \'""" + cust_email + """\'
+                                            AND notes = \'""" + amb_code + """\'
+                                            """
+                                    print("(checkout) valid coupon 1")
+                                    items_up_amb = execute(use_referral_query, 'post', conn)
+                                    print("(checkout) valid coupon 2")
+                                    if items_up_amb['code'] != 281:
+                                        print("(checkout) ERROR with use_referral_query")
+                                        items_up_amb['message'] = "check sql query"
+                                        # return items_up_amb
+                                    print("(checkout) valid coupon 3")
+
 
                             # else:
                             #     print("(checkout) coupon does not exist, creating new one...")
@@ -2986,7 +2991,8 @@ class Checkout2(Resource):
                             #     print("(checkout) new coupon created")
 
                         print("(checkout) creating new coupon if none found")
-                        if len(items_cust['result']) == 0:
+                        # if len(items_cust['result']) == 0:
+                        if code_exists == False:
                             print("(checkout) coupon does not exist, creating new one...")
 
                             print("(checkout) coupon creation 1")
@@ -3012,7 +3018,6 @@ class Checkout2(Resource):
                             if coupon_items['code'] != 281:
                                 print("(checkout) ERROR with query")
                                 coupon_items['message'] = "check sql query"
-                                # return items
 
                             print("(checkout) new coupon created")
                             
@@ -3052,76 +3057,6 @@ class Checkout2(Resource):
                     # ============== END AMBASSADOR STUFF ==============
                     print("(checkout) ============== END AMBASSADOR STUFF ==============")
 
-                # FIND TAX, DELIVERY FEE FROM ZONES TABLE
-                print("I don't think ZONES is used")
-                # find_zone = '''
-                #             select * from zones
-                #             where 
-                #             '''
-                # write into Payments table
-
-                print("(checkout) Before Insert")
-                print("(checkout) paymentId: ", paymentId)
-                print("(checkout) purchaseId: ", purchaseId)
-                print("(checkout) amb: ", amb)
-                print("(checkout) before query1")
-                query1 = [
-                            '''
-                            INSERT INTO M4ME.payments
-                            SET payment_uid = \'''' + paymentId + '''\',
-                                payment_time_stamp = \'''' + getNow() + '''\',
-                                start_delivery_date = \'''' + start_delivery_date + '''\',
-                                payment_id = \'''' + paymentId + '''\',
-                                pay_purchase_id = \'''' + purchaseId + '''\',
-                                pay_purchase_uid = \'''' + purchaseId + '''\',
-                                amount_due = \'''' + amount_due + '''\',
-                                amount_discount = \'''' + amount_discount + '''\',
-                                amount_paid = \'''' + amount_paid + '''\',
-                                pay_coupon_id = ''' + coupon_id + ''',
-                                charge_id = \'''' + charge_id + '''\',
-                                payment_type = \'''' + payment_type + '''\',
-                                info_is_Addon = 'FALSE',
-                                cc_num = \'''' + cc_num  + '''\', 
-                                cc_exp_date = \'''' + cc_exp_date + '''\', 
-                                cc_cvv = \'''' + cc_cvv + '''\', 
-                                cc_zip = \'''' + cc_zip + '''\',
-                                taxes = \'''' + taxes + '''\',
-                                driver_tip = \'''' + tip + '''\',
-                                service_fee = \'''' + service_fee + '''\',
-                                delivery_fee = \'''' + service_fee + '''\',
-                                subtotal = \'''' + subtotal + '''\',
-                                ambassador_code = \'''' + amb + '''\';
-                            '''
-                            ]
-                print("(checkout) before query2")
-                # print("(checkout) data: ", data)
-                print("(checkout) type of items: ", type(items))
-                query2 = [
-                            '''
-                            INSERT INTO M4ME.purchases
-                            SET purchase_uid = '400-003398',
-                                purchase_date = \'''' + getNow() + '''\',
-                                purchase_id = '400-003398',
-                                purchase_status = 'ACTIVE',
-                                pur_customer_uid = '100-003398',
-                                pur_business_uid = 'WEB',
-                                delivery_first_name = 'BRANDON',
-                                delivery_last_name = 'HUSS',
-                                delivery_email = 'TEST@email.com',
-                                delivery_phone_num = '1234567890',
-                                delivery_address = 'TEST',
-                                delivery_unit = 'TEST',
-                                delivery_city = 'TEST',
-                                delivery_state = 'TEST',
-                                delivery_zip = 'TEST',
-                                delivery_instructions = 'TEST',
-                                delivery_longitude = '-121.8872943',
-                                delivery_latitude = '37.2368917',
-                                items = [{'qty': '3', 'name': '2 Meal Plan', 'price': '32', 'item_uid': '320-000052', 'itm_business_uid': '200-000002'}],
-                                order_instructions = 'NONE',
-                                purchase_notes = 'NONE';
-                            '''
-                            ]
                 print("(checkout) before queries")
                 print("tip before: ", tip, type(tip))
                 print("amb_code before: ", amb_code, type(amb_code))
@@ -3182,7 +3117,7 @@ class Checkout2(Resource):
                             '''
                             ]
                 print("(checkout) Before queries execution")
-                print("(checkout) queries: ", queries)
+                # print("(checkout) queries: ", queries)
                 response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
                 print("(checkout) After queries execution")
                 print("Insert Response: ", response)
@@ -4497,6 +4432,8 @@ class change_purchase (Resource):
             # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
             print("\nInside Systematically Stepping Through Transactions")
             n = 0
+            print("num_transactions: ", num_transactions)
+            print("amount_should_refund: ", amount_should_refund)
             while num_transactions > 0 and amount_should_refund > 0 :
                 print("Number of Transactions: ", num_transactions)
                 print("Amount to Refund: ",amount_should_refund)
@@ -4669,7 +4606,8 @@ class change_purchase (Resource):
                     return {"message": "Purchase Insert Error"}, 500
 
                 continue
-            
+
+            print("refund_id before return: ", refund_id)
             return refund_id['id']
 
 
