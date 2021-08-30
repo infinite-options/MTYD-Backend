@@ -2931,7 +2931,11 @@ class Checkout2(Resource):
 
                             # Need to update brandAmbassador to check if referral exists and is valid,
                             # then this case will not be necessary
-                            if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits']:
+                            if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == amb_code:
+                                print("(referral -- query) coupon_id: ", vals['coupon_id'])
+                                print("(referral -- query) num_used: ", vals['num_used'])
+                                print("(referral -- query) notes: ", vals['notes'])
+                                print("(referral -- json) amb_code: ", amb_code)
                                 print("(checkout) coupon exists but uses have been exceeded")
                                 return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
 
@@ -12412,7 +12416,7 @@ class brandAmbassador2(Resource):
                         WHERE email_id = \'""" + info + """\';
                         """
                     items_cust = execute(query_cust, 'get', conn)
-                    # print("items_cust", items_cust)
+                    print("items_cust", items_cust)
                     for vals in items_cust['result']:
                         if vals['coupon_id'] == 'Ambassador':
                             return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
@@ -12427,6 +12431,10 @@ class brandAmbassador2(Resource):
 
                     for vals in items_cust['result']:
                         if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == code:
+                            # print("(referral -- query) coupon_id: ", vals['coupon_id'])
+                            # print("(referral -- query) num_used: ", vals['num_used'])
+                            # print("(referral -- query) notes: ", vals['notes'])
+                            # print("(referral -- json) code: ", code)
                             return {"message":'Customer has exceeded their uses for this coupon',"code":506,"discount":"","uids":""}
                             # return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
                     #     elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
