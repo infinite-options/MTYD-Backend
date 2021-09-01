@@ -4114,6 +4114,7 @@ class make_purchase (Resource):
         print("\nSTEP 1:  I MAKE PURCHASE\n", data)
 
         ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
+        # amb_discount = float(data['ambassador_discount']) if data.get('ambassador_discount') is not None else 0.0
 
         # calculate ambassador discount
         amb_coupon_uid = None
@@ -4129,6 +4130,14 @@ class make_purchase (Resource):
             amb_discount_percent = ambassador_coupon['discount_percent']
             amb_discount_shipping = ambassador_coupon['discount_shipping']
             amb_threshold = ambassador_coupon['threshold']
+
+        # amount_should_charge = float(billing['amount_should_charge'])
+        # print("\n(brandAmbassador/discount_checker) total (initial): ", amount_should_charge, type(amount_should_charge))
+        # print("(brandAmbassador/discount_checker) discount_amount: ", discount_amount)
+        # amount_should_charge = amount_should_charge - discount_amount
+        # print("\n(brandAmbassador/discount_checker) total (w/ base discount): ", amount_should_charge)
+        # amount_should_charge = round(amount_should_charge * (1 - (discount_percent * 0.01)),2)
+        # print("\n(brandAmbassador/discount_checker) total (w/ base and percent discounts): ", amount_should_charge)
         
         
         # WHAT THEY ARE CHANGING TO (NEW PLAN)
@@ -4182,25 +4191,74 @@ class make_purchase (Resource):
         print("Charge after discount: ", amount_should_charge, type(amount_should_charge))
 
         # recalculate total with ambassador discounts if total exceeds threshold and ambassador code exists
+        # if amb_coupon_uid is not None:
+        #     delivery_fee = delivery_fee - amb_discount_shipping
+        #     if delivery_fee < 0:
+        #         delivery_fee = 0
+        #     print("(cb) in amb threshold/total conditional")
+        #     # print("amb total 1: ", total)
+        #     amb_total = round(new_meal_charge - new_discount + service_fee + delivery_fee + new_driver_tip + new_tax - amb_discount_amount, 2)
+        #     print("amb total 2: ", amb_total)
+        #     amb_total = round(amb_total - (amb_total * amb_discount_percent * 0.01), 2)
+        #     print("amb total 3: ", amb_total)
+        #     if amb_total > amb_threshold:
+        #         amount_should_charge = amb_total
+        #         amb_coupon_used = True
+        amb_discount = 0.0
         if amb_coupon_uid is not None:
-            delivery_fee = delivery_fee - amb_discount_shipping
-            if delivery_fee < 0:
-                delivery_fee = 0
-            print("(cb) in amb threshold/total conditional")
-            # print("amb total 1: ", total)
-            amb_total = round(new_meal_charge - new_discount + service_fee + delivery_fee + new_driver_tip + new_tax - amb_discount_amount, 2)
-            print("amb total 2: ", amb_total)
-            amb_total = round(amb_total - (amb_total * amb_discount_percent * 0.01), 2)
-            print("amb total 3: ", amb_total)
-            if amb_total > amb_threshold:
-                amount_should_charge = amb_total
-                amb_coupon_used = True
+
+            # get base total
+            # amb_total = new_meal_charge - new_discount + delivery_fee
+            # print('\n(mp amb) amb_total base: ', amb_total)
+
+            # calculate shipping discount if it exists
+            amb_delivery_fee = delivery_fee - amb_discount_shipping
+            if amb_delivery_fee < 0:
+                amb_delivery_fee = 0
+
+            # apply new delivery fee w/ shipping discount and constant discount
+            amb_total = new_meal_charge - new_discount + amb_delivery_fee - amb_discount_amount
+            print('\n(mp amb) amb_total w/ amb shipping & discount: ', amb_total)
+
+            # apply percent discount
+            amb_total = amb_total - (amb_total * (amb_discount_percent/100))
+            print('\n(mp amb) amb_total w/ amb shipping & discount & percent: ', amb_total)
+
+            # calculate total ambassador discount (excluding reduced taxes)
+            amb_discount = new_meal_charge - new_discount + delivery_fee - amb_total
+            print("\n(mp amb) base charge w/out ambassador: ", new_meal_charge - new_discount)
+            print("(mp amb) base charge w/ ambassador: ", amb_total)
+            print("(mp amb) amb_discount (difference): ", amb_discount)
+
+            # get new tax amount
+            amb_new_tax = round(tax_rate * 0.01 * amb_total,2)
+            print('\n(mp amb) amb_new_tax: ', amb_new_tax)
+
+            # add tax, service fee, and tip
+            amb_total = amb_total + amb_new_tax + service_fee + new_driver_tip
+            print('\n(mp amb) amb_total final result: ', amb_total)
+
+            new_tax = amb_new_tax
+            delivery_fee = amb_delivery_fee
+            amount_should_charge = round(amb_total,2)
+
+            # calculate total ambassador discount
+            # amb_discount = round(amount_should_charge - amb_total,2)
+            # print("\n(mp amb) amount_should_charge: ", amount_should_charge)
+            # print("(mp amb) amb_total: ", amb_total)
+            # print("(mp amb) amb_discount (difference): ", amb_discount)
+
+        # amount_should_charge = round(amount_should_charge - amb_discount,2)
+        print("\n(mp amb) final amount_should_charge: ", amount_should_charge, "\n")
 
         # return service_fee
         # return amount_should_charge
         # return service_fee, amount_should_charge
         # return [new_meal_charge, new_discount, new_driver_tip, new_tax, service_fee, amount_should_charge] 
-        return {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_code_used": amb_coupon_used}
+        # return {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_code_used": amb_coupon_used}
+        
+        new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_discount": amb_discount}
+        return new_billing
         
         
 
@@ -12238,7 +12296,6 @@ class brandAmbassador2(Resource):
             if not data.get('code'):
                 return {"message":'Please enter code',"code":480,"discount":"","uids":""}
 
-
             code = data['code']
 
             # 2.) Get coupon based on code
@@ -12464,6 +12521,67 @@ class brandAmbassador2(Resource):
                     # retu['discount'] = 10
                     # retu['uids'] = [couponID]
                     retu['sub'] = qq_ex['result'][0]
+
+                    # fetch currently applied charges and discounts
+                    # billing = data['billing']
+                    # print("\n(brandAmbassador/discount_checker) billing: ", billing)
+
+                    # # calculate new billing info given input and ambassador coupon
+                    # discount_amount = retu['sub']['discount_amount']
+                    # discount_shipping = retu['sub']['discount_shipping']
+                    # discount_percent = retu['sub']['discount_percent']
+                    # threshold = retu['sub']['threshold']
+
+                    # retu['new_billing'] = billing
+
+                    # # "new_meal_charge": "320.00",
+                    # retu['new_billing']['new_meal_charge'] = float(billing['new_meal_charge'])
+
+                    # # "new_discount": "16.00",
+                    # retu['new_billing']['new_discount'] = float(billing['new_discount'])
+
+                    # # "new_driver_tip": "3.00",
+                    # retu['new_billing']['new_driver_tip'] = float(billing['new_driver_tip'])
+
+                    # # "tax_rate": "9.25",
+                    # retu['new_billing']['tax_rate'] = float(billing['tax_rate'])
+
+                    # # "new_tax": "28.12",
+                    # retu['new_billing']['new_tax'] = float(billing['new_tax'])
+
+                    # # "service_fee": "1.50",
+                    # retu['new_billing']['service_fee'] = float(billing['service_fee'])
+
+                    # delivery_fee = float(billing['delivery_fee']) - discount_shipping
+                    # print("\n(brandAmbassador/discount_checker) delivery_fee (before correction): ", delivery_fee)
+                    # if delivery_fee < 0:
+                    #     delivery_fee = 0.0
+                    # print("\n(brandAmbassador/discount_checker) delivery_fee (after correction): ", delivery_fee)
+                    # retu['new_billing']['delivery_fee'] = delivery_fee
+
+                    # # "amount_should_charge": "341.62"
+                    # amount_should_charge = float(billing['amount_should_charge'])
+                    # print("\n(brandAmbassador/discount_checker) total (initial): ", amount_should_charge, type(amount_should_charge))
+                    # print("(brandAmbassador/discount_checker) discount_amount: ", discount_amount)
+                    # amount_should_charge = amount_should_charge - discount_amount
+                    # print("\n(brandAmbassador/discount_checker) total (w/ base discount): ", amount_should_charge)
+                    # amount_should_charge = round(amount_should_charge * (1 - (discount_percent * 0.01)),2)
+                    # print("\n(brandAmbassador/discount_checker) total (w/ base and percent discounts): ", amount_should_charge)
+
+                    # # calculate total discount
+                    # print("old amount_should_charge: ", float(billing['amount_should_charge']))
+                    # ambassador_discount = float(billing['amount_should_charge']) - amount_should_charge
+                    # retu['new_billing']['amount_should_charge'] = amount_should_charge
+                    # # retu['new_billing']['ambassador_discount'] = float(billing['amount_should_charge']) - ambassador_discount
+                    # print("\ntotal ambassador discount: ", ambassador_discount)
+                    # retu['new_billing']['ambassador_discount'] = ambassador_discount
+
+                    # check against threshold
+                    # if amount_should_charge < threshold:
+                    #     retu['message'] = 'price does not exceed ambassador code threshold'
+                    #     retu['billing'] = data['billing']
+
+                    # print("\n(brandAmbassador/discount_checker) retu: ", retu, "\n")
                     return retu
 
                 elif type_code == 'Discount':
