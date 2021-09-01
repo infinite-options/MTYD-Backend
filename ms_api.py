@@ -566,16 +566,22 @@ class stripe_transaction(Resource):
         print("Inputs: ", amount, stripe_process_id)
         response = {}
 
+        print("(stripe_trans) refund 1")
+
         try:
+            print("(stripe_trans) refund try 1")
             refund_res = stripe.Refund.create(
                 charge=str(stripe_process_id),
                 amount=int(amount * 100 )
             )
+            print("(stripe_trans) refund try 2")
             print("refund_res: ", refund_res['id'])
             # amount_should_refund = 0   # Probably should delete.  Code is also unreachable. 
         except stripe.error.CardError as e:
+            print("(stripe_trans) refund except 1")
             # Since it's a decline, stripe.error.CardError will be caught
             response['message'] = e.error.message
+            print("(stripe_trans) refund except 2")
             return response, 400
 
         return refund_res
@@ -3007,10 +3013,28 @@ class Checkout2(Resource):
                             print("(checkout) coupon creation 3")
                             print("(checkout) final_res:", final_res)
 
+                            # query = """
+                            # INSERT INTO coupons 
+                            # (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
+                            # VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + amb_code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
+                            # """
                             query = """
                             INSERT INTO coupons 
-                            (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                            VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + amb_code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
+                            SET
+                                coupon_uid = \'""" + couponID + """\',
+                                coupon_id = 'Referral',
+                                valid = \'""" + final_res['valid'] + """\',
+                                discount_percent = \'""" + str(final_res['discount_percent']) + """\',
+                                discount_amount = \'""" + str(final_res['discount_amount']) + """\',
+                                discount_shipping = \'""" + str(final_res['discount_shipping']) + """\',
+                                expire_date = \'""" + exp_date + """\',
+                                limits = '2',
+                                notes = \'""" + amb_code + """\',
+                                num_used = '1',
+                                recurring = \'""" + final_res['recurring'] + """\',
+                                email_id = \'""" + cust_email + """\',
+                                cup_business_uid = \'""" + final_res['cup_business_uid'] + """\',
+                                threshold = \'""" + str(final_res['threshold']) + """\';
                             """
                             print("(checkout) coupon creation 4")
                             coupon_items = execute(query, 'post', conn)
@@ -4215,7 +4239,7 @@ class change_purchase (Resource):
         refund = calculator().refund(pur_uid)
         print("\nRefund Calculator Return: ", refund)
         amount_should_refund = round(refund['amount_due'],2)
-        print("Amount to be Refunded: ", amount_should_refund)
+        print("Amount to be Refunded 1: ", amount_should_refund)
 
 
         # STEP 2B CALCULATE NEW CHARGE AMOUNT
@@ -4453,12 +4477,14 @@ class change_purchase (Resource):
                 print("\nAmount Captured: ", stripe_captured)
                 print("Amount Refunded: ", stripe_refunded)
                 print("Refundable Amount: ", refundable_amount)
-                print("Amount to be Refunded: ", amount_should_refund)
+                print("Amount to be Refunded 2: ", amount_should_refund)
 
                 if refundable_amount == 0:
                     num_transactions = num_transactions - 1
                     n = n + 1
                     continue
+
+                print("831 debug refund 1")
 
                 if refundable_amount >= amount_should_refund:
                     # refund it right away => amount should be refund is equal refunded_amount
@@ -4607,7 +4633,7 @@ class change_purchase (Resource):
 
                 continue
 
-            print("refund_id before return: ", refund_id)
+            # print("refund_id before return: ", refund_id)
             return refund_id['id']
 
 
@@ -4633,7 +4659,7 @@ class cancel_purchase (Resource):
         refund = calculator().refund(pur_uid)
         print("\nRefund Calculator Return: ", refund)
         amount_should_refund = round(refund['amount_due'],2)
-        print("Amount to be Refunded: ", amount_should_refund)
+        print("Amount to be Refunded 3: ", amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
         print("\nSTEP 3:  PROCESS STRIPE")
@@ -4689,7 +4715,7 @@ class cancel_purchase (Resource):
             print("\nAmount Captured: ", stripe_captured)
             print("Amount Refunded: ", stripe_refunded)
             print("Refundable Amount: ", refundable_amount)
-            print("Amount to be Refunded: ", amount_should_refund)
+            print("Amount to be Refunded 4: ", amount_should_refund)
 
 
  
