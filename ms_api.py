@@ -4223,11 +4223,13 @@ class make_purchase (Resource):
                 amb_delivery_fee = 0
 
             # apply new delivery fee w/ shipping discount and constant discount
-            amb_total = new_meal_charge - new_discount + amb_delivery_fee - amb_discount_amount
+            # amb_total = new_meal_charge - new_discount + amb_delivery_fee - amb_discount_amount
+            amb_total = (new_meal_charge - new_discount) - amb_discount_amount
             print('\n(mp amb) amb_total w/ amb shipping & discount: ', amb_total)
 
             # apply percent discount
-            amb_total = amb_total - (amb_total * (amb_discount_percent/100))
+            # amb_total = amb_total - (amb_total * (amb_discount_percent/100))
+            amb_total = amb_total - (amb_total * (amb_discount_percent/100)) + amb_delivery_fee
             print('\n(mp amb) amb_total w/ amb shipping & discount & percent: ', amb_total)
 
             # calculate total ambassador discount (excluding reduced taxes)
@@ -4256,17 +4258,21 @@ class make_purchase (Resource):
             # print("(mp amb) amb_total: ", amb_total)
             # print("(mp amb) amb_discount (difference): ", amb_discount)
 
-        # amount_should_charge = round(amount_should_charge - amb_discount,2)
-        print("\n(mp amb) final amount_should_charge: ", amount_should_charge, "\n")
+            new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": charge_without_amb,"charge_with_amb": charge_with_amb,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
+            return new_billing
+        else:
 
-        # return service_fee
-        # return amount_should_charge
-        # return service_fee, amount_should_charge
-        # return [new_meal_charge, new_discount, new_driver_tip, new_tax, service_fee, amount_should_charge] 
-        # return {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_code_used": amb_coupon_used}
-        
-        new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": charge_without_amb,"charge_with_amb": charge_with_amb,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
-        return new_billing
+            # amount_should_charge = round(amount_should_charge - amb_discount,2)
+            # print("\n(mp amb) final amount_should_charge: ", amount_should_charge, "\n")
+
+            # return service_fee
+            # return amount_should_charge
+            # return service_fee, amount_should_charge
+            # return [new_meal_charge, new_discount, new_driver_tip, new_tax, service_fee, amount_should_charge] 
+            # return {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_code_used": amb_coupon_used}
+            
+            new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": None,"charge_with_amb": None,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
+            return new_billing
         
         
 
