@@ -4110,7 +4110,13 @@ class make_purchase (Resource):
         
         # STEP 1 GET INPUT INFO (WHAT ARE THEY BUYING)
         conn = connect()
+        # print("(make_purchase) input data: ", data)
         data = request.get_json(force=True)
+        if data.get('purchase_data'):
+            print('(make_purchase) calculating for another function in the backend...')
+            data = data['purchase_data']
+        else:
+            print('(make_purchase) calculating for the frontend...')
         print("\nSTEP 1:  I MAKE PURCHASE\n", data)
 
         ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
@@ -4226,8 +4232,10 @@ class make_purchase (Resource):
 
             # calculate total ambassador discount (excluding reduced taxes)
             amb_discount = new_meal_charge - new_discount + delivery_fee - amb_total
-            print("\n(mp amb) base charge w/out ambassador: ", new_meal_charge - new_discount)
-            print("(mp amb) base charge w/ ambassador: ", amb_total)
+            charge_without_amb = new_meal_charge - new_discount + delivery_fee
+            print("\n(mp amb) base charge w/out ambassador: ", charge_without_amb)
+            charge_with_amb = amb_total
+            print("(mp amb) base charge w/ ambassador: ", charge_with_amb)
             print("(mp amb) amb_discount (difference): ", amb_discount)
 
             # get new tax amount
@@ -4257,7 +4265,7 @@ class make_purchase (Resource):
         # return [new_meal_charge, new_discount, new_driver_tip, new_tax, service_fee, amount_should_charge] 
         # return {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_code_used": amb_coupon_used}
         
-        new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"amount_should_charge": amount_should_charge,"ambassador_discount": amb_discount}
+        new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": charge_without_amb,"charge_with_amb": charge_with_amb,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
         return new_billing
         
         
@@ -12521,6 +12529,15 @@ class brandAmbassador2(Resource):
                     # retu['discount'] = 10
                     # retu['uids'] = [couponID]
                     retu['sub'] = qq_ex['result'][0]
+
+                    print("\n(brandAmbassador/discount_checker) retu: ", retu)
+                    purchase_data = data['purchase_data']
+                    purchase_data['ambassador_coupon'] = retu['sub']
+                    print("\n(brandAmbassador/discount_checker) purchase_data: ", purchase_data)
+                    billing_info = make_purchase().put()
+                    print("\n(brandAmbassador/discount_checker) billing_info: ", billing_info)
+
+                    retu['new_billing'] = billing_info
 
                     # fetch currently applied charges and discounts
                     # billing = data['billing']
