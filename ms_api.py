@@ -4110,25 +4110,28 @@ class make_purchase (Resource):
         
         # STEP 1 GET INPUT INFO (WHAT ARE THEY BUYING)
         conn = connect()
-        # print("(make_purchase) input data: ", data)
+        
         data = request.get_json(force=True)
+        # print("make_purchase input data: ", data)
+
+        # IF FUNCTION IS CALLED FROM ANOTHER ENDPOINT WITHIN THE BACKEND
         if data.get('purchase_data'):
             print('(make_purchase) calculating for another function in the backend...')
             data = data['purchase_data']
         else:
             print('(make_purchase) calculating for the frontend...')
-        print("\nSTEP 1:  I MAKE PURCHASE\n", data)
+        print("\nSTEP 1:  MAKE PURCHASE\n", data)
 
         ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
-        # amb_discount = float(data['ambassador_discount']) if data.get('ambassador_discount') is not None else 0.0
-
-        # calculate ambassador discount
-        amb_coupon_uid = None
-        amb_coupon_used = False
+        
+        # CALCULATE AMBASSADOR DISCOUNT
+        # INITIALIZE VARIABLES
         amb_discount_amount = 0
         amb_discount_percent = 0
         amb_discount_shipping = 0
         amb_threshold = 0
+        amb_coupon_uid = None
+        # IF AMBASSADOR INFO IS PASSED IN JSON OBJECT
         if type(ambassador_coupon) is dict:
             print("(cb) in amb code conditional")
             amb_coupon_uid = ambassador_coupon['coupon_uid']
@@ -4147,6 +4150,7 @@ class make_purchase (Resource):
         
         
         # WHAT THEY ARE CHANGING TO (NEW PLAN)
+        # WHAT ARE THEY BUYING (NEW PLAN)
         print("What they are changing to:")
         item_uid = data["items"][0]['item_uid']
         print("  NEW item_uid : ", item_uid)
@@ -4185,14 +4189,7 @@ class make_purchase (Resource):
         print(new_tax, type(new_tax))
         delta = round(new_meal_charge  - new_discount + service_fee + delivery_fee + new_driver_tip + new_tax,2)
         print(delta, type(delta))
-        # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
-        # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
-        # print("Amount for new Plan: ", new_charge)
-        print("New Meal Plan Charges: ", delta)
-        # delta = round(delta - amount_should_refund,2)
-        # print("Additional Charge/Refund after discount: ", delta)
-
-        # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
+        print("\nNew Meal Plan Charges: ", delta)
         amount_should_charge = round(delta,2)
         print("Charge after discount: ", amount_should_charge, type(amount_should_charge))
 
@@ -4222,41 +4219,88 @@ class make_purchase (Resource):
             if amb_delivery_fee < 0:
                 amb_delivery_fee = 0
 
-            # apply new delivery fee w/ shipping discount and constant discount
-            # amb_total = new_meal_charge - new_discount + amb_delivery_fee - amb_discount_amount
-            amb_total = (new_meal_charge - new_discount) - amb_discount_amount
-            print('\n(mp amb) amb_total w/ amb shipping & discount: ', amb_total)
 
-            # apply percent discount
-            # amb_total = amb_total - (amb_total * (amb_discount_percent/100))
-            amb_total = amb_total - (amb_total * (amb_discount_percent/100)) + amb_delivery_fee
-            print('\n(mp amb) amb_total w/ amb shipping & discount & percent: ', amb_total)
 
-            # calculate total ambassador discount (excluding reduced taxes)
-            amb_discount = new_meal_charge - new_discount + delivery_fee - amb_total
-            charge_without_amb = new_meal_charge - new_discount + delivery_fee
-            print("\n(mp amb) base charge w/out ambassador: ", charge_without_amb)
-            charge_with_amb = amb_total
-            print("(mp amb) base charge w/ ambassador: ", charge_with_amb)
-            print("(mp amb) amb_discount (difference): ", amb_discount)
 
-            # get new tax amount
-            amb_new_tax = round(tax_rate * 0.01 * amb_total,2)
-            print('\n(mp amb) amb_new_tax: ', amb_new_tax)
+            # PM Calculate Ambassador discount
+            # amb_discount = round(((new_meal_charge - new_discount) - amb_discount_amount) * (1 - amb_discount_percent/100), 2)
 
-            # add tax, service fee, and tip
-            amb_total = amb_total + amb_new_tax + service_fee + new_driver_tip
-            print('\n(mp amb) amb_total final result: ', amb_total)
+            discounted_meal_charge = new_meal_charge - new_discount - amb_discount_amount
+            print(new_meal_charge)
+            print(new_discount)
+            print(amb_discount_amount)
+            print("\nAmbassador discount without %: ", discounted_meal_charge)
+            if discounted_meal_charge > 0:
+                amb_discount = amb_discount_amount + round(discounted_meal_charge * amb_discount_percent/100, 2)
+            else:
+                amb_discount = round(discounted_meal_charge,2)
+            print("Ambassador discount with %: ", amb_discount)
 
-            new_tax = amb_new_tax
+            # new_meal_charge =
+            # new_discount =
+            # new_driver_tip =
+            # tax_rate =
+            new_tax = round(tax_rate * 0.01 * (new_meal_charge - new_discount - amb_discount),2)
+            # service_fee =
             delivery_fee = amb_delivery_fee
-            amount_should_charge = round(amb_total,2)
+            charge_without_amb = new_meal_charge - new_discount
+            charge_with_amb = new_meal_charge - new_discount - amb_discount
+            # amb_discount =
+            amount_should_charge = round(new_meal_charge - new_discount - amb_discount + new_tax + service_fee + new_driver_tip,2)
+            # amount_should_charge = 192.00 - 3.84 - 54.54 + 12.36 + 1.50 + 3.00
 
-            # calculate total ambassador discount
-            # amb_discount = round(amount_should_charge - amb_total,2)
-            # print("\n(mp amb) amount_should_charge: ", amount_should_charge)
-            # print("(mp amb) amb_total: ", amb_total)
+
+
+
+            
+            # # apply new delivery fee w/ shipping discount and constant discount
+            # # amb_total = new_meal_charge - new_discount + amb_delivery_fee - amb_discount_amount
+            # amb_total = (new_meal_charge - new_discount) - amb_discount_amount
+            # print('\n(mp amb) amb_total w/ amb shipping & discount: ', amb_total)
+
+            # # apply percent discount
+            # # amb_total = amb_total - (amb_total * (amb_discount_percent/100))
+            # # amb_total = amb_total - (amb_total * (amb_discount_percent/100)) + amb_delivery_fee
+            # amb_total = round(amb_total - (amb_total * (amb_discount_percent/100)),2)
+            # print('\n(mp amb) amb_total w/ amb shipping & discount & percent: ', amb_total)
+
+            # # calculate total ambassador discount (excluding reduced taxes)
+            # # amb_discount = new_meal_charge - new_discount + delivery_fee - amb_total
+            # amb_discount = new_meal_charge - new_discount - amb_total
+
+            # print(new_meal_charge)
+            # print(new_discount)
+            # print(amb_total)
+            
+            # # charge_without_amb = new_meal_charge - new_discount + delivery_fee
+            # charge_without_amb = new_meal_charge - new_discount
+            # print("\n(mp amb) base charge w/out ambassador: ", charge_without_amb)
+            # charge_with_amb = amb_total
+            # print("(mp amb) base charge w/ ambassador: ", charge_with_amb)
             # print("(mp amb) amb_discount (difference): ", amb_discount)
+
+            # # get new tax amount
+            # amb_new_tax = round(tax_rate * 0.01 * amb_total,2)
+            # print('\n(mp amb) amb_new_tax: ', amb_new_tax)
+
+            # # add tax, service fee, and tip
+            # amb_total = amb_total + amb_new_tax + service_fee + new_driver_tip
+            # print('\n(mp amb) amb_total final result: ', amb_total)
+
+            # new_tax = amb_new_tax
+            # delivery_fee = amb_delivery_fee
+            # amount_should_charge = round(amb_total,2)
+
+            # # calculate total ambassador discount
+            # # amb_discount = round(amount_should_charge - amb_total,2)
+            # # print("\n(mp amb) amount_should_charge: ", amount_should_charge)
+            # # print("(mp amb) amb_total: ", amb_total)
+            # # print("(mp amb) amb_discount (difference): ", amb_discount)
+
+
+
+
+
 
             new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": charge_without_amb,"charge_with_amb": charge_with_amb,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
             return new_billing
