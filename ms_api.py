@@ -2763,7 +2763,8 @@ class Checkout2(Resource):
 
             charge_id = data['charge_id']
             payment_type = data['payment_type']
-            amb = data['amb'] if data.get('amb') is not None else '0'
+            # amb = data['amb'] if data.get('amb') is not None else '0'
+            amb_discount = data['ambassador_discount'] if data.get('ambassador_discount') is not None else '0'
             taxes = data['tax']
             tip = data['tip']
             service_fee = data['service_fee']
@@ -3087,7 +3088,8 @@ class Checkout2(Resource):
                 # tip = '12.4'
                 # amb_code = '46.7'
                 # print("tip after: ", tip, type(tip))
-                # print("amb_code after: ", amb_code, type(amb_code))
+                print("amb_code after: ", amb_code, type(amb_code))
+                print("amb_discount after: ", amb_discount, type(amb_discount))
                 queries = [
                             '''
                             INSERT INTO M4ME.payments
@@ -3113,7 +3115,8 @@ class Checkout2(Resource):
                                 service_fee = \'''' + service_fee + '''\',
                                 delivery_fee = \'''' + service_fee + '''\',
                                 subtotal = \'''' + subtotal + '''\',
-                                ambassador_code = \'''' + amb + '''\';
+                                ambassador_code = \'''' + amb_discount + '''\',
+                                amb_code = \'''' + amb_code + '''\';
                             ''',
                             '''
                             INSERT INTO M4ME.purchases
@@ -4754,8 +4757,8 @@ class change_purchase_2 (Resource):
         new_charge = calculator().billing(item_uid, num_deliveries)
 
         # print("\nold_charge: ", data)
-        # print("\nnew_charge: ", new_charge)
-        print("\nnew_charge: ", new_charge['result'][0])
+        print("\nnew_charge: ", new_charge)
+        print("\n0905 new_charge: ", new_charge['result'][0])
 
         # print("\nbefore return test_return_2")
         # test_return_2 = "test2"
@@ -4763,7 +4766,7 @@ class change_purchase_2 (Resource):
 
         new_purchase = make_purchase().put()
         # print("\nnew_charge: ", new_charge['result'][0])
-        print("\nnew_purchase: ", new_purchase)
+        print("\n0905 new_purchase: ", new_purchase)
 
         # print("\nbefore return test_return_3")
         # test_return_3 = "test3"
@@ -5641,6 +5644,123 @@ class predict_next_billing_date(Resource):
 
             next_billing_date = execute(query, 'get', conn)
             print("Next Billing Date: ", next_billing_date)
+
+            return next_billing_date
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+# BRANDON NEXT BILLING DATE
+class predict_next_billing_amount(Resource):
+
+    def get(self, id):
+
+        try:
+            conn = connect()
+            print("Inside predict class", id)
+
+            # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
+            query = """
+
+                SELECT nbd.*,
+                    nms.next_delivery,
+                    nms.final_selection
+                FROM (
+                    SELECT *,
+                        ADDDATE(menu_date, 1) AS next_billing_date
+                    FROM ( 
+                        SELECT A.*,
+                            sum(B.delivery) as cum_qty
+                        FROM ( 
+                            SELECT * ,
+                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                            FROM M4ME.lplp
+                            JOIN (
+                                SELECT DISTINCT menu_date
+                                FROM menu
+                                -- WHERE menu_date > now()
+                                ORDER BY menu_date ASC) AS md
+                            LEFT JOIN M4ME.latest_combined_meal lcm
+                            ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                    md.menu_date = lcm.sel_menu_date
+                            WHERE pur_customer_uid = '""" + id + """'  
+                                    AND purchase_status = "ACTIVE"
+                                    AND menu_date >= start_delivery_date)
+                            AS A
+                        JOIN (
+                            SELECT * ,
+                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                            FROM M4ME.lplp
+                            JOIN (
+                                SELECT DISTINCT menu_date
+                                FROM menu
+                                -- WHERE menu_date > now()
+                                ORDER BY menu_date ASC) AS md
+                            LEFT JOIN M4ME.latest_combined_meal lcm
+                            ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                    md.menu_date = lcm.sel_menu_date
+                            WHERE pur_customer_uid = '""" + id + """'  
+                                    AND purchase_status = "ACTIVE"
+                                    AND menu_date >= start_delivery_date)
+                            AS B
+                        ON A.menu_date >= B.menu_date
+                            AND A.purchase_uid = B.purchase_uid
+                        GROUP BY A.menu_date,
+                            A.purchase_uid
+                        ) AS cum_del
+                    WHERE cum_del.num_deliveries = cum_del.cum_qty
+                        AND delivery = 1
+                    ORDER BY cum_del.purchase_uid
+                    ) AS nbd
+                JOIN (
+                    SELECT -- *,
+                        menu_date AS next_delivery,
+                        purchase_uid,
+                        purchase_id,
+                        CASE
+                            WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
+                            WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
+                            ELSE "SELECTED"
+                            END 
+                            AS final_selection
+                    FROM (
+                    -- PART A
+                        SELECT *
+                        FROM (
+                            SELECT DISTINCT menu_date 
+                            FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1) as nmd,
+                            (
+                            SELECT purchase_uid, purchase_id -- *
+                            FROM M4ME.lplp
+                            WHERE lplp.pur_customer_uid = '""" + id + """') as pur
+                        ) AS nmdpur
+                    LEFT JOIN (
+                    -- PART B
+                        SELECT *
+                        FROM M4ME.latest_combined_meal lcm
+                        JOIN (
+                            SELECT DISTINCT menu_date AS dmd 
+                            FROM M4ME.menu
+                            WHERE menu_date > CURDATE()
+                            ORDER BY menu_date ASC
+                            LIMIT 1) AS nmd
+                        WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
+                    ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
+                ) AS nms
+                ON nbd.purchase_id = nms.purchase_id;
+            """
+
+            next_billing_date = execute(query, 'get', conn)
+            print("Next Billing Date: ", next_billing_date)
+
+            # billing_info = make_purchase().put()
 
             return next_billing_date
 
@@ -15014,6 +15134,8 @@ api.add_resource(meals_selected_with_billing, '/api/v2/meals_selected_with_billi
 api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
 
 api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
+
+api.add_resource(predict_next_billing_amount, '/api/v2/predict_next_billing_amount/<string:id>')
 
 api.add_resource(subscription_history, '/api/v2/subscription_history/<string:cust_uid>')
 
