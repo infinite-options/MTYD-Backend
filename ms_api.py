@@ -2773,9 +2773,7 @@ class Checkout2(Resource):
 
             print("(checkout2) 5")
 
-
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
-
             
             # We should sanitize the variable before writting into database.
             # must pass these check first
@@ -2802,20 +2800,6 @@ class Checkout2(Resource):
                 # ENTER COUPON ID.  SET TO NULL UNTIL WE IMPLEMENT COUPONS
                 print("I don't think coupons is used")
                 coupon_id = 'NULL'
-                # coupon_id = data.get('coupon_id')
-                # if str(coupon_id) != "" and coupon_id is not None:
-                #     # update coupon table
-                #     coupon_id = "'" + coupon_id + "'"
-                #     coupon_query = """UPDATE coupons SET num_used = num_used + 1
-                #                 WHERE coupon_id =  """ + str(coupon_id) + ";"
-                #     res = execute(coupon_query, 'post', conn)
-                # else:
-                #     coupon_id = 'NULL'
-                # print("coupon ID: ", coupon_id)
-
-
-                # CALCULATE start_delivery_date
-                #QUERY 8: NEXT DELIVERY DATE
 
                 date_query = '''
                             SELECT DISTINCT menu_date FROM M4ME.menu
@@ -2828,10 +2812,6 @@ class Checkout2(Resource):
                 # RESPONSE PARSING EXAMPLES
                 start_delivery_date = response
                 print("start_delivery_date: ", start_delivery_date)
-                # start_delivery_date = response[0]
-                # print("start_delivery_date: ", start_delivery_date)
-                # start_delivery_date = response[0]['result']
-                # print("start_delivery_date: ", start_delivery_date)
                 start_delivery_date = response[0]['result'][0]['menu_date']
                 print("start_delivery_date: ", start_delivery_date)
 
@@ -2841,17 +2821,6 @@ class Checkout2(Resource):
                     print("(checkout) amb code EMPTY")
                 else:
                     print("(checkout) amb code NOT EMPTY")
-
-                    # print("(brandAmbassador/discount_checker) check referral")
-
-                    #     for vals in items_cust['result']:
-                    #         if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits']:
-                    #             return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
-                    #         elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
-                    #             print("(brandAmbassador/discount_checker) let use referral")
-                    #             return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
-                            
-                    #     print("(brandAmbassador/discount_checker) after referral")
 
                     # 1.) Get coupon based on code
                     print("(checkout) amb test 1")
@@ -2875,8 +2844,6 @@ class Checkout2(Resource):
                     # 3.) Check if coupon with code exists
                     if not items_amb['result']:
                         return {"message":'No code exists',"code":501,"discount":"","uids":""}
-
-                        print("(checkout) amb stuff 3")
                     
                     # 4.) Check if coupon with code exists
                     final_res = ''
@@ -2901,22 +2868,14 @@ class Checkout2(Resource):
                     
                     print("(checkout) amb stuff 5")
 
-                    # if not data.get('IsGuest') or not data.get('info'):
-                    #     return {"message":'Please enter IsGuest and info',"code":503,"discount":"","uids":""}
-                    
-                    # IsGuest = data['IsGuest']
                     cust_email = data['delivery_email']
                     print("(checkout) cust_email: ", cust_email)
                     print("(checkout) amb_code: ", amb_code)
-                    # if type_code == 'Ambassador' and IsGuest == 'True':
-                    #     return {"message":'Please login',"code":504,"discount":"","uids":""}
 
                     print("(checkout) amb stuff 6")
                     
                     if type_code == 'Ambassador':
                         print("(checkout) type_code == Ambassador")
-                        # print("Ambassador")
-                        # check if customer is already a ambassador because ambassador cannot refer himself or get referred
                         query_cust = """
                             SELECT * FROM coupons
                             WHERE email_id = \'""" + cust_email + """\';
@@ -2971,32 +2930,6 @@ class Checkout2(Resource):
                                         # return items_up_amb
                                     print("(checkout) valid coupon 3")
 
-
-                            # else:
-                            #     print("(checkout) coupon does not exist, creating new one...")
-
-                            #     new_coupon_id_query = ["CALL new_coupons_uid;"]
-                            #     couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
-                            #     couponID = couponIDresponse['result'][0]['new_id']
-
-                            #     dateObject = datetime.now()
-                            #     exp_date = dateObject.replace(year=dateObject.year + 1)
-                            #     exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                            #     print(final_res)
-
-                            #     query = """
-                            #     INSERT INTO coupons 
-                            #     (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                            #     VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
-                            #     """
-                            #     items = execute(query, 'post', conn)
-                            #     if items['code'] != 281:
-                            #         print("(checkout) ERROR with query")
-                            #         items['message'] = "check sql query"
-                            #         # return items
-
-                            #     print("(checkout) new coupon created")
-
                         print("(checkout) creating new coupon if none found")
                         # if len(items_cust['result']) == 0:
                         if code_exists == False:
@@ -3014,11 +2947,6 @@ class Checkout2(Resource):
                             print("(checkout) coupon creation 3")
                             print("(checkout) final_res:", final_res)
 
-                            # query = """
-                            # INSERT INTO coupons 
-                            # (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                            # VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + amb_code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
-                            # """
                             query = """
                             INSERT INTO coupons 
                             SET
@@ -3048,38 +2976,6 @@ class Checkout2(Resource):
                             
                         print("(checkout) after referral")
 
-                        # generate coupon for referred customer
-
-                        # query = ["CALL new_coupons_uid;"]
-                        # couponIDresponse = execute(query[0], 'get', conn)
-                        # couponID = couponIDresponse['result'][0]['new_id']
-                        
-                        # dateObject = datetime.now()
-                        # exp_date = dateObject.replace(year=dateObject.year + 1)
-                        # exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                        # print(final_res)
-                        # query = """
-                        # INSERT INTO coupons 
-                        # (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        # VALUES ( \'""" + couponID + """\', 'Referral', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + cust_email + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
-                        # """
-                        # items = execute(query, 'post', conn)
-                        # if items['code'] != 281:
-                        #     items['message'] = "check sql query"
-                        #     return items
-
-                        # # Now update ambasaddor coupon
-                        # print('updating amb')
-                        # query = """
-                        #         UPDATE coupons SET limits = limits + 2 
-                        #         WHERE coupon_id = 'Ambassador' AND email_id = \'""" + amb_code + """\'
-                        #         """
-                        # items_up_amb = execute(query, 'post', conn)
-                        # if items_up_amb['code'] != 281:
-                        #     items_up_amb['message'] = "check sql query"
-                        #     return items_up_amb
-
-                    # ============== END AMBASSADOR STUFF ==============
                     print("(checkout) ============== END AMBASSADOR STUFF ==============")
 
                 print("(checkout) before queries")
@@ -3113,7 +3009,7 @@ class Checkout2(Resource):
                                 taxes = \'''' + taxes + '''\',
                                 driver_tip = \'''' + tip + '''\',
                                 service_fee = \'''' + service_fee + '''\',
-                                delivery_fee = \'''' + service_fee + '''\',
+                                delivery_fee = \'''' + delivery_fee + '''\',
                                 subtotal = \'''' + subtotal + '''\',
                                 ambassador_code = \'''' + amb_discount + '''\',
                                 amb_code = \'''' + amb_code + '''\';
@@ -4781,8 +4677,6 @@ class change_purchase_2 (Resource):
         # item_uid = data["items"][0]['item_uid']
         # print("item_uid : ", item_uid)
 
-
-
         # STEP 2A CALCULATE REFUND
         print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
         print("Call Refund Calculator")
@@ -4799,84 +4693,183 @@ class change_purchase_2 (Resource):
         # STEP 2B CALCULATE NEW CHARGE AMOUNT
         print("\nSTEP 2B:  Inside Calculate New Charge", pur_uid)
         new_charge = calculator().billing(item_uid, num_deliveries)
-
-        # print("\nold_charge: ", data)
-        print("\nnew_charge: ", new_charge)
-        print("\n0905 new_charge: ", new_charge['result'][0])
-
-        # print("\nbefore return test_return_2")
-        # test_return_2 = "test2"
-        # return test_return_2
-
         new_purchase = make_purchase().put()
-        # print("\nnew_charge: ", new_charge['result'][0])
-        print("\n0905 new_purchase: ", new_purchase)
-
-        # print("\nbefore return test_return_3")
-        # test_return_3 = "test3"
-        # return test_return_3
-
-        # # print("Returned JSON Object: \n", new_charge)
-        # print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
-        # print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-        # print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
-        # new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
-        # print(new_meal_charge, type(new_meal_charge))
-        # new_discount = new_charge['result'][0]['delivery_discount']
-        # print(new_discount, type(new_discount))
-        # new_discount = round(new_meal_charge * new_discount/100,2)
-        # print(new_discount, type(new_discount))
-        # new_driver_tip = float(data["driver_tip"])
-        # print(new_driver_tip, type(new_driver_tip))
-        # new_tax = round(.0925*(new_meal_charge  - new_discount + refund['delivery_fee']),2)
-        # print(new_tax, type(new_tax))
-        # delta = round(new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax,2)
-        # print(delta, type(delta))
-        # # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
-        # # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
-        # # print("Amount for new Plan: ", new_charge)
-        # print("New Meal Plan Charges: ", delta)
-        # # delta = round(delta - amount_should_refund,2)
-        # # print("Additional Charge/Refund after discount: ", delta)
-
-        # # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
-        # amount_should_refund = round(amount_should_refund - delta,2)
-        # print("Additional Charge/Refund after discount: ", amount_should_refund, type(amount_should_refund))
-
-        # print("Returned JSON Object: \n", new_charge)
-        # print("Amount for new Plan: ", new_charge['result'][0]['item_price'])
-        # print("Number of Deliveries: ", new_charge['result'][0]['num_deliveries'])
-        # print("Delivery Discount: ", new_charge['result'][0]['delivery_discount'])
-        # new_meal_charge = new_charge['result'][0]['item_price'] * int(num_deliveries)
+        print("calced from make_purchase: ", new_purchase)
         new_meal_charge = new_purchase['new_meal_charge']
-        print(new_meal_charge, type(new_meal_charge))
-        # new_discount = new_charge['result'][0]['delivery_discount']
-        # print(new_discount, type(new_discount))
-        # new_discount = round(new_meal_charge * new_discount/100,2)
-        # print(new_discount, type(new_discount))
         new_discount = new_purchase['new_discount']
-        # new_driver_tip = float(data["driver_tip"])
-        # print(new_driver_tip, type(new_driver_tip))
         new_driver_tip = new_purchase['new_driver_tip']
-        # new_tax = round(.0925*(new_meal_charge  - new_discount + refund['delivery_fee']),2)
-        # print(new_tax, type(new_tax))
         new_tax = new_purchase['new_tax']
         delta = round(new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax,2)
-        print(delta, type(delta))
-        # delta = new_charge['result'][0]['item_price'] * new_charge['result'][0]['num_deliveries'] + float(data["driver_tip"])
-        # new_charge = int(new_charge['meal_refund'] + new_charge['service_fee'] + new_charge['delivery_fee'] +new_charge['driver_tip'] + new_charge['taxes'])
-        # print("Amount for new Plan: ", new_charge)
         print("New Meal Plan Charges: ", delta)
-        # delta = round(delta - amount_should_refund,2)
-        # print("Additional Charge/Refund after discount: ", delta)
+
+        # ============== START AMBASSADOR STUFF ==============
+        amb_code = data['ambassador_code']
+        print("(checkout) ============== START AMBASSADOR STUFF ==============")
+        if amb_code == "":
+            print("(checkout) amb code EMPTY")
+        else:
+            print("(checkout) amb code NOT EMPTY")
+
+            # 1.) Get coupon based on code
+            print("(checkout) amb test 1")
+            print("(checkout) amb_code: ", amb_code)
+            query_amb = """
+                    SELECT * FROM coupons
+                    WHERE email_id = \'""" + amb_code + """\';
+                    """
+            items_amb = execute(query_amb, 'get', conn)
+            print("(checkout) items_amb: ", items_amb)
+
+            print("(checkout) amb stuff 1")
+
+            # 2.) Handle errors with query
+            if items_amb['code'] != 280:
+                items_amb['message'] = 'check sql query'
+                return items_amb
+
+            print("(checkout) amb stuff 2")
+
+            # 3.) Check if coupon with code exists
+            if not items_amb['result']:
+                return {"message":'No code exists',"code":501,"discount":"","uids":""}
+            
+            # 4.) Check if coupon with code exists
+            final_res = ''
+            for vals in items_amb['result']:
+                if vals['notes'] == 'Ambassador':
+                    type_code = 'Ambassador'
+                    rf_id = vals['coupon_uid']
+                    num_used = vals['num_used']
+                    limits = vals['limits']
+                    final_res = vals
+                elif vals['notes'] == 'Discount':
+                    type_code = 'Discount'
+                    rf_id = vals['coupon_uid']
+                    num_used = vals['num_used']
+                    limits = vals['limits']
+                    final_res = vals
+
+            print("(checkout) amb stuff 4")
+                
+            if type_code not in ['Discount','Ambassador']:
+                return {"message":'Got a different kind of discount please check code',"code":502,"discount":"","uids":""}
+            
+            print("(checkout) amb stuff 5")
+
+            # cust_email = data['delivery_email']
+            cust_email = data['customer_email']
+            print("(checkout) cust_email: ", cust_email)
+            print("(checkout) amb_code: ", amb_code)
+
+            print("(checkout) amb stuff 6")
+            
+            if type_code == 'Ambassador':
+                print("(checkout) type_code == Ambassador")
+                query_cust = """
+                    SELECT * FROM coupons
+                    WHERE email_id = \'""" + cust_email + """\';
+                    """
+                items_cust = execute(query_cust, 'get', conn)
+                print("items_cust", items_cust)
+                for vals in items_cust['result']:
+                    if vals['coupon_id'] == 'Ambassador':
+                        return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
+                
+
+                # customer can be referred only once so check that
+
+                print("(checkout) check referral")
+                print("(checkout) items_cust[result]: ", items_cust['result'])
+                print("(checkout) items_cust[result] len: ", len(items_cust['result']))
+
+                code_exists = False
+                for vals in items_cust['result']:
+
+                    if vals['notes'] == amb_code:
+                        code_exists = True
+
+                        # Need to update brandAmbassador to check if referral exists and is valid,
+                        # then this case will not be necessary
+                        if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == amb_code:
+                            print("(referral -- query) coupon_id: ", vals['coupon_id'])
+                            print("(referral -- query) num_used: ", vals['num_used'])
+                            print("(referral -- query) notes: ", vals['notes'])
+                            print("(referral -- json) amb_code: ", amb_code)
+                            print("(checkout) coupon exists but uses have been exceeded")
+                            return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
+
+                        elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
+                            print("(checkout) valid coupon exists")
+                            # return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
+
+                            # Expend a use of the referral
+                            # print('updating amb')
+                            use_referral_query = """
+                                    UPDATE coupons SET num_used = num_used + 1 
+                                    WHERE coupon_id = 'Referral' 
+                                    AND email_id = \'""" + cust_email + """\'
+                                    AND notes = \'""" + amb_code + """\'
+                                    """
+                            print("(checkout) valid coupon 1")
+                            items_up_amb = execute(use_referral_query, 'post', conn)
+                            print("(checkout) valid coupon 2")
+                            if items_up_amb['code'] != 281:
+                                print("(checkout) ERROR with use_referral_query")
+                                items_up_amb['message'] = "check sql query"
+                                # return items_up_amb
+                            print("(checkout) valid coupon 3")
+
+                print("(checkout) creating new coupon if none found")
+                # if len(items_cust['result']) == 0:
+                if code_exists == False:
+                    print("(checkout) coupon does not exist, creating new one...")
+
+                    print("(checkout) coupon creation 1")
+                    new_coupon_id_query = ["CALL new_coupons_uid;"]
+                    couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
+                    couponID = couponIDresponse['result'][0]['new_id']
+                    print("(checkout) coupon creation 2")
+
+                    dateObject = datetime.now()
+                    exp_date = dateObject.replace(year=dateObject.year + 1)
+                    exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+                    print("(checkout) coupon creation 3")
+                    print("(checkout) final_res:", final_res)
+
+                    query = """
+                    INSERT INTO coupons 
+                    SET
+                        coupon_uid = \'""" + couponID + """\',
+                        coupon_id = 'Referral',
+                        valid = \'""" + final_res['valid'] + """\',
+                        discount_percent = \'""" + str(final_res['discount_percent']) + """\',
+                        discount_amount = \'""" + str(final_res['discount_amount']) + """\',
+                        discount_shipping = \'""" + str(final_res['discount_shipping']) + """\',
+                        expire_date = \'""" + exp_date + """\',
+                        limits = '2',
+                        notes = \'""" + amb_code + """\',
+                        num_used = '1',
+                        recurring = \'""" + final_res['recurring'] + """\',
+                        email_id = \'""" + cust_email + """\',
+                        cup_business_uid = \'""" + final_res['cup_business_uid'] + """\',
+                        threshold = \'""" + str(final_res['threshold']) + """\';
+                    """
+                    print("(checkout) coupon creation 4")
+                    coupon_items = execute(query, 'post', conn)
+                    print("(checkout) coupon creation 5")
+                    if coupon_items['code'] != 281:
+                        print("(checkout) ERROR with query")
+                        coupon_items['message'] = "check sql query"
+
+                    print("(checkout) new coupon created")
+                    
+                print("(checkout) after referral")
+
+            print("(checkout) ============== END AMBASSADOR STUFF ==============")
 
         # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
         amount_should_refund = round(amount_should_refund - delta,2)
         print("Additional Charge/Refund after discount: ", amount_should_refund, type(amount_should_refund))
-
-        # print("\nbefore return test_return_4")
-        # test_return_4 = "test4"
-        # return test_return_4
           
         # STEP 3 PROCESS STRIPE
         print("\nSTEP 3:  PROCESS STRIPE")
@@ -5707,98 +5700,111 @@ class predict_next_billing_amount(Resource):
 
             # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
             query = """
-
-                SELECT nbd.*,
-                    nms.next_delivery,
-                    nms.final_selection
+                SELECT DISTINCT
+                    no_amb_discount.* ,
+                    with_amb_discount.*
                 FROM (
-                    SELECT *,
-                        ADDDATE(menu_date, 1) AS next_billing_date
-                    FROM ( 
-                        SELECT A.*,
-                            sum(B.delivery) as cum_qty
-                        FROM ( 
-                            SELECT * ,
-                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                            FROM M4ME.lplp
-                            JOIN (
-                                SELECT DISTINCT menu_date
-                                FROM menu
-                                -- WHERE menu_date > now()
-                                ORDER BY menu_date ASC) AS md
-                            LEFT JOIN M4ME.latest_combined_meal lcm
-                            ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                    md.menu_date = lcm.sel_menu_date
-                            WHERE pur_customer_uid = '""" + id + """'  
-                                    AND purchase_status = "ACTIVE"
-                                    AND menu_date >= start_delivery_date)
-                            AS A
-                        JOIN (
-                            SELECT * ,
-                                    IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                                    json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                            FROM M4ME.lplp
-                            JOIN (
-                                SELECT DISTINCT menu_date
-                                FROM menu
-                                -- WHERE menu_date > now()
-                                ORDER BY menu_date ASC) AS md
-                            LEFT JOIN M4ME.latest_combined_meal lcm
-                            ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                    md.menu_date = lcm.sel_menu_date
-                            WHERE pur_customer_uid = '""" + id + """'  
-                                    AND purchase_status = "ACTIVE"
-                                    AND menu_date >= start_delivery_date)
-                            AS B
-                        ON A.menu_date >= B.menu_date
-                            AND A.purchase_uid = B.purchase_uid
-                        GROUP BY A.menu_date,
-                            A.purchase_uid
-                        ) AS cum_del
-                    WHERE cum_del.num_deliveries = cum_del.cum_qty
-                        AND delivery = 1
-                    ORDER BY cum_del.purchase_uid
-                    ) AS nbd
-                JOIN (
-                    SELECT -- *,
-                        menu_date AS next_delivery,
-                        purchase_uid,
-                        purchase_id,
-                        CASE
-                            WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
-                            WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
-                            ELSE "SELECTED"
-                            END 
-                            AS final_selection
+                    SELECT nbd.*,
+                        nms.next_delivery,
+                        nms.final_selection
                     FROM (
-                    -- PART A
-                        SELECT *
+                        SELECT *,
+                            ADDDATE(menu_date, 1) AS next_billing_date
+                        FROM ( 
+                            SELECT A.*,
+                                sum(B.delivery) as cum_qty
+                            FROM ( 
+                                SELECT * ,
+                                        IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                        json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                                FROM M4ME.lplp
+                                JOIN (
+                                    SELECT DISTINCT menu_date
+                                    FROM menu
+                                    -- WHERE menu_date > now()
+                                    ORDER BY menu_date ASC) AS md
+                                LEFT JOIN M4ME.latest_combined_meal lcm
+                                ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                        md.menu_date = lcm.sel_menu_date
+                                WHERE pur_customer_uid = '100-000002'  
+                                        AND purchase_status = "ACTIVE"
+                                        AND menu_date >= start_delivery_date)
+                                AS A
+                            JOIN (
+                                SELECT * ,
+                                        IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                        json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                                FROM M4ME.lplp
+                                JOIN (
+                                    SELECT DISTINCT menu_date
+                                    FROM menu
+                                    -- WHERE menu_date > now()
+                                    ORDER BY menu_date ASC) AS md
+                                LEFT JOIN M4ME.latest_combined_meal lcm
+                                ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                        md.menu_date = lcm.sel_menu_date
+                                WHERE pur_customer_uid = '100-000002'  
+                                        AND purchase_status = "ACTIVE"
+                                        AND menu_date >= start_delivery_date)
+                                AS B
+                            ON A.menu_date >= B.menu_date
+                                AND A.purchase_uid = B.purchase_uid
+                            GROUP BY A.menu_date,
+                                A.purchase_uid
+                            ) AS cum_del
+                        WHERE cum_del.num_deliveries = cum_del.cum_qty
+                            AND delivery = 1
+                        ORDER BY cum_del.purchase_uid
+                    ) AS nbd
+                    JOIN (
+                        SELECT -- *,
+                            menu_date AS next_delivery,
+                            purchase_uid,
+                            purchase_id,
+                            CASE
+                                WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
+                                WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
+                                ELSE "SELECTED"
+                                END 
+                                AS final_selection
                         FROM (
-                            SELECT DISTINCT menu_date 
-                            FROM M4ME.menu
-                            WHERE menu_date > CURDATE()
-                            ORDER BY menu_date ASC
-                            LIMIT 1) as nmd,
-                            (
-                            SELECT purchase_uid, purchase_id -- *
-                            FROM M4ME.lplp
-                            WHERE lplp.pur_customer_uid = '""" + id + """') as pur
-                        ) AS nmdpur
-                    LEFT JOIN (
-                    -- PART B
-                        SELECT *
-                        FROM M4ME.latest_combined_meal lcm
-                        JOIN (
-                            SELECT DISTINCT menu_date AS dmd 
-                            FROM M4ME.menu
-                            WHERE menu_date > CURDATE()
-                            ORDER BY menu_date ASC
-                            LIMIT 1) AS nmd
-                        WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
-                    ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
-                ) AS nms
-                ON nbd.purchase_id = nms.purchase_id;
+                        -- PART A
+                            SELECT *
+                            FROM (
+                                SELECT DISTINCT menu_date 
+                                FROM M4ME.menu
+                                WHERE menu_date > CURDATE()
+                                ORDER BY menu_date ASC
+                                LIMIT 1) as nmd,
+                                (
+                                SELECT purchase_uid, purchase_id -- *
+                                FROM M4ME.lplp
+                                WHERE lplp.pur_customer_uid = '100-000002') as pur
+                            ) AS nmdpur
+                        LEFT JOIN (
+                        -- PART B
+                            SELECT *
+                            FROM M4ME.latest_combined_meal lcm
+                            JOIN (
+                                SELECT DISTINCT menu_date AS dmd 
+                                FROM M4ME.menu
+                                WHERE menu_date > CURDATE()
+                                ORDER BY menu_date ASC
+                                LIMIT 1) AS nmd
+                            WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
+                        ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
+                    ) AS nms
+                    ON nbd.purchase_uid = nms.purchase_uid
+                ) AS no_amb_discount
+                JOIN(
+                    SELECT 
+                        amb_code,
+                        pay_purchase_id,
+                        pay_purchase_uid
+                    FROM M4ME.payments
+                ) AS with_amb_discount
+                ON no_amb_discount.purchase_uid = with_amb_discount.pay_purchase_uid
+                ORDER BY purchase_uid;
             """
 
             next_billing_date = execute(query, 'get', conn)
@@ -5807,6 +5813,31 @@ class predict_next_billing_amount(Resource):
             # billing_info = make_purchase().put()
 
             return next_billing_date
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class reissue_coupon(Resource):
+
+    def put(self, id):
+        try:
+            conn = connect()
+ 
+            query = """
+                UPDATE coupons
+                SET num_used = num_used - 1
+                WHERE coupon_uid = '""" + id + """';
+            """
+
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            print("(reissue_coupon) response")
+
+            if response[1] != 201:
+                return response
+            response[0]['message'] = 'Reissued 1 coupon at id ' + id
+            return response
 
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -15180,6 +15211,8 @@ api.add_resource(orders_and_meals, '/api/v2/orders_and_meals')
 api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<string:id>')
 
 api.add_resource(predict_next_billing_amount, '/api/v2/predict_next_billing_amount/<string:id>')
+
+api.add_resource(reissue_coupon, '/api/v2/reissue_coupon/<string:id>')
 
 api.add_resource(subscription_history, '/api/v2/subscription_history/<string:cust_uid>')
 
