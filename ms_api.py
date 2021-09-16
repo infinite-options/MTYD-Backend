@@ -5028,6 +5028,18 @@ class change_purchase_3 (Resource):
         print("NEW item_uid (meals): ", item_uid)
         print("NEW deliveries: ", num_deliveries)
 
+        # FOR CALCULATING
+        charge_data = {"items": data["items"],
+                       "customer_lat": data["customer_lat"],
+                       "customer_long": data["customer_long"],
+                       "driver_tip": data["driver_tip"]}
+
+        # NEW AMBASSADOR COUPON IF ONE IS INCLUDED
+        # amb_coupon = None
+        # if data.get('ambassador_coupon') is not None:
+        #     amb_coupon = data["ambassador_coupon"]
+        #     charge_data['ambassador_coupon'] = amb_coupon
+
         # print("test")
         # return "test"
 
@@ -5055,9 +5067,12 @@ class change_purchase_3 (Resource):
                        "customer_lat": data["customer_lat"],
                        "customer_long": data["customer_long"],
                        "driver_tip": data["driver_tip"]}
+        # if refund.get('new_ambassador_coupon') is not None:
+        #     charge_data['ambassador_coupon'] = amb_coupon
 
         # check if customer is using an ambassador code
         # enter new referral into coupons table if they haven't used the coupon before
+        new_amb_code = None
         if data.get("ambassador_coupon") is not None:
             amb_coupon = data["ambassador_coupon"]
             print("\n(cp3 -- amb) amb_coupon: ", amb_coupon)
@@ -5066,6 +5081,7 @@ class change_purchase_3 (Resource):
             # CASE 1: customer hasn't used this coupon before, so
             #         create a new referral in the coupons table
             if amb_coupon['coupon_id'] == 'Ambassador':
+                new_amb_code = amb_coupon['email_id']
 
                 new_coupon_id_query = ["CALL new_coupons_uid;"]
                 couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
@@ -5101,6 +5117,8 @@ class change_purchase_3 (Resource):
             # CASE 2: customer has used the coupon before, so find the existing
             #         referral and expend a use in the coupons table
             else: 
+                new_amb_code = amb_coupon['notes']
+
                 existing_referral_query = """
                     UPDATE coupons
                     SET num_used = num_used + 1
@@ -5121,6 +5139,7 @@ class change_purchase_3 (Resource):
         new_discount = new_purchase['new_discount']
         new_driver_tip = new_purchase['new_driver_tip']
         new_tax = new_purchase['new_tax']
+        new_amb_discount = new_purchase['ambassador_discount']
         # delta = round(new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax,2)
         # print("New Meal Plan Charges: ", delta)
         delta = new_purchase['amount_should_charge']
@@ -5196,6 +5215,7 @@ class change_purchase_3 (Resource):
             print(str(data["driver_tip"]))
             print(str(refund['taxes']))
             print(str(refund['ambassador_code']))
+            print(str(refund['ambassador_discount']))
             print("charge_id: ", charge_id)
 
             # FIND NEXT START DATE FOR CHANGED PLAN
@@ -5209,7 +5229,7 @@ class change_purchase_3 (Resource):
             start_delivery_date = response[0]['result'][0]['menu_date']
             print("start_delivery_date: ", start_delivery_date)
         
-         # UPDATE PAYMENT TABLE
+            # UPDATE PAYMENT TABLE
             query = """
                     INSERT INTO M4ME.payments
                     SET payment_uid = '""" + new_pay_id + """',
@@ -5229,10 +5249,35 @@ class change_purchase_3 (Resource):
                         cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
                         cc_cvv = '""" + str(refund['cc_cvv']) + """',
                         cc_zip = '""" + str(refund['cc_zip']) + """',
-                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                        ambassador_code = '""" + str(new_amb_discount) + """',
                         charge_id = '""" + str(charge_id) + """',
                         start_delivery_date =  '""" + str(start_delivery_date) + """';
-                    """        
+                    """   
+            if new_amb_code is not None: 
+                query = """
+                    INSERT INTO M4ME.payments
+                    SET payment_uid = '""" + new_pay_id + """',
+                        payment_id = '""" + refund['payment_id'] + """',
+                        pay_purchase_uid = '""" + new_pur_id + """',
+                        pay_purchase_id = '""" + new_pur_id + """',
+                        payment_time_stamp =  '""" + str(getNow()) + """',
+                        subtotal = '""" + str(new_meal_charge) + """',
+                        amount_discount = '""" + str(new_discount) + """',
+                        service_fee = '""" + str(refund['service_fee']) + """',
+                        delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                        driver_tip = '""" + str(data["driver_tip"]) + """',
+                        taxes = '""" + str(new_tax) + """',
+                        amount_due = '""" + str(delta) + """',
+                        amount_paid = '""" + str(- amount_should_refund) + """',
+                        cc_num = '""" + str(refund['cc_num']) + """',
+                        cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
+                        cc_cvv = '""" + str(refund['cc_cvv']) + """',
+                        cc_zip = '""" + str(refund['cc_zip']) + """',
+                        ambassador_code = '""" + str(new_amb_discount) + """',
+                        amb_code = '""" + new_amb_code + """',
+                        charge_id = '""" + str(charge_id) + """',
+                        start_delivery_date =  '""" + str(start_delivery_date) + """';
+                    """   
                     
                             
             response = execute(query, 'post', conn)
@@ -5403,7 +5448,7 @@ class change_purchase_3 (Resource):
                 print("start_delivery_date: ", start_delivery_date)
 
                 # INSERT CHANGES INTO PAYMENT TABLE
-                print("\nInsert into Payment Table")
+                print("\nInsert into Payment Table")  
                 query = """
                         INSERT INTO M4ME.payments
                         SET payment_uid = '""" + new_pay_id + """',
@@ -5423,10 +5468,35 @@ class change_purchase_3 (Resource):
                             cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
                             cc_cvv = '""" + str(refund['cc_cvv']) + """',
                             cc_zip = '""" + str(refund['cc_zip']) + """',
-                            ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                            ambassador_code = '""" + str(new_amb_discount) + """',
                             charge_id = '""" + str(refund_id['id']) + """',
                             start_delivery_date =  '""" + str(start_delivery_date) + """';
-                        """       
+                        """ 
+                if new_amb_code is not None: 
+                    query = """
+                        INSERT INTO M4ME.payments
+                        SET payment_uid = '""" + new_pay_id + """',
+                            payment_id = '""" + refund['payment_id'] + """',
+                            pay_purchase_uid = '""" + new_pur_id + """',
+                            pay_purchase_id = '""" + new_pur_id + """',
+                            payment_time_stamp =  '""" + str(getNow()) + """',
+                            subtotal = '""" + str(new_meal_charge) + """',
+                            amount_discount = '""" + str(new_discount) + """',
+                            service_fee = '""" + str(refund['service_fee']) + """',
+                            delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                            driver_tip = '""" + str(data["driver_tip"]) + """',
+                            taxes = '""" + str(new_tax) + """',
+                            amount_due = '""" + str(delta) + """',
+                            amount_paid = '""" + str(-stripe_refund) + """',
+                            cc_num = '""" + str(refund['cc_num']) + """',
+                            cc_exp_date = '""" + str(refund['cc_exp_date']) + """',
+                            cc_cvv = '""" + str(refund['cc_cvv']) + """',
+                            cc_zip = '""" + str(refund['cc_zip']) + """',
+                            ambassador_code = '""" + str(new_amb_discount) + """',
+                            amb_code = '""" + new_amb_code + """',
+                            charge_id = '""" + str(refund_id['id']) + """',
+                            start_delivery_date =  '""" + str(start_delivery_date) + """';
+                        """ 
                         
                                 
                 pay_insert_response = execute(query, 'post', conn)
@@ -5810,9 +5880,29 @@ class cancel_purchase_2 (Resource):
                         taxes = '""" + str(refund['taxes']) + """',
                         amount_due = '""" + str(refund['amount_due']) + """',
                         amount_paid = '""" + str(-refund['amount_due']) + """',
-                        ambassador_code = '""" + str(refund['ambassador_code']) + """',
+                        ambassador_code = '""" + str(refund['ambassador_discount']) + """',
                         charge_id = '""" + str(refund_id['id']) + """';
-                    """        
+                    """   
+            if refund['ambassador_code'] is not None:
+                query = """
+                        INSERT INTO M4ME.payments
+                        SET payment_uid = '""" + new_pay_id + """',
+                            payment_id = '""" + refund['payment_id'] + """',
+                            pay_purchase_uid = '""" + pur_uid + """',
+                            pay_purchase_id = '""" + refund['purchase_id'] + """',
+                            payment_time_stamp =  '""" + str(getNow()) + """',
+                            subtotal = '""" + str(refund['meal_refund']) + """',
+                            amount_discount = '""" + str(refund['amount_discount']) + """',
+                            service_fee = '""" + str(refund['service_fee']) + """',
+                            delivery_fee = '""" + str(refund['delivery_fee']) + """',
+                            driver_tip = '""" + str(refund['driver_tip']) + """',
+                            taxes = '""" + str(refund['taxes']) + """',
+                            amount_due = '""" + str(refund['amount_due']) + """',
+                            amount_paid = '""" + str(-refund['amount_due']) + """',
+                            ambassador_code = '""" + str(refund['ambassador_discount']) + """',
+                            amb_code = '""" + str(refund['ambassador_code']) + """',
+                            charge_id = '""" + str(refund_id['id']) + """';
+                        """   
                             
             response = execute(query, 'post', conn)
             print("Payments Update db response: ", response)
@@ -5960,113 +6050,224 @@ class predict_next_billing_amount(Resource):
             print("Inside predict class", id)
 
             # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
+            # query = """
+            #     SELECT DISTINCT
+            #         no_amb_discount.* ,
+            #         with_amb_discount.*
+            #     FROM (
+            #         SELECT nbd.*,
+            #             nms.next_delivery,
+            #             nms.final_selection
+            #         FROM (
+            #             SELECT *,
+            #                 ADDDATE(menu_date, 1) AS next_billing_date
+            #             FROM ( 
+            #                 SELECT A.*,
+            #                     sum(B.delivery) as cum_qty
+            #                 FROM ( 
+            #                     SELECT * ,
+            #                             IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+            #                             json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+            #                     FROM M4ME.lplp
+            #                     JOIN (
+            #                         SELECT DISTINCT menu_date
+            #                         FROM menu
+            #                         -- WHERE menu_date > now()
+            #                         ORDER BY menu_date ASC) AS md
+            #                     LEFT JOIN M4ME.latest_combined_meal lcm
+            #                     ON lplp.purchase_id = lcm.sel_purchase_id AND
+            #                             md.menu_date = lcm.sel_menu_date
+            #                     WHERE pur_customer_uid = '""" + id + """' 
+            #                             AND purchase_status = "ACTIVE"
+            #                             AND menu_date >= start_delivery_date)
+            #                     AS A
+            #                 JOIN (
+            #                     SELECT * ,
+            #                             IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+            #                             json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+            #                     FROM M4ME.lplp
+            #                     JOIN (
+            #                         SELECT DISTINCT menu_date
+            #                         FROM menu
+            #                         -- WHERE menu_date > now()
+            #                         ORDER BY menu_date ASC) AS md
+            #                     LEFT JOIN M4ME.latest_combined_meal lcm
+            #                     ON lplp.purchase_id = lcm.sel_purchase_id AND
+            #                             md.menu_date = lcm.sel_menu_date
+            #                     WHERE pur_customer_uid = '""" + id + """'
+            #                             AND purchase_status = "ACTIVE"
+            #                             AND menu_date >= start_delivery_date)
+            #                     AS B
+            #                 ON A.menu_date >= B.menu_date
+            #                     AND A.purchase_uid = B.purchase_uid
+            #                 GROUP BY A.menu_date,
+            #                     A.purchase_uid
+            #                 ) AS cum_del
+            #             WHERE cum_del.num_deliveries = cum_del.cum_qty
+            #                 AND delivery = 1
+            #             ORDER BY cum_del.purchase_uid
+            #         ) AS nbd
+            #         JOIN (
+            #             SELECT -- *,
+            #                 menu_date AS next_delivery,
+            #                 purchase_uid,
+            #                 purchase_id,
+            #                 CASE
+            #                     WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
+            #                     WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
+            #                     ELSE "SELECTED"
+            #                     END 
+            #                     AS final_selection
+            #             FROM (
+            #             -- PART A
+            #                 SELECT *
+            #                 FROM (
+            #                     SELECT DISTINCT menu_date 
+            #                     FROM M4ME.menu
+            #                     WHERE menu_date > CURDATE()
+            #                     ORDER BY menu_date ASC
+            #                     LIMIT 1) as nmd,
+            #                     (
+            #                     SELECT purchase_uid, purchase_id -- *
+            #                     FROM M4ME.lplp
+            #                     WHERE lplp.pur_customer_uid = '""" + id + """') as pur
+            #                 ) AS nmdpur
+            #             LEFT JOIN (
+            #             -- PART B
+            #                 SELECT *
+            #                 FROM M4ME.latest_combined_meal lcm
+            #                 JOIN (
+            #                     SELECT DISTINCT menu_date AS dmd 
+            #                     FROM M4ME.menu
+            #                     WHERE menu_date > CURDATE()
+            #                     ORDER BY menu_date ASC
+            #                     LIMIT 1) AS nmd
+            #                 WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
+            #             ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
+            #         ) AS nms
+            #         ON nbd.purchase_uid = nms.purchase_uid
+            #     ) AS no_amb_discount
+            #     JOIN(
+            #         SELECT 
+            #             amb_code,
+            #             pay_purchase_id,
+            #             pay_purchase_uid
+            #         FROM M4ME.payments
+            #     ) AS with_amb_discount
+            #     ON no_amb_discount.purchase_uid = with_amb_discount.pay_purchase_uid
+            #     ORDER BY purchase_uid;
+            # """
             query = """
-                SELECT DISTINCT
-                    no_amb_discount.* ,
-                    with_amb_discount.*
-                FROM (
-                    SELECT nbd.*,
-                        nms.next_delivery,
-                        nms.final_selection
+                    SELECT DISTINCT
+                        no_amb_discount.* ,
+                        with_amb_discount.*
                     FROM (
-                        SELECT *,
-                            ADDDATE(menu_date, 1) AS next_billing_date
-                        FROM ( 
-                            SELECT A.*,
-                                sum(B.delivery) as cum_qty
-                            FROM ( 
-                                SELECT * ,
-                                        IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                                        json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                                FROM M4ME.lplp
-                                JOIN (
-                                    SELECT DISTINCT menu_date
-                                    FROM menu
-                                    -- WHERE menu_date > now()
-                                    ORDER BY menu_date ASC) AS md
-                                LEFT JOIN M4ME.latest_combined_meal lcm
-                                ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                        md.menu_date = lcm.sel_menu_date
-                                WHERE pur_customer_uid = '100-000002'  
-                                        AND purchase_status = "ACTIVE"
-                                        AND menu_date >= start_delivery_date)
-                                AS A
-                            JOIN (
-                                SELECT * ,
-                                        IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
-                                        json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
-                                FROM M4ME.lplp
-                                JOIN (
-                                    SELECT DISTINCT menu_date
-                                    FROM menu
-                                    -- WHERE menu_date > now()
-                                    ORDER BY menu_date ASC) AS md
-                                LEFT JOIN M4ME.latest_combined_meal lcm
-                                ON lplp.purchase_id = lcm.sel_purchase_id AND
-                                        md.menu_date = lcm.sel_menu_date
-                                WHERE pur_customer_uid = '100-000002'  
-                                        AND purchase_status = "ACTIVE"
-                                        AND menu_date >= start_delivery_date)
-                                AS B
-                            ON A.menu_date >= B.menu_date
-                                AND A.purchase_uid = B.purchase_uid
-                            GROUP BY A.menu_date,
-                                A.purchase_uid
-                            ) AS cum_del
-                        WHERE cum_del.num_deliveries = cum_del.cum_qty
-                            AND delivery = 1
-                        ORDER BY cum_del.purchase_uid
-                    ) AS nbd
-                    JOIN (
-                        SELECT -- *,
-                            menu_date AS next_delivery,
-                            purchase_uid,
-                            purchase_id,
-                            CASE
-                                WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
-                                WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
-                                ELSE "SELECTED"
-                                END 
-                                AS final_selection
+                        SELECT nbd.*,
+                            nms.next_delivery,
+                            nms.final_selection
                         FROM (
-                        -- PART A
-                            SELECT *
+                            SELECT *,
+                                ADDDATE(menu_date, 1) AS next_billing_date
+                            FROM ( 
+                                SELECT A.*,
+                                    sum(B.delivery) as cum_qty
+                                FROM ( 
+                                    SELECT * ,
+                                            IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                            json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                                    FROM M4ME.lplp
+                                    JOIN (
+                                        SELECT DISTINCT menu_date
+                                        FROM menu
+                                        -- WHERE menu_date > now()
+                                        ORDER BY menu_date ASC) AS md
+                                    LEFT JOIN M4ME.latest_combined_meal lcm
+                                    ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                            md.menu_date = lcm.sel_menu_date
+                                    WHERE pur_customer_uid = '100-000002' 
+                                            AND purchase_status = "ACTIVE"
+                                            AND menu_date >= start_delivery_date)
+                                    AS A
+                                JOIN (
+                                    SELECT * ,
+                                            IF (delivery_day LIKE "SKIP", 0, 1) AS delivery,
+                                            json_unquote(json_extract(lplp.items, '$[0].qty')) AS num_deliveries
+                                    FROM M4ME.lplp
+                                    JOIN (
+                                        SELECT DISTINCT menu_date
+                                        FROM menu
+                                        -- WHERE menu_date > now()
+                                        ORDER BY menu_date ASC) AS md
+                                    LEFT JOIN M4ME.latest_combined_meal lcm
+                                    ON lplp.purchase_id = lcm.sel_purchase_id AND
+                                            md.menu_date = lcm.sel_menu_date
+                                    WHERE pur_customer_uid = '100-000002'
+                                            AND purchase_status = "ACTIVE"
+                                            AND menu_date >= start_delivery_date)
+                                    AS B
+                                ON A.menu_date >= B.menu_date
+                                    AND A.purchase_uid = B.purchase_uid
+                                GROUP BY A.menu_date,
+                                    A.purchase_uid
+                                ) AS cum_del
+                            WHERE cum_del.num_deliveries = cum_del.cum_qty
+                                AND delivery = 1
+                            ORDER BY cum_del.purchase_uid
+                        ) AS nbd
+                        JOIN (
+                            SELECT -- *,
+                                menu_date AS next_delivery,
+                                purchase_uid,
+                                purchase_id,
+                                CASE
+                                    WHEN (lcmnmd.meal_selection IS NULL OR lcmnmd.meal_selection LIKE "%SURPRISE%") THEN "SURPRISE"
+                                    WHEN (lcmnmd.meal_selection LIKE "%SKIP%") THEN "SKIP"
+                                    ELSE "SELECTED"
+                                    END 
+                                    AS final_selection
                             FROM (
-                                SELECT DISTINCT menu_date 
-                                FROM M4ME.menu
-                                WHERE menu_date > CURDATE()
-                                ORDER BY menu_date ASC
-                                LIMIT 1) as nmd,
-                                (
-                                SELECT purchase_uid, purchase_id -- *
-                                FROM M4ME.lplp
-                                WHERE lplp.pur_customer_uid = '100-000002') as pur
-                            ) AS nmdpur
-                        LEFT JOIN (
-                        -- PART B
-                            SELECT *
-                            FROM M4ME.latest_combined_meal lcm
-                            JOIN (
-                                SELECT DISTINCT menu_date AS dmd 
-                                FROM M4ME.menu
-                                WHERE menu_date > CURDATE()
-                                ORDER BY menu_date ASC
-                                LIMIT 1) AS nmd
-                            WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
-                        ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
-                    ) AS nms
-                    ON nbd.purchase_uid = nms.purchase_uid
-                ) AS no_amb_discount
-                JOIN(
-                    SELECT 
-                        amb_code,
-                        pay_purchase_id,
-                        pay_purchase_uid
-                    FROM M4ME.payments
-                ) AS with_amb_discount
-                ON no_amb_discount.purchase_uid = with_amb_discount.pay_purchase_uid
-                ORDER BY purchase_uid;
-            """
+                            -- PART A
+                                SELECT *
+                                FROM (
+                                    SELECT DISTINCT menu_date 
+                                    FROM M4ME.menu
+                                    WHERE menu_date > CURDATE()
+                                    ORDER BY menu_date ASC
+                                    LIMIT 1) as nmd,
+                                    (
+                                    SELECT purchase_uid, purchase_id -- *
+                                    FROM M4ME.lplp
+                                    WHERE lplp.pur_customer_uid = '100-000002') as pur
+                                ) AS nmdpur
+                            LEFT JOIN (
+                            -- PART B
+                                SELECT *
+                                FROM M4ME.latest_combined_meal lcm
+                                JOIN (
+                                    SELECT DISTINCT menu_date AS dmd 
+                                    FROM M4ME.menu
+                                    WHERE menu_date > CURDATE()
+                                    ORDER BY menu_date ASC
+                                    LIMIT 1) AS nmd
+                                WHERE lcm.sel_menu_date = nmd.dmd) AS lcmnmd
+                            ON nmdpur.purchase_id = lcmnmd.sel_purchase_id
+                        ) AS nms
+                        ON nbd.purchase_uid = nms.purchase_uid
+                    ) AS no_amb_discount
+                    JOIN(
+                        SELECT DISTINCT
+                            amb_code,
+                            pay_purchase_id,
+                            pay_purchase_uid,
+                            start_delivery_date
+                            -- charge_id
+                        FROM M4ME.payments
+                        WHERE start_delivery_date > CURDATE()
+                    ) AS with_amb_discount
+                    ON no_amb_discount.purchase_uid = with_amb_discount.pay_purchase_uid
+                    ORDER BY purchase_uid;
+                    """
+
 
             next_billing_date = execute(query, 'get', conn)
 
@@ -11883,7 +12084,7 @@ class calculator(Resource):
             disconnect(conn)
 
     # CALCULATE REFUND (ACCOUNTS FOR AMBASSADOR DISCOUNT)
-    def refund_brandon (self, pur_uid):
+    def refund_brandon_old (self, pur_uid, amb_coupon):
 
         try:
             conn = connect()
@@ -11895,6 +12096,7 @@ class calculator(Resource):
 
             items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            num_meals               = pur_details['result'][0]['num_items']
             customer_uid            = pur_details['result'][0]['pur_customer_uid']
             payment_id              = pur_details['result'][0]['payment_id']
             subtotal                = pur_details['result'][0]['subtotal']
@@ -11913,11 +12115,37 @@ class calculator(Resource):
             cc_zip                  = pur_details['result'][0]['cc_zip']
             charge_id               = pur_details['result'][0]['charge_id']
             delivery_instructions   = pur_details['result'][0]['delivery_instructions']
+            delivery_email   = pur_details['result'][0]['delivery_email']
 
-            print("Item_UID: ", items_uid)
+            # STEP 1: get ambassador coupon if used
+            coupon_items = None
+            amb_amount = 0.0
+            amb_percent = 0.0
+            amb_shipping = 0.0
+            if ambassador_code is not None and ambassador_code != '':
+                existing_referral_query = """
+                    SELECT * FROM M4ME.coupons
+                    WHERE notes = '""" + ambassador_code + """'
+                    AND email_id = '""" + delivery_email + """';
+                """
+
+                coupon_items = execute(existing_referral_query, 'get', conn)
+                if coupon_items['code'] != 281:
+                    coupon_items['message'] = "check sql query"
+
+                amb_amount = coupon_items['result'][0]['discount_amount']
+                amb_percent = coupon_items['result'][0]['discount_percent']
+                amb_shipping = coupon_items['result'][0]['discount_shipping']
+
+                # print("(rb -- amb) coupon_items: ", coupon_items)
+
+            print("\n(rb) coupon_items: ", coupon_items)
+
+            print("\nItem_UID: ", items_uid)
             print("Number of Deliveries: ", num_deliveries)
             print("Payment_id: ", payment_id)
-            print("Customer Subtotal: ", subtotal)
+
+            print("\nCustomer Subtotal: ", subtotal)
             print("Customer amount_discount: ", amount_discount)
             print("Customer service_fee: ", service_fee)
             print("Customer delivery_fee: ", delivery_fee)
@@ -11929,6 +12157,364 @@ class calculator(Resource):
             print("Customer amount_paid: ", amount_paid)
             print("Customer charge_id: ", charge_id)
             print("Customer delivery_instructions: ", delivery_instructions)
+            print("Customer email: ", delivery_email)
+
+
+            # print("\n(rb) base_price: ", subtotal, " = ", num_deliveries, " * ", num_meals, " * 16")
+
+            # discounted_meal_charge = subtotal - amount_discount - amb_amount
+            # print("(rb) discounted_meal_charge: ", discounted_meal_charge, " = ", subtotal, " - ", amount_discount, " - ", amb_amount)
+
+            # print(
+            #     "(rb) amb discount (excluding shipping): ", ambassador_discount, " = (", 
+            #     discounted_meal_charge, " * ", amb_percent/100, ") + ", amb_amount
+            # )
+            # taxable_amount = subtotal - amount_discount - ambassador_discount
+            # print("(rb) taxable amount: ", taxable_amount, " = ", subtotal, " - ", amount_discount, " - ", ambassador_discount)
+            # print("(rb) tax calculation: ", taxes, " = ", taxable_amount, " * 0.0925")
+            # print(
+            #     "(rb) total calculation: ", amount_due, 
+            #     " = ((", subtotal, " - ", amount_discount, ") - ", amb_amount, ") * (",
+            #     (1-(amb_percent/100)), ") + delivery_fee - amb_shipping + ", 
+            #     service_fee, " + ", driver_tip, " + ", taxes
+            # )
+
+            # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
+            print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
+            deliveries_made = calculator().deliveries_made(pur_uid)
+            print("\nReturned from deliveries_made: ", deliveries_made)
+
+            completed_deliveries = deliveries_made['result']
+            print("1 Num of Completed Deliveries: ", completed_deliveries)
+            completed_deliveries = deliveries_made['result'][0]
+            print("2 Num of Completed Deliveries: ", completed_deliveries)
+            completed_deliveries = deliveries_made['result'][0]['num_deliveries']
+            print("Num of Completed Deliveries: ", completed_deliveries)
+
+
+            # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
+            print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
+            if completed_deliveries is None:
+                completed_deliveries = 0
+                total_used = 0
+                print("completed_deliveries: ", completed_deliveries)
+                print(total_used)
+            else:
+                used = calculator().billing(items_uid, completed_deliveries)
+                print("\nConsumed Subscription: ", used)
+
+                item_price = used['result'][0]['item_price']
+                delivery_discount = used['result'][0]['delivery_discount']
+                total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
+                print("\ntotal_used: ", total_used, " = (", item_price, " * ", completed_deliveries, ") * (", 1 - (delivery_discount/100), ")")
+
+                print("Used Price: ", item_price)
+                print("Used delivery_discount: ", delivery_discount)
+                print("Total Used: ", total_used)
+
+
+            # CALCULATE REFUND AMOUNT  -  NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
+            print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
+
+            # Refund Logic
+            # IF Nothing comsume REFUND EVERYTHING
+            # IF Some Meals consumed:
+            #   Subtract Meal Value consumed from Meal Value purchased
+            #   Keep delivery fee and the taxes collected
+            #   Refund a portion of the tip
+            #   Refund a portion of the ambassador code
+            #   Keep service fee (no tax implication)
+            #   Recalculate Taxes 
+
+            
+
+            if completed_deliveries == 0:
+                print("No Meals Consumed")
+
+            else: 
+                valueOfMealsPurchased   = round(subtotal - amount_discount,2)
+                valueOfMealsConsumed    = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
+                remainingRatio          = round((int(num_deliveries) - int(completed_deliveries))/int(num_deliveries),2)
+                taxRate                 = .0925
+                print("\n(rb) valueOfMealsPurchased: ", valueOfMealsPurchased, " = ", subtotal, " - ", amount_discount)
+                print("(rb) valueOfMealsConsumed: ", valueOfMealsConsumed, " = (", item_price, " * ", completed_deliveries, ") * ", (1 - (delivery_discount/100)))
+                print("(rb) remainingRatio: ", remainingRatio, " = (", num_deliveries, " - ", completed_deliveries, ") / ", num_deliveries)
+
+                new_subtotal = valueOfMealsPurchased - valueOfMealsConsumed
+                print("\n(rb) new_subtotal: ", new_subtotal, " = ", valueOfMealsPurchased, " - ", valueOfMealsConsumed)
+
+                new_amount_discount         = 0
+                new_service_fee             = 0
+                new_delivery_fee            = 0
+                new_driver_tip              = round(remainingRatio * driver_tip, 2)
+                new_ambassador_discount     = round(remainingRatio * ambassador_discount, 2)
+                new_taxes                   = round((new_subtotal + new_delivery_fee) * taxRate,2)
+                print("\n(rb) new_taxes: ", new_taxes)
+                new_amount_due              = round(new_subtotal + new_service_fee + new_delivery_fee + new_driver_tip  - new_ambassador_discount + new_taxes,2)
+                print("(rb) amount_due: ", new_amount_due, " = ", new_subtotal, " + ", new_service_fee, " + ", new_delivery_fee, " + ", new_driver_tip, " - ", new_ambassador_discount, " + ", new_taxes,"\n")
+
+                print("(((3 * 5 * 16)-16) + (((3 * 5 * 16)-16) * 0.0925)) + ((3/4) * 2)")
+
+                print("\n(rb) new amb_coupon: ", amb_coupon)
+
+                print("\n=========================| OLD CALCULATIONS |=========================")
+
+                print("\nambassador_code: ", ambassador_code)
+                print("amb_amount: ", amb_amount)
+                print("amb_percent: ", amb_percent)
+                print("amb_shipping: ", amb_shipping)
+
+                print("\n(rb) base_price: ", subtotal, " = ", num_deliveries, " * ", num_meals, " * 16")
+                discounted_meal_charge = subtotal - amount_discount - amb_amount
+                print("(rb) discounted_meal_charge: ", discounted_meal_charge, " = ", subtotal, " - ", amount_discount, " - ", amb_amount)
+                print(
+                    "(rb) amb discount (excluding shipping): ", ambassador_discount, " = (", 
+                    discounted_meal_charge, " * ", amb_percent/100, ") + ", amb_amount
+                )
+                taxable_amount = subtotal - amount_discount - ambassador_discount
+                print("(rb) taxable amount: ", taxable_amount, " = ", subtotal, " - ", amount_discount, " - ", ambassador_discount)
+                print("(rb) tax calculation: ", taxes, " = ", taxable_amount, " * 0.0925")
+                print(
+                    "(rb) total calculation: ", amount_due, 
+                    " = ((", subtotal, " - ", amount_discount, ") - ", amb_amount, ") * (",
+                    (1-(amb_percent/100)), ") + max(delivery_fee - amb_shipping, 0) + ", 
+                    service_fee, " + ", driver_tip, " + ", taxes
+                )
+
+
+                print("\n=========================| NEW CALCULATIONS |=========================")
+
+                new_amb_code = None
+                new_amb_amount = 0.0
+                new_amb_percent = 0.0
+                new_amb_shipping = 0.0
+                print("\nambassador_code: ", new_amb_code)
+                print("amb_amount: ", new_amb_amount)
+                print("amb_percent: ", new_amb_percent)
+                print("amb_shipping: ", new_amb_shipping)
+
+                remaining_deliveries = int(num_deliveries)-int(completed_deliveries)
+                base_price = float(remaining_deliveries * num_meals * 16)
+                print("\n(rb) base_price: ", base_price, " = ", remaining_deliveries, " * ", num_meals, " * 16")
+                new_discounted_meal_charge = base_price - amount_discount - new_amb_amount
+                print("(rb) discounted_meal_charge: ", new_discounted_meal_charge, " = ", base_price, " - ", amount_discount)
+                newer_ambassador_discount = (new_discounted_meal_charge * new_amb_percent/100) + new_amb_amount
+                print(
+                    "(rb) amb discount (excluding shipping): ", newer_ambassador_discount, " = (", 
+                    new_discounted_meal_charge, " * ", new_amb_percent/100, ") + ", new_amb_amount
+                )
+                new_taxable_amount = base_price - amount_discount - newer_ambassador_discount
+                print("(rb) taxable amount: ", new_taxable_amount, " = ", base_price, " - ", amount_discount, " - ", newer_ambassador_discount)
+                newer_taxes = round(new_taxable_amount * 0.0925,2)
+                print("(rb) tax calculation: ", newer_taxes, " = ", new_taxable_amount, " * 0.0925")
+                newer_amount_due = round(base_price + new_service_fee + new_delivery_fee + new_driver_tip - newer_ambassador_discount + newer_taxes,2)
+                print(
+                    "(rb) total calculation: ", newer_amount_due, 
+                    " = ((", base_price, " - ", amount_discount, ") - ", new_amb_amount, ") * (",
+                    (1-(new_amb_percent/100)), ") + max(delivery_fee - new_amb_shipping, 0) + ", 
+                    new_service_fee, " + ", new_driver_tip, " + ", newer_taxes
+                )
+
+                print("\n======================================================================\n")
+                # print("\n=========================| NEW CALCULATIONS |=========================")
+
+                # new_amb_code = None
+                # new_amb_amount = 0.0
+                # new_amb_percent = 0.0
+                # new_amb_shipping = 0.0
+                # if amb_coupon is not None:
+                #     # print("\n(cp3 -- amb) amb_coupon: ", amb_coupon)
+
+                #     new_amb_amount = float(amb_coupon['discount_amount'])
+                #     new_amb_percent = float(amb_coupon['discount_percent'])
+                #     new_amb_shipping = float(amb_coupon['discount_shipping'])
+
+                #     # CASE 1: customer hasn't used this coupon before, so
+                #     #         create a new referral in the coupons table
+                #     if amb_coupon['coupon_id'] == 'Ambassador':
+                #         new_amb_code = amb_coupon['email_id']
+
+                #         new_coupon_id_query = ["CALL new_coupons_uid;"]
+                #         couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
+                #         couponID = couponIDresponse['result'][0]['new_id']
+
+                #         dateObject = datetime.now()
+                #         exp_date = dateObject.replace(year=dateObject.year + 1)
+                #         exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
+
+                #         new_referral_query = """
+                #             INSERT INTO coupons 
+                #             SET
+                #                 coupon_uid = \'""" + couponID + """\',
+                #                 coupon_id = 'Referral',
+                #                 valid = \'""" + amb_coupon['valid'] + """\',
+                #                 discount_percent = \'""" + str(amb_coupon['discount_percent']) + """\',
+                #                 discount_amount = \'""" + str(amb_coupon['discount_amount']) + """\',
+                #                 discount_shipping = \'""" + str(amb_coupon['discount_shipping']) + """\',
+                #                 expire_date = \'""" + exp_date + """\',
+                #                 limits = '2',
+                #                 notes = \'""" + amb_coupon['email_id'] + """\',
+                #                 num_used = '1',
+                #                 recurring = \'""" + amb_coupon['recurring'] + """\',
+                #                 email_id = \'""" + delivery_email + """\',
+                #                 cup_business_uid = \'""" + amb_coupon['cup_business_uid'] + """\',
+                #                 threshold = \'""" + str(amb_coupon['threshold']) + """\';
+                #         """
+
+                #         coupon_items = execute(new_referral_query, 'post', conn)
+                #         if coupon_items['code'] != 281:
+                #             coupon_items['message'] = "check sql query"
+
+                #     # CASE 2: customer has used the coupon before, so find the existing
+                #     #         referral and expend a use in the coupons table
+                #     else: 
+                #         new_amb_code = amb_coupon['notes']
+                #         existing_referral_query = """
+                #             UPDATE coupons
+                #             SET num_used = num_used + 1
+                #             WHERE coupon_uid = '""" + amb_coupon['coupon_uid'] + """';
+                #         """
+
+                #         coupon_items = execute(existing_referral_query, 'post', conn)
+                #         if coupon_items['code'] != 281:
+                #             coupon_items['message'] = "check sql query"
+                # print("\nambassador_code: ", new_amb_code)
+                # print("amb_amount: ", new_amb_amount)
+                # print("amb_percent: ", new_amb_percent)
+                # print("amb_shipping: ", new_amb_shipping)
+
+                # remaining_deliveries = int(num_deliveries)-int(completed_deliveries)
+                # base_price = float(remaining_deliveries * num_meals * 16)
+                # print("\n(rb) base_price: ", base_price, " = ", remaining_deliveries, " * ", num_meals, " * 16")
+                # new_discounted_meal_charge = base_price - amount_discount - new_amb_amount
+                # print("(rb) discounted_meal_charge: ", new_discounted_meal_charge, " = ", base_price, " - ", amount_discount)
+                # newer_ambassador_discount = (new_discounted_meal_charge * new_amb_percent/100) + new_amb_amount
+                # print(
+                #     "(rb) amb discount (excluding shipping): ", newer_ambassador_discount, " = (", 
+                #     new_discounted_meal_charge, " * ", new_amb_percent/100, ") + ", new_amb_amount
+                # )
+                # new_taxable_amount = base_price - amount_discount - newer_ambassador_discount
+                # print("(rb) taxable amount: ", new_taxable_amount, " = ", base_price, " - ", amount_discount, " - ", newer_ambassador_discount)
+                # newer_taxes = round(new_taxable_amount * 0.0925,2)
+                # print("(rb) tax calculation: ", newer_taxes, " = ", new_taxable_amount, " * 0.0925")
+                # newer_amount_due = round(base_price + new_service_fee + new_delivery_fee + new_driver_tip - newer_ambassador_discount + newer_taxes,2)
+                # print(
+                #     "(rb) total calculation: ", newer_amount_due, 
+                #     " = ((", base_price, " - ", amount_discount, ") - ", new_amb_amount, ") * (",
+                #     (1-(new_amb_percent/100)), ") + max(delivery_fee - new_amb_shipping, 0) + ", 
+                #     new_service_fee, " + ", new_driver_tip, " + ", newer_taxes
+                # )
+
+                # print("\n======================================================================\n")
+
+
+                # new calcs using make_purchase
+                # print("\n=========================| START make_purchase refund calc |=========================")
+                # remaining_deliveries = int(num_deliveries)-int(completed_deliveries)
+                # print("\n(refund -- mp) items_uid: ", items_uid)
+                # print("(refund -- mp) num_deliveries: ", num_deliveries)
+                # print("(refund -- mp) remaining_deliveries: ", remaining_deliveries)
+
+                # STEP 1: get ambassador coupon if used
+                # if ambassador_code is not None and ambassador_code != '':
+                #     print('(refund -- mp) fetching coupon used...')
+                #     print("(refund -- mp) num_deliveries: ", num_deliveries)
+                #     print("(refund -- mp) remaining_deliveries: ", remaining_deliveries)
+                    # existing_referral_query = """
+                    #     SELECT * FROM M4ME.coupons
+                    #     WHERE notes = '""" + ambassador_code + """'
+                    #     AND email_id = '""" + delivery_email + """';
+                    # """
+
+                    # coupon_items = execute(existing_referral_query, 'get', conn)
+                    # if coupon_items['code'] != 281:
+                    #     coupon_items['message'] = "check sql query"
+
+                    # print("(refund -- mp) coupon_items: ", coupon_items)
+
+            
+            refund_object = {"purchase_uid"          :  pur_uid,
+                             "purchase_id"           :  pur_uid,
+                             "payment_id"            :  payment_id,
+                             "completed_deliveries"  :  completed_deliveries,
+                             "customer_uid"          :  customer_uid,
+                             "meal_refund"           :  new_subtotal,
+                             "amount_discount"       :  new_amount_discount,
+                             "service_fee"           :  new_service_fee,
+                             "delivery_fee"          :  new_delivery_fee,
+                             "driver_tip"            :  new_driver_tip,
+                             "taxes"                 :  new_taxes,
+                             "ambassador_code"       :  ambassador_code,
+                             "ambassador_discount"   :  new_ambassador_discount,
+                             "amount_due"            :  new_amount_due,
+                             "amount_paid"           :  amount_paid,
+                             "cc_num"                :  cc_num,
+                             "cc_exp_date"           :  cc_exp_date,
+                             "cc_cvv"                :  cc_cvv,
+                             "cc_zip"                :  cc_zip,
+                             "charge_id"             :  charge_id,
+                             "delivery_instructions" :  delivery_instructions}
+            print("refund_object: ", refund_object)
+            return refund_object
+
+        except:
+            raise BadRequest('Refund Calculator Failure 1.')
+        finally:
+            disconnect(conn)
+
+        # CALCULATE REFUND
+    def refund_brandon (self, pur_uid):
+
+        try:
+            conn = connect()
+            print("\nREFUND PART 1:  CALL CALCULATOR", pur_uid)
+            # print("Item_UID: ", items_uid)
+            # print("Number of Deliveries: ", qty)
+
+            # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID (PURCHASE ENGINE)
+            pur_details = calculator().purchase_engine(pur_uid)
+            print("\nPurchase_details from purchase_engine: ", pur_details)
+
+            items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
+            num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
+            num_meals               = pur_details['result'][0]['num_items']
+            customer_uid            = pur_details['result'][0]['pur_customer_uid']
+            payment_id              = pur_details['result'][0]['payment_id']
+            subtotal                = pur_details['result'][0]['subtotal']
+            amount_discount         = pur_details['result'][0]['amount_discount']
+            service_fee             = pur_details['result'][0]['service_fee']
+            delivery_fee            = pur_details['result'][0]['delivery_fee']
+            driver_tip              = pur_details['result'][0]['driver_tip']
+            taxes                   = pur_details['result'][0]['taxes']
+            ambassador_discount     = pur_details['result'][0]['ambassador_code']
+            ambassador_code         = pur_details['result'][0]['amb_code']
+            amount_due              = pur_details['result'][0]['amount_due']
+            amount_paid             = pur_details['result'][0]['amount_paid']
+            cc_num                  = pur_details['result'][0]['cc_num']
+            cc_exp_date             = pur_details['result'][0]['cc_exp_date']
+            cc_cvv                  = pur_details['result'][0]['cc_cvv']
+            cc_zip                  = pur_details['result'][0]['cc_zip']
+            charge_id               = pur_details['result'][0]['charge_id']
+            delivery_instructions   = pur_details['result'][0]['delivery_instructions']
+            delivery_email   = pur_details['result'][0]['delivery_email']
+
+            print("\nItem_UID: ", items_uid)
+            print("Number of Deliveries: ", num_deliveries)
+            print("Payment_id: ", payment_id)
+
+            print("\nCustomer Subtotal: ", subtotal)
+            print("Customer amount_discount: ", amount_discount)
+            print("Customer service_fee: ", service_fee)
+            print("Customer delivery_fee: ", delivery_fee)
+            print("Customer driver_tip: ", driver_tip)
+            print("Customer taxes ", taxes)
+            print("Customer ambassador_code: ", ambassador_code)
+            print("Customer ambassador_discount: ", ambassador_discount)
+            print("Customer amount_due: ", amount_due)
+            print("Customer amount_paid: ", amount_paid)
+            print("Customer charge_id: ", charge_id)
+            print("Customer delivery_instructions: ", delivery_instructions)
+            print("Customer email: ", delivery_email)
 
 
             # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
@@ -11948,6 +12534,8 @@ class calculator(Resource):
                 print("completed_deliveries: ", completed_deliveries)
                 print(total_used)
             else:
+                # completed_deliveries > 0:
+                # print("true")
                 used = calculator().billing(items_uid, completed_deliveries)
                 print("\nConsumed Subscription: ", used)
 
@@ -11955,7 +12543,7 @@ class calculator(Resource):
                 delivery_discount = used['result'][0]['delivery_discount']
                 total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
 
-                print("Used Price: ", item_price)
+                print("\nUsed Price: ", item_price)
                 print("Used delivery_discount: ", delivery_discount)
                 print("Total Used: ", total_used)
 
@@ -11981,22 +12569,41 @@ class calculator(Resource):
                 valueOfMealsConsumed    = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
                 remainingRatio          = round((int(num_deliveries) - int(completed_deliveries))/int(num_deliveries),2)
                 taxRate                 = .0925
+                print("\n(rb) valueOfMealsPurchased: ", valueOfMealsPurchased, " = ", subtotal, " - ", amount_discount)
+                print("(rb) valueOfMealsConsumed: ", valueOfMealsConsumed, " = (", item_price, " * ", completed_deliveries, ") * ", (1 - (delivery_discount/100)))
+                print("(rb) remainingRatio: ", remainingRatio, " = (", num_deliveries, " - ", completed_deliveries, ") / ", num_deliveries)
                     
                 subtotal = valueOfMealsPurchased - valueOfMealsConsumed
+                print("\n(rb) new_subtotal: ", subtotal, " = ", valueOfMealsPurchased, " - ", valueOfMealsConsumed)
 
+                # not included in refund
                 amount_discount         = 0
                 service_fee             = 0
                 delivery_fee            = 0
+
+                old_driver_tip = driver_tip # just for debugging
                 driver_tip              = round(remainingRatio * driver_tip, 2)
-                ambassador_discount     = round(remainingRatio * ambassador_discount, 2)
+                print("(rb) driver_tip: ", driver_tip, " = ", remainingRatio, " * ", old_driver_tip)
+                
+                old_amb_discount = ambassador_discount # just for debugging
+                ambassador_discount         = round(remainingRatio * ambassador_discount, 2)
+                print("(rb) ambassador_discount: ", ambassador_discount, " = ", remainingRatio, " * ", old_amb_discount)
+
                 taxes                   = round((subtotal + delivery_fee) * taxRate,2)
+                print("(rb) new_taxes: ", taxes, " = (", subtotal, " + ", delivery_fee, ") * ", taxRate)
+
                 amount_due              = round(subtotal + service_fee + delivery_fee + driver_tip  - ambassador_discount + taxes,2)
-            
+                print("\n(rb) amount_due: ", amount_due, " = ", subtotal, " + ", service_fee, " + ", delivery_fee, " + ", driver_tip, " - ", ambassador_discount, " + ", taxes,"\n")
+                
+                # print("""
+                #     ((4 * 5 * 16) - (4 * 5 * 16 * 0.05)) - ((2 * 5 * 16) - (2 * 5 * 16 * 0.01)) 
+                # """)
+ 
             refund_object = {"purchase_uid"          :  pur_uid,
                              "purchase_id"           :  pur_uid,
                              "payment_id"            :  payment_id,
                              "completed_deliveries"  :  completed_deliveries,
-                             "customer_uid"          : customer_uid,
+                             "customer_uid"          :  customer_uid,
                              "meal_refund"           :  subtotal,
                              "amount_discount"       :  amount_discount,
                              "service_fee"           :  service_fee,
@@ -12013,13 +12620,15 @@ class calculator(Resource):
                              "cc_zip"                :  cc_zip,
                              "charge_id"             :  charge_id,
                              "delivery_instructions" :  delivery_instructions}
-            print("refund_object: ", refund_object)
+            print("\n(rb) refund_object: ", refund_object)
             return refund_object
 
         except:
             raise BadRequest('Refund Calculator Failure 1.')
         finally:
             disconnect(conn)
+
+        
 
     # CALCULATE REFUND - FOR DEBUG PURPOSES.  CODE IS ACTUALLY USED BY MOBILE.  SHOULD BE SAME CODE AS REFUND ABOVE
     def get (self, pur_uid):
@@ -12076,7 +12685,7 @@ class calculator(Resource):
             print("\nReturned from deliveries_made: ", deliveries_made)
 
             completed_deliveries = deliveries_made['result'][0]['num_deliveries']
-            print("Num of Completed Deliveries: ", completed_deliveries)
+            print("3 Num of Completed Deliveries: ", completed_deliveries)
 
 
             # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
@@ -12161,6 +12770,163 @@ class calculator(Resource):
     
 
 # CRON JOB
+# def renew_subscription_old():
+#     # print("Entering CRON Job section")
+
+#     try:
+#         print("CRON Job running 1")
+
+#         conn = connect()
+        # query = """
+        #         SELECT *
+        #         FROM M4ME.next_billing_date 
+        #         WHERE next_billing_date < now()
+        #             AND purchase_status = "ACTIVE"
+        #             -- AND pur_customer_uid != "100-000119";
+        #         """
+#         renew = execute(query, 'get', conn)
+#         print(datetime.now())
+#         print("Next Billing Date: ", renew)
+#         print("\nNumber of records: ", len(renew['result']))
+
+#         for subscriptions in renew['result']:
+#             print("\nSubscription Record: ", subscriptions)
+#             # print("\n", subscriptions['purchase_uid'])
+#             # print("\n", subscriptions['items'])
+
+#             # STEP 1: WHAT THEY HAD
+#             print("\nSTEP 1: What they had:")
+#             pur_uid = subscriptions['purchase_uid']
+#             pur_id  = subscriptions['purchase_id']
+#             pay_uid = subscriptions['payment_uid']
+#             pay_id  = subscriptions['payment_id']
+#             print("  Existing purchase ids : ", pur_uid, pur_id)
+#             print("  Existing payment ids  : ", pay_uid, pay_id)
+
+#             items = json.loads(subscriptions['items'])
+#             print(items, type(items))
+#             item_uid = items[0]["item_uid"]
+#             num_deliveries = items[0]["qty"]
+#             print("  JSON item_uid : ", item_uid)
+#             print("  JSON qty      : ", num_deliveries)
+
+#             # STEP 2: CALCULATE THE NEW RENEWAL CHARGE
+#             print("\nSTEP 2B: Inside Calculate New Charge")
+#             new_charge = calculator().billing(item_uid, num_deliveries)
+#             # print("Returned JSON Object: \n", new_charge)
+#             item_price = new_charge['result'][0]['item_price']
+#             num_deliveries = new_charge['result'][0]['num_deliveries']
+#             new_meal_charge = float(item_price) * int(num_deliveries)
+#             new_discount_percent = new_charge['result'][0]['delivery_discount']
+#             new_discount = round(new_meal_charge * new_discount_percent/100,2)
+#             new_service_fee = float(subscriptions["service_fee"])
+#             new_delivery_fee = float(subscriptions["delivery_fee"])
+#             new_driver_tip = float(subscriptions["driver_tip"])
+#             new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
+#             new_ambassador = float(subscriptions["ambassador_code"])
+#             amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
+
+#             print("\nAmount for new Plan: ", item_price)
+#             print("Number of Deliveries: ", num_deliveries)
+#             print("Delivery Discount: ", new_discount)
+            
+#             print("\nNew Meal Charge: ", new_meal_charge, type(new_meal_charge))
+#             print("New Discount %: ", new_discount_percent, type(new_discount_percent))
+#             print("Actual Discount: ", new_discount, type(new_discount))
+#             print("Service Fee: ", new_service_fee, type(new_service_fee))
+#             print("Delivery Fee: ", new_delivery_fee, type(new_delivery_fee))
+#             print("Driver Tip: ", new_driver_tip, type(new_driver_tip))
+#             print("Actual Tax: ", new_tax, type(new_tax))
+#             print("Ambassador Discount: ", new_ambassador, type(new_ambassador))
+#             print("New Charge: ", amount_should_charge, type(amount_should_charge))
+
+
+#             # STEP 3: CHARGE STRIPE
+#             print("\nSTEP 3B CHARGE STRIPE: Charge Stripe")
+#                 # GET STRIPE KEY
+#             delivery_instructions = subscriptions['delivery_instructions']
+#             stripe.api_key = get_stripe_key().get_key(delivery_instructions)
+#             print("Stripe Key: ", stripe.api_key)
+#             print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLMju5RPMEvw...HhjvEFwP11jLVC4h7TZhdu000mBRlnir9")
+#                 # CHARGE STRIPE
+#             print("Stripe Transaction Inputs: ", subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], amount_should_charge)
+#             charge_id = stripe_transaction().purchase(subscriptions['pur_customer_uid'], subscriptions['delivery_instructions'], -1 * amount_should_charge)
+#             print("Return from Stripe Charge Transaction: ", charge_id)           
+            
+#             # STEP 4: WRITE TO DATABASE
+#             print("STEP 4:  WRITE TO DATABASE")
+
+#             # CHECK IF VALID CHARGE ID WAS RETURNED
+#             if 'ch_' in str(charge_id):
+
+#                 # PART 1: INSERT NEW ROW WITH NEW CHARGE AMOUNT AND CHARGE ID BUT EXISTING PURCHASE IDS
+#                 new_pay_id = get_new_paymentID(conn)
+#                 print(new_pay_id)
+#                 print(str(getNow()))
+
+#                 # FIND NEXT START DATE FOR CHANGED PLAN
+#                 date_query = '''
+#                             SELECT DISTINCT menu_date FROM M4ME.menu
+#                             WHERE menu_date > CURDATE()
+#                             ORDER BY menu_date ASC
+#                             LIMIT 1
+#                             '''
+#                 response = simple_get_execute(date_query, "Next Delivery Date", conn)
+#                 start_delivery_date = response[0]['result'][0]['menu_date']
+#                 print("start_delivery_date: ", start_delivery_date)
+            
+#                 # UPDATE PAYMENT TABLE
+#                 query = """
+#                         INSERT INTO M4ME.payments
+#                         SET payment_uid = '""" + new_pay_id + """',
+#                             payment_id = '""" + new_pay_id + """',
+#                             pay_purchase_uid = '""" + pur_uid + """',
+#                             pay_purchase_id = '""" + pur_id + """',
+#                             payment_time_stamp =  '""" + str(getNow()) + """',
+#                             subtotal = '""" + str(new_meal_charge) + """',
+#                             amount_discount = '""" + str(new_discount) + """',
+#                             service_fee = '""" + str(new_service_fee) + """',
+#                             delivery_fee = '""" + str(new_delivery_fee) + """',
+#                             driver_tip = '""" + str(new_driver_tip) + """',
+#                             taxes = '""" + str(new_tax) + """',
+#                             amount_due = '""" + str(amount_should_charge) + """',
+#                             amount_paid = '""" + str(- amount_should_charge) + """',
+#                             cc_num = '""" + str(subscriptions['cc_num']) + """',
+#                             cc_exp_date = '""" + str(subscriptions['cc_exp_date']) + """',
+#                             cc_cvv = '""" + str(subscriptions['cc_cvv']) + """',
+#                             cc_zip = '""" + str(subscriptions['cc_zip']) + """',
+#                             ambassador_code = '""" + str(new_ambassador) + """',
+#                             charge_id = '""" + str(charge_id) + """',
+#                             start_delivery_date =  '""" + str(start_delivery_date) + """';
+#                         """        
+                        
+                                
+#                 response = execute(query, 'post', conn)
+#                 print("Payments Update db response: ", response)
+                
+#                 if response['code'] != 281:
+#                     return {"message": "Payment Insert Error"}, 500
+            
+#             # else:
+#             #     continue
+
+#             # PART 2: CHANGE EXISTING SUBSCRIPTION TO RENEWED - NOT SURE WE NEED TO DO THIS
+#             # UPDATE PURCHASE TABLE
+#                 # query = """
+#                 #         UPDATE M4ME.purchases
+#                 #         SET purchase_status = "RENEWED"
+#                 #         where purchase_uid = '""" + pur_uid + """';
+#                 #         """
+#                 # update_response = execute(query, 'post', conn)
+#                 # print("Purchases Update db response: ", update_response)
+#                 # if update_response['code'] != 281:
+#                 #     return {"message": "Purchase Insert Error"}, 500
+
+#     except:
+#         print('error')
+#         return 'error occured'
+#     finally:
+#         print('done')
 def renew_subscription():
     # print("Entering CRON Job section")
 
@@ -12168,22 +12934,59 @@ def renew_subscription():
         print("CRON Job running 1")
 
         conn = connect()
+        # test query
+        # query = """
+        #         SELECT *
+        #         FROM M4ME.next_billing_date 
+        #         WHERE purchase_status = "ACTIVE"
+        #             AND pur_customer_uid = "100-000002";
+        #         """
+        # actual query
+        # query = """
+        #         SELECT *
+        #         FROM M4ME.next_billing_date 
+        #         WHERE next_billing_date < now()
+        #             AND purchase_status = "ACTIVE"
+        #             -- AND pur_customer_uid != "100-000119";
+        #         """
         query = """
                 SELECT *
-                FROM M4ME.next_billing_date 
-                WHERE next_billing_date < now()
-                    AND purchase_status = "ACTIVE"
-                    -- AND pur_customer_uid != "100-000119";
+                FROM (
+                    SELECT *
+                    FROM (
+                        SELECT * 
+                        FROM M4ME.next_billing_date 
+                        WHERE next_billing_date < now()
+                            AND purchase_status = "ACTIVE"
+                        ) AS without_code
+                    JOIN (
+                        SELECT 
+                            pay_purchase_uid AS payments_uid,
+                            amb_code
+                        FROM M4ME.payments
+                        ) AS with_code
+                    ON without_code.pay_purchase_uid = with_code.payments_uid
+                ) AS without_coupon
+                LEFT JOIN (
+                    SELECT *
+                    FROM M4ME.coupons
+                ) AS coupons
+                ON without_coupon.amb_code = coupons.notes;
                 """
+
         renew = execute(query, 'get', conn)
         print(datetime.now())
         print("Next Billing Date: ", renew)
         print("\nNumber of records: ", len(renew['result']))
 
         for subscriptions in renew['result']:
-            print("\nSubscription Record: ", subscriptions)
+            print("\n=========================| SUB LOOP START |=========================\n")
+            print("Subscription Record: ", subscriptions)
             # print("\n", subscriptions['purchase_uid'])
             # print("\n", subscriptions['items'])
+
+            # print("\n=========================| SUB LOOP END 1 |=========================\n")
+            # continue
 
             # STEP 1: WHAT THEY HAD
             print("\nSTEP 1: What they had:")
@@ -12191,31 +12994,99 @@ def renew_subscription():
             pur_id  = subscriptions['purchase_id']
             pay_uid = subscriptions['payment_uid']
             pay_id  = subscriptions['payment_id']
-            print("  Existing purchase ids : ", pur_uid, pur_id)
-            print("  Existing payment ids  : ", pay_uid, pay_id)
+            print("Existing purchase ids : ", pur_uid, pur_id)
+            print("Existing payment ids  : ", pay_uid, pay_id)
+
+            # print("\n=========================|  SUB LOOP END 2 |=========================\n")
+            # continue
+
+            # print("\nitems: ", items, type(items))
+            print("\nINFO WE NEED")
 
             items = json.loads(subscriptions['items'])
-            print(items, type(items))
+            print("\nitems: ", items)
+
+            latitude = subscriptions['delivery_latitude']
+            longitude = subscriptions['delivery_longitude']
+            print("\nlatitude: ", latitude)
+            print("longitude: ", longitude)
+
+            tip = subscriptions['driver_tip']
+            print("tip: ", tip)
+
+            amb_coupon = {
+                            "coupon_uid": subscriptions["coupon_uid"],
+                            "coupon_id": subscriptions["coupon_id"],
+                            "valid": subscriptions["valid"],
+                            "threshold": subscriptions["threshold"],
+                            "discount_percent": subscriptions["discount_percent"],
+                            "discount_amount": subscriptions["discount_amount"],
+                            "discount_shipping": subscriptions["discount_shipping"],
+                            "expire_date": subscriptions["expire_date"],
+                            "limits": subscriptions["limits"],
+                            "notes": subscriptions["notes"],
+                            "num_used": subscriptions["num_used"],
+                            "recurring": subscriptions["recurring"],
+                            "email_id": subscriptions["email_id"],
+                            "cup_business_uid": subscriptions["cup_business_uid"],
+                         }
+            print("\namb_coupon: ", amb_coupon)
+
+            purchase_data = {
+                                "items": items,
+                                "customer_lat": latitude,
+                                "customer_long": longitude,
+                                "driver_tip": tip,
+                                "ambassador_coupon": amb_coupon
+                            }
+
+            print("\n=========================| START make_purchase |=========================")
+            new_purchase = make_purchase().calculator(purchase_data)
+            print("\n=========================|  END make_purchase  |=========================")
+
+            print("\nnew_purchase: ", new_purchase)
+
             item_uid = items[0]["item_uid"]
             num_deliveries = items[0]["qty"]
-            print("  JSON item_uid : ", item_uid)
-            print("  JSON qty      : ", num_deliveries)
+            # print("\nJSON item_uid : ", item_uid)
+            # print("JSON qty      : ", num_deliveries)
+
+            # print("\n=========================|  SUB LOOP END 3 |=========================\n")
+            # continue
 
             # STEP 2: CALCULATE THE NEW RENEWAL CHARGE
+            # print("\nSTEP 2B: Inside Calculate New Charge")
+            # new_charge = calculator().billing(item_uid, num_deliveries)
+            # # print("Returned JSON Object: \n", new_charge)
+            # item_price = new_charge['result'][0]['item_price']
+            # num_deliveries = new_charge['result'][0]['num_deliveries']
+            # new_meal_charge = float(item_price) * int(num_deliveries)
+            # new_discount_percent = new_charge['result'][0]['delivery_discount']
+            # new_discount = round(new_meal_charge * new_discount_percent/100,2)
+            # new_service_fee = float(subscriptions["service_fee"])
+            # new_delivery_fee = float(subscriptions["delivery_fee"])
+            # new_driver_tip = float(subscriptions["driver_tip"])
+            # new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
+            # new_ambassador = float(subscriptions["ambassador_code"])
+            # amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
             print("\nSTEP 2B: Inside Calculate New Charge")
             new_charge = calculator().billing(item_uid, num_deliveries)
             # print("Returned JSON Object: \n", new_charge)
             item_price = new_charge['result'][0]['item_price']
             num_deliveries = new_charge['result'][0]['num_deliveries']
-            new_meal_charge = float(item_price) * int(num_deliveries)
+            new_meal_charge = new_purchase['new_meal_charge']
             new_discount_percent = new_charge['result'][0]['delivery_discount']
-            new_discount = round(new_meal_charge * new_discount_percent/100,2)
-            new_service_fee = float(subscriptions["service_fee"])
-            new_delivery_fee = float(subscriptions["delivery_fee"])
-            new_driver_tip = float(subscriptions["driver_tip"])
-            new_tax = round(.0925*(new_meal_charge  - new_discount + new_delivery_fee),2)
-            new_ambassador = float(subscriptions["ambassador_code"])
-            amount_should_charge = round(new_meal_charge  - new_discount + new_service_fee + new_delivery_fee + new_driver_tip + new_tax - new_ambassador,2)
+            new_discount = new_purchase['new_discount']
+            new_service_fee = new_purchase['service_fee']
+            new_delivery_fee = new_purchase["delivery_fee"]
+            new_driver_tip = new_purchase["new_driver_tip"]
+            new_tax = new_purchase['new_tax']
+            amb_discount = subscriptions["ambassador_code"]
+            amb_code = subscriptions["amb_code"]
+            amount_should_charge = new_purchase['amount_should_charge']
+
+            print("\n=========================|  SUB LOOP END 4 |=========================\n")
+            continue
 
             print("\nAmount for new Plan: ", item_price)
             print("Number of Deliveries: ", num_deliveries)
@@ -12286,7 +13157,8 @@ def renew_subscription():
                             cc_exp_date = '""" + str(subscriptions['cc_exp_date']) + """',
                             cc_cvv = '""" + str(subscriptions['cc_cvv']) + """',
                             cc_zip = '""" + str(subscriptions['cc_zip']) + """',
-                            ambassador_code = '""" + str(new_ambassador) + """',
+                            ambassador_code = '""" + str(amb_discount) + """',
+                            amb_code = '""" + str(amb_code) + """',
                             charge_id = '""" + str(charge_id) + """',
                             start_delivery_date =  '""" + str(start_delivery_date) + """';
                         """        
@@ -15582,6 +16454,8 @@ api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 if __name__ == '__main__':
     # print("\n")
     # print("==========| renew_subscription_test |==========")
+    # renew_subscription()
+    # print("\n")
     # renew_subscription_test()
     # print("\n")
     # print("==========| calculator().billing    |==========")
