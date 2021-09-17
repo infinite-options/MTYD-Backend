@@ -6296,7 +6296,7 @@ class predict_next_billing_amount(Resource):
                                     LEFT JOIN M4ME.latest_combined_meal lcm
                                     ON lplp.purchase_id = lcm.sel_purchase_id AND
                                             md.menu_date = lcm.sel_menu_date
-                                    WHERE pur_customer_uid = '100-000002' 
+                                    WHERE pur_customer_uid = '""" + id + """'
                                             AND purchase_status = "ACTIVE"
                                             AND menu_date >= start_delivery_date)
                                     AS A
@@ -6313,7 +6313,7 @@ class predict_next_billing_amount(Resource):
                                     LEFT JOIN M4ME.latest_combined_meal lcm
                                     ON lplp.purchase_id = lcm.sel_purchase_id AND
                                             md.menu_date = lcm.sel_menu_date
-                                    WHERE pur_customer_uid = '100-000002'
+                                    WHERE pur_customer_uid = '""" + id + """'
                                             AND purchase_status = "ACTIVE"
                                             AND menu_date >= start_delivery_date)
                                     AS B
@@ -6349,7 +6349,7 @@ class predict_next_billing_amount(Resource):
                                     (
                                     SELECT purchase_uid, purchase_id -- *
                                     FROM M4ME.lplp
-                                    WHERE lplp.pur_customer_uid = '100-000002') as pur
+                                    WHERE lplp.pur_customer_uid = '""" + id + """') as pur
                                 ) AS nmdpur
                             LEFT JOIN (
                             -- PART B
