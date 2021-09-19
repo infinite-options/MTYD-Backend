@@ -5925,7 +5925,14 @@ class cancel_purchase_2 (Resource):
             continue
         print("=========================|  STEP 3C END  |=========================")
         
-        return refund_id['id']
+        # return { 
+        #         "refund_id": refund_id['id'],
+        #         "amount_refunded": 
+        #        }
+        print("(cp2) amount_due: ", refund['amount_due'])
+        print("(cp2) refundable_amount: ", refundable_amount)
+        print("(cp2) amount_should_refund: ", amount_should_refund)
+        return {"refund_id": refund_id['id'], "refund_amount": refund['amount_due']}
 
 # PRASHANT NEXT BILLING DATE
 class predict_next_billing_date(Resource):
