@@ -4053,6 +4053,7 @@ class make_purchase (Resource):
         return new_billing
 
     def calculator(self, data):
+        print("(mp) data: ", data)
         ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
         
         # CALCULATE AMBASSADOR DISCOUNT
@@ -4064,7 +4065,7 @@ class make_purchase (Resource):
         amb_coupon_uid = None
         # IF AMBASSADOR INFO IS PASSED IN JSON OBJECT
         if type(ambassador_coupon) is dict:
-            # print("(cb) in amb code conditional")
+            print("(cb) in amb code conditional")
             amb_coupon_uid = ambassador_coupon['coupon_uid']
             amb_discount_amount = ambassador_coupon['discount_amount']
             amb_discount_percent = ambassador_coupon['discount_percent']
@@ -4145,10 +4146,12 @@ class make_purchase (Resource):
             # print("amount_should_charge: ", amount_should_charge, " = ", new_meal_charge, " - ", new_discount, " - ", amb_discount, " + ", new_tax, " + ", service_fee, " + ", delivery_fee, " + ", new_driver_tip)
 
             new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": charge_without_amb,"charge_with_amb": charge_with_amb,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
+            print("(mp) new_billing 1: ", new_billing)
             return new_billing
         else:
             
             new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": None,"charge_with_amb": None,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
+            print("(mp) new_billing 2: ", new_billing)
             return new_billing
         
         
@@ -6303,7 +6306,7 @@ class predict_next_billing_amount(Resource):
                                     LEFT JOIN M4ME.latest_combined_meal lcm
                                     ON lplp.purchase_id = lcm.sel_purchase_id AND
                                             md.menu_date = lcm.sel_menu_date
-                                    WHERE pur_customer_uid = '""" + id + """'
+                                    WHERE pur_customer_uid = '""" + id + """' 
                                             AND purchase_status = "ACTIVE"
                                             AND menu_date >= start_delivery_date)
                                     AS A
@@ -6397,24 +6400,96 @@ class predict_next_billing_amount(Resource):
         finally:
             disconnect(conn)
 
+# class reissue_coupon(Resource):
+
+#     def put(self, id):
+#         try:
+#             conn = connect()
+ 
+            # query = """
+            #     UPDATE coupons
+            #     SET num_used = num_used - 1
+            #     WHERE coupon_uid = '""" + id + """';
+            # """
+
+#             response = simple_post_execute([query], [__class__.__name__], conn)
+#             print("(reissue_coupon) response")
+
+#             if response[1] != 201:
+#                 return response
+#             response[0]['message'] = 'Reissued 1 coupon at id ' + id
+#             return response
+
+#         except:
+#             raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
+
+            # query = """
+            #         select * from
+            #         (select * 
+            #         from M4ME.purchases, M4ME.payments
+            #         where purchase_status = 'ACTIVE' AND purchase_uid = pay_purchase_uid) as gg
+            #         left join (SELECT S.sel_purchase_id, S.sel_menu_date, S.meal_selection, S.delivery_day FROM
+            #         (SELECT sel_purchase_id, sel_menu_date, max(selection_time) AS max_selection_time FROM M4ME.meals_selected
+            #             GROUP BY sel_purchase_id,sel_menu_date) AS GB
+            #             INNER JOIN M4ME.meals_selected S
+            #             ON S.sel_purchase_id = GB.sel_purchase_id
+            #                 AND S.sel_menu_date = GB.sel_menu_date
+            #                 AND S.selection_time = GB.max_selection_time
+            #         ) as gh
+            #         on gh.sel_purchase_id = gg.purchase_id
+            #         WHERE gg.purchase_id = '""" + id + """'
+
+            #         """
+            # items = execute(query, 'get', conn)
 class reissue_coupon(Resource):
 
-    def put(self, id):
+    def put(self):
+        print("(RC) 0")
         try:
             conn = connect()
- 
-            query = """
-                UPDATE coupons
-                SET num_used = num_used - 1
-                WHERE coupon_uid = '""" + id + """';
-            """
+            data = request.get_json(force=True)
+
+            print("(RC) 1")
+
+            if data.get('coupon_uid') is not None:
+
+                query = """
+                    UPDATE coupons
+                    SET num_used = num_used - 1
+                    WHERE coupon_uid = '""" + data['coupon_uid'] + """';
+                """
+
+                message = 'Reissued 1 coupon at coupon_uid ' + data['coupon_uid']
+
+            else:
+                print("(RC) 2")
+
+                get_query = """
+                    SELECT * FROM coupons
+                    WHERE notes = '""" + data['code'] + """'
+                    AND email_id = '""" + data['user_email'] + """';
+                """
+                items = execute(get_query, 'get', conn)
+
+                print("(rc) items: ", items)
+    
+                query = """
+                    UPDATE coupons
+                    SET num_used = num_used - 1
+                    WHERE coupon_uid = '""" + items['result'][0]['coupon_uid'] + """';
+                """
+
+                message = 'Reissued 1 coupon at coupon_uid ' + items['result'][0]['coupon_uid'] 
+                print("(RC) 3")
 
             response = simple_post_execute([query], [__class__.__name__], conn)
             print("(reissue_coupon) response")
 
             if response[1] != 201:
                 return response
-            response[0]['message'] = 'Reissued 1 coupon at id ' + id
+            response[0]['message'] = message
             return response
 
         except:
@@ -16536,7 +16611,8 @@ api.add_resource(predict_next_billing_date, '/api/v2/predict_next_billing_date/<
 
 api.add_resource(predict_next_billing_amount, '/api/v2/predict_next_billing_amount/<string:id>')
 
-api.add_resource(reissue_coupon, '/api/v2/reissue_coupon/<string:id>')
+# api.add_resource(reissue_coupon, '/api/v2/reissue_coupon/<string:id>')
+api.add_resource(reissue_coupon, '/api/v2/reissue_coupon')
 
 api.add_resource(subscription_history, '/api/v2/subscription_history/<string:cust_uid>')
 
