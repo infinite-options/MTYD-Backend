@@ -1916,7 +1916,51 @@ class AppleEmail(Resource):
 
 #  -- MEAL/MENU RELATED ENDPOINTS    -----------------------------------------
 
-class Meals_Selected(Resource): #(meals_selected_endpoint)
+# class Meals_Selected(Resource): #(meals_selected_endpoint)
+#     def get(self):
+#         try:
+#             conn = connect()
+#             customer_uid = request.args['customer_uid']
+
+#             query = """
+#                     # CUSTOMER QUERY 3: MEALS SELECTED INCLUDING DEFAULT SURPRISES
+#                     SELECT lplpmdlcm.*,
+#                         IF (lplpmdlcm.sel_purchase_id IS NULL, '[{"qty": "", "name": "SURPRISE", "price": "", "item_uid": ""}]', lplpmdlcm.combined_selection) AS meals_selected
+#                     FROM (
+#                     SELECT * FROM M4ME.lplp
+#                     JOIN (
+#                         SELECT DISTINCT menu_date
+#                         FROM menu
+#                         WHERE menu_date > now()
+#                         ORDER BY menu_date ASC) AS md
+#                     LEFT JOIN M4ME.latest_combined_meal lcm
+#                     ON lplp.purchase_id = lcm.sel_purchase_id AND
+#                             md.menu_date = lcm.sel_menu_date
+#                     WHERE pur_customer_uid = '""" + customer_uid + """'
+#                             -- AND purchase_status = "ACTIVE"
+#                             ) AS lplpmdlcm
+#                     ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC;
+#                     """
+
+            
+#             items = execute(query, 'get', conn)
+#             if items['code']!=280:
+#                 items['message'] = "Failed"
+#                 items['code'] = 404
+#                 #return items
+#             if items['code']== 280:
+#                 items['message'] = "Meals selected"
+#                 items['code'] = 200
+#                 #return items
+#             return items
+
+
+#             #return simple_get_execute(query, __class__.__name__, conn)
+#         except:
+#             raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
+class Meals_Selected_2 (Resource): #(meals_selected_endpoint)
     def get(self):
         try:
             conn = connect()
@@ -1937,7 +1981,7 @@ class Meals_Selected(Resource): #(meals_selected_endpoint)
                     ON lplp.purchase_id = lcm.sel_purchase_id AND
                             md.menu_date = lcm.sel_menu_date
                     WHERE pur_customer_uid = '""" + customer_uid + """'
-                            -- AND purchase_status = "ACTIVE"
+                            AND purchase_status = "ACTIVE"
                             ) AS lplpmdlcm
                     ORDER BY lplpmdlcm.purchase_id ASC, lplpmdlcm.menu_date ASC;
                     """
@@ -1960,6 +2004,7 @@ class Meals_Selected(Resource): #(meals_selected_endpoint)
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
 
 class Meals_Selected_Specific(Resource):
     def get(self):
@@ -2013,6 +2058,7 @@ class Meals_Selected_Specific(Resource):
 class Meals_Selection (Resource):
     def post(self):
         response = {}
+        print("Meals_Selection 1")
         try:
             conn = connect()
             data = request.get_json(force=True)
@@ -2021,16 +2067,27 @@ class Meals_Selection (Resource):
             delivery_day = data['delivery_day']
             sel_menu_date = data['menu_date']
 
+            print("Meals_Selection 2")
+
             if data['is_addon']:
+                print("Meals_Selection 2A1")
                 res = execute("CALL new_addons_selected_uid();", 'get', conn)
+                print("Meals_Selection 2A2")
             else:
+                print("Meals_Selection 2B1")
                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
+                print("Meals_Selection 2B2")
+
             if res['code'] != 280:
+                print("Meals_Selection 3")
                 print("*******************************************")
                 print("* Cannot run the query to get a new \"selection_uid\" *")
                 print("*******************************************")
+
                 response['message'] = 'Internal Server Error.'
                 return response, 500
+
+            print("Meals_Selection 4")
             selection_uid = res['result'][0]['new_id']
             queries = [[
                         """
@@ -2055,15 +2112,22 @@ class Meals_Selection (Resource):
                         """
                        ]]
 
+            print("Meals_Selection 5")
+
             if data['is_addon'] == True:
+                print("Meals_Selection 5A1")
                 # write to addons selected table
                 # need a stored function to get the new selection
                 response = simple_post_execute(queries[0], ["ADDONS_SELECTED"], conn)
             else:
+                print("Meals_Selection 5B1")
                 response = simple_post_execute(queries[1], ["MEALS_SELECTED"], conn)
+
             if response[1] == 201:
                 response[0]['selection_uid']= selection_uid
+
             return response
+
         except:
             if "selection_uid" in locals():
                 execute("DELETE FROM addons_selected WHERE selection_uid = '" + selection_uid + "';", 'post', conn)
@@ -6837,7 +6901,9 @@ class Meals (Resource):
                         meal_sugar = '""" + meal_sugar + """',
                         meal_fat = '""" + meal_fat + """',
                         meal_sat = '""" + meal_sat + """',
-                        meal_status = '""" + meal_status + """';
+                        meal_status = '""" + meal_status + """',
+                        meal_cost = '4.5',
+                        meal_price = '16';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
             #item_photo_url = helper_upload_meal_img(item_photo, key)
@@ -6991,6 +7057,25 @@ class create_update_meals(Resource):
             # print("(create_update_meals) 3")
             # print("(create_update_meals) meal_uid: ", meal_uid)
 
+            # query = """
+            #     INSERT INTO 
+            #         meals
+            #     SET 
+            #         meal_uid = '""" + meal_uid + """',
+            #         meal_category = '""" + meal_category + """',
+            #         meal_business = '""" + meal_business + """',
+            #         meal_name = '""" + meal_name + """',
+            #         meal_desc = '""" + meal_desc + """',
+            #         meal_hint = '""" + meal_hint + """',
+            #         meal_calories = '""" + meal_calories + """',
+            #         meal_protein = '""" + meal_protein + """',
+            #         meal_carbs = '""" + meal_carbs + """',
+            #         meal_fiber = '""" + meal_fiber + """',
+            #         meal_sugar = '""" + meal_sugar + """',
+            #         meal_fat = '""" + meal_fat + """',
+            #         meal_sat = '""" + meal_sat + """',
+            #         meal_status = '""" + meal_status + """';
+            # """
             query = """
                 INSERT INTO 
                     meals
@@ -7008,7 +7093,9 @@ class create_update_meals(Resource):
                     meal_sugar = '""" + meal_sugar + """',
                     meal_fat = '""" + meal_fat + """',
                     meal_sat = '""" + meal_sat + """',
-                    meal_status = '""" + meal_status + """';
+                    meal_status = '""" + meal_status + """',
+                    meal_cost = '4.5';
+                    meal_price = '16';
             """
             # print("(create_update_meals) 3.1")
             if valid_photo == True:
@@ -7031,7 +7118,9 @@ class create_update_meals(Resource):
                         meal_sugar = '""" + meal_sugar + """',
                         meal_fat = '""" + meal_fat + """',
                         meal_sat = '""" + meal_sat + """',
-                        meal_status = '""" + meal_status + """';
+                        meal_status = '""" + meal_status + """',
+                        meal_cost = '4.5',
+                        meal_price = '16';
                 """
 
             # print("(create_update_meals) 4")
@@ -16255,7 +16344,8 @@ api.add_resource(Reset_Password, '/api/v2/reset_password')
 #--------------------------------------------------------------------------------#
 
 #------------- Checkout, Meal Selection and Meals Schedule pages ----------------#
-api.add_resource(Meals_Selected, '/api/v2/meals_selected')
+# api.add_resource(Meals_Selected, '/api/v2/meals_selected')
+api.add_resource(Meals_Selected_2, '/api/v2/meals_selected')
 #  * The "Meals_Selected" only accepts GET request with one required parameters  #
 # "customer_id".It will return the information of all selected meals and addons  #
 # which are associated with the specific purchase. Modified to show specific     #
