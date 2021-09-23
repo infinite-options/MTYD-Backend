@@ -279,7 +279,7 @@ def simple_post_execute(queries, names, conn):
         return "Error. Queries and Names should have the same length."
     for i in range(len(queries)):
         print("Start query execution")
-        print(queries[i])
+        # print(queries[i])
         res = execute(queries[i], 'post', conn)
         print("End query execution")
         if res['code'] != 281:
@@ -614,7 +614,7 @@ class test_stripe_amount(Resource):
     # print("(TSA) amount 3: ", amount)
 
     amount = 319.53
-    print("\n(TSA) amount 1 (fixed): ", amount)
+    # print("\n(TSA) amount 1 (fixed): ", amount)
 
     amount = amount * 100
     # print("(TSA) amount 2 (fixed): ", amount)
@@ -1645,24 +1645,24 @@ class AppleLogin (Resource):
 
                     # Existing customer
 
-                    print('existing-------')
-                    print(items['result'][0]['user_social_media'])
-                    print(items['result'][0]['social_id'])
+                    # print('existing-------')
+                    # print(items['result'][0]['user_social_media'])
+                    # print(items['result'][0]['social_id'])
 
                     if items['result'][0]['user_social_media'] != "APPLE":
-                        print('1-----')
+                        # print('1-----')
                         items['message'] = "Wrong social media used for signup. Use \'" + items['result'][0]['user_social_media'] + "\'."
                         items['code'] = 400
                         return redirect("https://mealsfor.me/")
 
                     elif items['result'][0]['social_id'] != sub:
-                        print('20-----')
+                        # print('20-----')
                         items['message'] = "social_id mismatch"
                         items['code'] = 400
                         return redirect("https://mealsfor.me/")
 
                     else:
-                        print('successful redirect to farms')
+                        # print('successful redirect to farms')
 
                         s= items['result'][0]['customer_uid'].encode('utf-8')
                         print(s.hex())
@@ -1839,13 +1839,13 @@ class UpdatePassword(Resource):
                 #query = "CALL M4ME.new_profile"
                 #new_profile_query = execute(query, 'get', conn)
                 #new_profile = newPaymentUID_query['result'][0]['new_id']
-                print("1")
+                # print("1")
                 uid= data['uid']
                 #old_password=data['passworld']
                 salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
                 #print("1.5")
                 new_password = sha512((data['password'] + salt).encode()).hexdigest()
-                print('password------', new_password)
+                # print('password------', new_password)
                 algorithm = "SHA512"
                 #new_password = sha512((data['password'] + salt).encode()).hexdigest()
                 customer_insert_query = [""" 
@@ -1854,8 +1854,8 @@ class UpdatePassword(Resource):
                                     password_hashed = \'""" + new_password + """\'
                                     WHERE customer_uid =\'""" + uid + """\';  
                                 """]
-                print("2")
-                print(customer_insert_query)
+                # print("2")
+                # print(customer_insert_query)
                 item = execute(customer_insert_query[0], 'post', conn)
                 if item['code'] == 281:
                     item['code'] = 200
@@ -1889,17 +1889,17 @@ class AppleEmail(Resource):
                     WHERE social_id = \'""" + social_id + """\'
                     """
 
-            print(query)
+            # print(query)
 
             items = execute(query, 'get', conn)
-            print("Items:", items)
-            print(items['code'])
-            print(items['result'])
+            # print("Items:", items)
+            # print(items['code'])
+            # print(items['result'])
 
             if items['code'] == 280:
                 items['message'] = 'Email Returned'
                 items['result'] = items['result']
-                print(items['code'])
+                # print(items['code'])
                 items['code'] = 200
             else:
                 items['message'] = 'Check sql query'
@@ -3383,9 +3383,9 @@ class order_actions(Resource):
                         SET delivery_status = 'Yes' 
                         WHERE purchase_uid = \'""" + purchase_uid + """\';
                         """
-                print(query)
+                # print(query)
                 item = execute(query, 'post', conn)
-                print(item)
+                # print(item)
 
                 if item['code'] == 281:
                     item['code'] = 200
@@ -3413,10 +3413,10 @@ class order_actions(Resource):
                     item['code'] = 490
 
             elif action == 'item_delete':
-                print('item_delete')
+                # print('item_delete')
                 #itm = str(data['item_data'])
                 itm = json.dumps(data['item_data'])
-                print(itm)
+                # print(itm)
                 itm = "'[" + ", ".join([str(val).replace("'", "\"") if val else "NULL" for val in data['item_data']]) + "]'"
 
                 query = """ 
@@ -3425,9 +3425,9 @@ class order_actions(Resource):
                         items = """  + itm + """
                         WHERE (purchase_uid = \'""" + purchase_uid + """\');
                         """
-                print(query)
+                # print(query)
                 item = execute(query, 'post', conn)
-                print(item)
+                # print(item)
 
                 if item['code'] == 281:
                     item['code'] = 200
@@ -3651,18 +3651,18 @@ class Get_Latest_Purchases_Payments_with_Refund(Resource):
                 intx=intx+1
             response2 = {}
             inty = 0
-            print("changes here")
+            # print("changes here")
             for i2 in range(len(response[0]['result'])):
                 #print(response[0]['result'][i2])
                 response2[inty]=str(response[0]['result'][i2]) + "" + str(refundinfo[i2])
-                print("1")
+                # print("1")
                 #inty=inty+1
                 #print(refundinfo[i2])
                 #response2[inty+1]=refundinfo[i2]
-                print("2")
+                # print("2")
                 inty=inty+1
-            print("here 3")
-            print(response2)
+            # print("here 3")
+            # print(response2)
             return response2
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -3833,7 +3833,7 @@ class checkAutoPay(Resource):
                         AND delivery_day = 'SKIP'
                     ORDER BY S.sel_menu_date;
                     """
-            print(query)
+            # print(query)
             items = execute(query,'get',conn)
             
             if items['code'] != 280:
@@ -6673,7 +6673,7 @@ class Menu (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("Received data: ", data)
+            # print("Received data: ", data)
 
             menu_date = data['menu_date']
             menu_category = data['menu_category']
@@ -6683,12 +6683,12 @@ class Menu (Resource):
             default_meal = data['default_meal']
             delivery_days = "'" + data['delivery_days'] + "'"
             meal_price = data['meal_price']
-            print("1")
+            # print("1")
             menu_uid = get_new_id("CALL new_menu_uid", "get_new_menu_ID", conn)
             if menu_uid[1] != 200:
                 return menu_uid
             menu_uid = menu_uid[0]['result']
-            print(menu_uid)
+            # print(menu_uid)
 
             query = """
                     INSERT INTO menu
@@ -6717,7 +6717,7 @@ class Menu (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("1")
+            # print("1")
             menu_uid = data['menu_uid']
             menu_date = data['menu_date']
             menu_category = data['menu_category']
@@ -6725,7 +6725,7 @@ class Menu (Resource):
             meal_cat = data['meal_cat']
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
-            print("2")
+            # print("2")
             #print(data["delivery_days"])
             #print([str(item) for item in data['delivery_days']])
             #print(type(data["delivery_days"]))
@@ -6733,7 +6733,7 @@ class Menu (Resource):
             delivery_days = data["delivery_days"]#''.join([letter for item in temp if letter.isalnum()])#data["delivery_days"].split(',')
             #print(delivery_days)
             meal_price = str(data['meal_price'])
-            print("3")
+            # print("3")
             query = """
                     UPDATE menu
                     SET menu_date = '""" + menu_date + """',
@@ -6747,7 +6747,7 @@ class Menu (Resource):
                     where menu_uid = '""" + menu_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
-            print(response[1])
+            # print(response[1])
             if response[1] != 201:
                 return response
             response[0]['menu_uid'] = menu_uid
@@ -6762,12 +6762,12 @@ class Menu (Resource):
         try:
             conn = connect()
             menu_uid = request.args['menu_uid']
-            print("1")
+            # print("1")
             query = """
                     DELETE FROM menu WHERE menu_uid = '""" + menu_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
-            print(response)
+            # print(response)
             if response[1] != 201:
                 return response
             return response[0], 202
@@ -6799,12 +6799,12 @@ class Delete_Menu_Specific (Resource):
             conn = connect()
             menu_uid = request.args['menu_uid']
             meal_uid = data['meal_uid']
-            print("1")
+            # print("1")
             query = """
                     DELETE FROM menu WHERE menu_uid = '""" + menu_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
-            print(response)
+            # print(response)
             if response[1] != 201:
                 return response
             return response[0], 202
@@ -6833,15 +6833,15 @@ class Meals (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("1")
+            # print("1")
             meal_category = data['meal_category']
             meal_name = data['meal_name']
             meal_desc = data['meal_desc']
             meal_hint = "'" + data['meal_hint'] + "'" if data['meal_hint'] else 'NULL'
-            print("2")
+            # print("2")
             meal_photo_url = data['meal_photo_url'] if data.get('meal_photo_url') is not None else 'NULL'
             #meal_photo_url = "'" + data['meal_photo_URL'] + "'" if data['meal_photo_URL'] else 'NULL'
-            print("3")
+            # print("3")
             meal_calories = data['meal_calories']
             meal_protein = data['meal_protein']
             meal_carbs = data['meal_carbs']
@@ -6849,13 +6849,13 @@ class Meals (Resource):
             meal_sugar = data['meal_sugar']
             meal_fat = data['meal_fat']
             meal_sat = data['meal_sat']
-            print("4")
+            # print("4")
             meal_uid = get_new_id("CALL new_meal_uid", "get_new_meal_ID", conn)
             if meal_uid[1] != 200:
                 return meal_uid
             meal_uid = meal_uid[0]['result']
             meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE'
-            print("5")
+            # print("5")
             query = """
                     INSERT INTO meals
                     SET meal_uid = '""" + meal_uid + """',
@@ -6891,7 +6891,7 @@ class Meals (Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("Input JSON Object: ", data)
+            # print("Input JSON Object: ", data)
             meal_uid = data['meal_uid']
             meal_category = data['meal_category']
             meal_name = data['meal_name']
@@ -6909,11 +6909,11 @@ class Meals (Resource):
             # print("Before Status Input")
             # meal_status = "'" + data['meal_status'] + "'" if data.get('meal_status') is not None else 'ACTIVE' - changed 08/03/2021
             meal_status = data['meal_status'] if data.get('meal_status') is not None else 'ACTIVE'
-            print("After Input")
+            # print("After Input")
 
-            print(meal_photo_url, type(meal_photo_url))
-            print(meal_status, type(meal_status))
-            print(meal_hint, type(meal_hint))
+            # print(meal_photo_url, type(meal_photo_url))
+            # print(meal_status, type(meal_status))
+            # print(meal_hint, type(meal_hint))
 
             query = """
                     UPDATE meals
@@ -6967,7 +6967,7 @@ class create_update_meals(Resource):
     def post(self):
         lists={}
         items = {}
-        print("\nInside create_update_meals")
+        # print("\nInside create_update_meals")
         try:
             conn = connect()
             # data = request.get_json(force=True)
@@ -7105,7 +7105,7 @@ class create_update_meals(Resource):
                 return response
             response[0]['meal_uid'] = meal_uid
 
-            print("(create_update_meals) 6")
+            # print("(create_update_meals) 6")
 
             # lists=get_all_s3_keys(mtyd)
             # print("ending sequence")
@@ -7124,7 +7124,7 @@ class create_update_meals(Resource):
             conn = connect()
             # data = request.get_json(force=True)
 
-            print("(create_update_meal -- PUT) 1")
+            # print("(create_update_meal -- PUT) 1")
 
             meal_category = request.form.get('meal_category')
             meal_name = request.form.get('meal_name') if request.form.get('meal_name') is not None else 'NULL'
@@ -7144,12 +7144,12 @@ class create_update_meals(Resource):
             meal_uid = request.form.get('meal_uid') 
             #meal_uid = "840-010046"
             meal_notes = request.form.get('meal_notes') if request.form.get('meal_notes') is not None else 'NULL'
-            print("1")
+            # print("1")
             TimeStamp_test = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             key =  "items/" + str(meal_uid) + "_" + TimeStamp_test
-            print(key)
+            # print(key)
 
-            print("(create_update_meal -- PUT) 2")
+            # print("(create_update_meal -- PUT) 2")
             
             # meal_photo = helper_upload_meal_img(meal_photo_url, key)
             valid_photo = True
@@ -7209,20 +7209,20 @@ class create_update_meals(Resource):
                     WHERE
                         meal_uid = '""" + meal_uid + """';
                 """
-            print("(create_update_meals -- PUT) query 3")
+            # print("(create_update_meals -- PUT) query 3")
 
-            print("2.5")
+            # print("2.5")
             response = simple_post_execute([query], [__class__.__name__], conn)
             # response = execute(query, 'post', conn)
-            print("3")
+            # print("3")
             #meal_photo = helper_upload_meal_img(meal_photo_url, key)
-            print(response)
-            print(response[1])
+            # print(response)
+            # print(response[1])
             if response[1] != 201:
                 return response
-            print("4")    
+            # print("4")    
             response[0]['meal_uid'] = meal_uid
-            print("5")
+            # print("5")
             # Ask Welkin why we have these statements.  Commented out 040721
             # ists=get_all_s3_keys(mtyd)
             # lists=get_all_s3_keys('mtyd')
@@ -7262,12 +7262,12 @@ class Delete_Recipe_Specific (Resource):
             conn = connect()
             #data = request.get_json(force=True)
             recipe_uid = request.args['recipe_uid']
-            print("1")
+            # print("1")
             query = """
                     DELETE FROM recipes WHERE recipe_uid = '""" + recipe_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
-            print(response)
+            # print(response)
             if response[1] != 201:
                 return response
             return response[0], 202
@@ -7330,7 +7330,7 @@ class Ingredients (Resource):
                         package_cost = '""" + package_cost + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
-            print(response)
+            # print(response)
             if response[1] != 201:
                 return response
             response[0]['ingredient_uid'] = ingredient_uid
@@ -7338,8 +7338,8 @@ class Ingredients (Resource):
             query2 = "CALL M4ME.new_inventory_uid"
             inventory_uid_query = execute(query2, 'get', conn)
             inventory_uid = inventory_uid_query['result'][0]['new_id']
-            print("2")
-            print(inventory_uid)
+            # print("2")
+            # print(inventory_uid)
             query1 = """
                     INSERT INTO inventory
                     SET inventory_uid = \'""" + inventory_uid + """\',
@@ -7350,9 +7350,9 @@ class Ingredients (Resource):
                         unit_cost = \'""" + unit_cost + """\',
                         inventory_location = "CA";
                     """
-            print("3")
+            # print("3")
             response1 = simple_post_execute([query1], [__class__.__name__], conn)
-            print(response1)
+            # print(response1)
             if response[1] != 201:
                 return response1
             return response[0], 200
@@ -7398,7 +7398,7 @@ class Ingredients (Resource):
             query = """
                     DELETE FROM ingredients WHERE ingredient_uid = '""" + ingredient_uid + """';
                     """
-            print(query)
+            # print(query)
             response = simple_post_execute([query], [__class__.__name__], conn)
             if response[1] != 201:
                 return response
@@ -7582,7 +7582,7 @@ class Coupons(Resource):
             recurring = data['recurring']
             email_id = "'" + data['email_id'] + "'" if data['email_id'] else 'NULL'
             cup_business_uid = data['cup_business_uid']
-            print("1")
+            # print("1")
             query = """
                     UPDATE coupons
                     SET coupon_id = '""" + coupon_id + """',
@@ -7600,8 +7600,8 @@ class Coupons(Resource):
                     WHERE coupon_uid = '""" + coupon_uid + """';
                     """
             response = simple_post_execute([query], [__class__.__name__], conn)
-            print("2")
-            print(response)
+            # print("2")
+            # print(response)
             if response[1] != 201:
                 return response
             return response[0], 200
@@ -7847,7 +7847,7 @@ class Edit_Menu(Resource):
                         default_meal) = \'""" + default_meal + """\';
                 """
 
-                print(query)
+                # print(query)
                 items = execute(query,'post',conn)
                 print(items)
                 i += 1
@@ -7962,7 +7962,7 @@ class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECA
     print("Meal Creation Endpoint (why is this running automatically??)")
     def listIngredients(self, result):
         response = {}
-        print("1")
+        # print("1")
         for meal in result:
             key = meal['meal_uid']
             if key not in response:
@@ -7978,10 +7978,9 @@ class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECA
             response[key]['ingredients'].append(ingredient)
 
         return response
-        print("2")
     
     def get(self):
-        print("In Get")
+        # print("In Get")
         response = {}
         items = {}
         try:
@@ -8029,13 +8028,13 @@ class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECA
             #print("1")
 
             get_recipe_query = "CALL new_recipe_uid();"
-            print("2")
+            # print("2")
             recipe_uid = execute(get_recipe_query, 'get', conn)
-            print(recipe_uid)
+            # print(recipe_uid)
             NewRecipeID = recipe_uid['result'][0]['new_id']
-            print(NewRecipeID)
+            # print(NewRecipeID)
 
-            print("5")
+            # print("5")
             query = """
                 INSERT INTO recipes 
                 SET
@@ -8306,7 +8305,7 @@ class access_refresh_update(Resource):
             query = """
                     UPDATE M4ME.customers SET user_access_token = \'""" + data['access_token'] + """\', user_refresh_token = \'""" + data['refresh_token'] + """\', social_timestamp =  \'""" + data['social_timestamp'] + """\' WHERE (customer_uid = \'""" + data['uid'] + """\'); ;
                     """
-            print(query)
+            # print(query)
             items = execute(query, 'post', conn)
             if items['code'] == 281:
                 items['message'] = 'Access and refresh token updated successfully'
@@ -8363,10 +8362,10 @@ class token_fetch_update (Resource):
                         social_timestamp = DATE_ADD(social_timestamp , INTERVAL 14 DAY)
                         WHERE customer_uid = \'""" + uid + """\';
                         """
-                print(query)
+                # print(query)
                 items = execute(query, 'post', conn)
-                print(items)
-                print('code------', items['code'])
+                # print(items)
+                # print('code------', items['code'])
 
                 if items['code'] == 281:
 
@@ -8388,10 +8387,10 @@ class token_fetch_update (Resource):
                         social_timestamp = DATE_ADD(social_timestamp , INTERVAL 14 DAY)
                         WHERE customer_uid = \'""" + uid + """\';
                         """
-                print(query)
+                # print(query)
                 items = execute(query, 'post', conn)
-                print(items)
-                print('code------', items['code'])
+                # print(items)
+                # print('code------', items['code'])
 
                 if items['code'] == 281:
 
@@ -8504,8 +8503,8 @@ class customer_infos(Resource):
 
                 #print(query)
                 items = execute(query, 'get', conn)
-                print("3")
-                print(items["code"])
+                # print("3")
+                # print(items["code"])
                 if items['code']==280:
                     items['message'] = 'Loaded successful'
                     items['result'] = items['result']
@@ -8530,10 +8529,10 @@ class Meal_Detail(Resource):
     def get(self, date):
         response = {}
         items = {}
-        print("date: ", date)
+        # print("date: ", date)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     select * 
                     from meals 
@@ -8542,12 +8541,12 @@ class Meal_Detail(Resource):
                     where menu_date = \'""" + date + """\';
                     """
             items = execute(query, 'get', conn)
-            print(items["code"])
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Meals Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return response, 200
             else:
                 items['message'] = "Date doesn't exists"
@@ -8570,7 +8569,7 @@ class List_of_Meals(Resource):
         print("date: ", date)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     select meal_name
                     from menu 
@@ -8579,12 +8578,12 @@ class List_of_Meals(Resource):
                     where menu_date= \'""" + date + """\';
                     """
             items = execute(query, 'get', conn)
-            print(items["code"])
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Meals Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return response, 200
             else:
                 items['message'] = "Date doesn't exists"
@@ -8774,13 +8773,13 @@ class adminInfo(Resource):
                             AND pur.purchase_uid = '""" + purchaseID + """'
                             AND pur.purchase_status='ACTIVE';  
                         """
-                print("info_query", info_query)
+                # print("info_query", info_query)
                 info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-                print(info_res)
+                # print(info_res)
                 if info_res[1] != 200:
                     return {"message": "Internal Server Error"}, 500
                 # Calculate refund
-                print("1.9")
+                # print("1.9")
                 refund_info = self.refund_calculator(info_res[0]['result'][0], conn)
                 vals["refund_amount"] = refund_info['refund_amount']
                 
@@ -8802,20 +8801,20 @@ class Create_Group(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("1")
+            # print("1")
             group = data["group"]
             uid = data["id"]
-            print("2")
+            # print("2")
             query = """
                     update customers
                     set notification_group = \'""" + group + """\'
                     where customer_uid = \'""" + uid + """\';
                     """
-            print(query)
+            # print(query)
             items = execute(query, 'post', conn)
             if items['code'] == 281:
                 items['message'] = 'Group updated successfully'
-                print(items['code'])
+                # print(items['code'])
                 items['code'] = 200
                 #return items
             else:
@@ -9061,33 +9060,33 @@ class update_guid_notification(Resource):
                     """
                 items = execute(query, 'get', conn)
                 json_guid = json.loads(items['result'][0]['cust_guid_device_id_notification'])
-                print('0', json_guid)
+                # print('0', json_guid)
                 for i, vals in enumerate(json_guid):
-                    print(i, vals)
+                    # print(i, vals)
                     if vals == None or vals == 'null':
                         continue
                     if vals['guid'] == data['guid']:
-                        print(vals)
+                        # print(vals)
                         json_guid[i]['notification'] = data['notification']
                         break
                 if json_guid[0] == None:
-                    print('none')
+                    # print('none')
                     json_guid[0] = 'null'
 
-                print('1', json_guid)
+                # print('1', json_guid)
                 guid = str(json_guid)
                 guid = guid.replace("'", '"')
-                print('2', guid)
-                print(guid)
+                # print('2', guid)
+                # print(guid)
                 guid = "[null," + guid[8:]
-                print('replace',guid)
+                # print('replace',guid)
                 query = """
                         UPDATE customers  
                         SET
                         cust_guid_device_id_notification = \'""" + guid + """\'
                         WHERE ( customer_uid  = '""" + data['uid'] + """' );
                         """
-                print(query)
+                # print(query)
                 items = execute(query, 'post', conn)
                 if items['code'] != 281:
                     items['message'] = 'guid not updated check sql query and data'
@@ -9246,22 +9245,22 @@ class get_recipes(Resource):
     def get(self, meal_id):
         response = {}
         items = {}
-        print("meal_id: ", meal_id)
+        # print("meal_id: ", meal_id)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     select recipe_ingredient_id, recipe_ingredient_qty, recipe_measure_id
                     from recipes
                     where recipe_meal_id=\'""" + meal_id + """\';
                     """
             items = execute(query, 'get', conn)
-            print(items["code"])
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Recipe Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return response, 200
             else:
                 items['message'] = "Date doesn't exists"
@@ -9282,7 +9281,7 @@ class update_recipe(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("1")
+            # print("1")
             qty = data["qty"]
             id = data["id"]
             #quantity=float(qty)-0
@@ -9290,7 +9289,7 @@ class update_recipe(Resource):
             meal_id = data["meal_id"]
             recipe_uid = data["recipe_uid"]
             
-            print("2")
+            # print("2")
             query = """
                     update recipes
                     set recipe_ingredient_id = \'""" + id + """\', 
@@ -9299,11 +9298,11 @@ class update_recipe(Resource):
                     where recipe_meal_id = \'""" + meal_id + """\'
                         and recipe_uid = \'""" + recipe_uid + """\';
                     """
-            print(query)
+            # print(query)
             items = execute(query, 'post', conn)
             if items['code'] == 281:
                 items['message'] = 'recipe updated successfully'
-                print(items['code'])
+                # print(items['code'])
                 items['code'] = 200
                 #return items
             else:
@@ -9327,7 +9326,7 @@ class add_new_ingredient_recipe(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("1")
+            # print("1")
             qty = data["qty"]
             id = data["id"]
             measure = data["measure"]
@@ -9368,7 +9367,7 @@ class add_new_ingredient_recipe(Resource):
 
             #print(query)
             items = execute(query, 'post', conn)
-            print(items)
+            # print(items)
             if items['code'] == 281:
                 items['message'] = 'recipe updated successfully'
                 print(items['code'])
@@ -9391,12 +9390,12 @@ class create_recipe(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            print("1")
+            # print("1")
             qty = data["qty"]
             id = data["id"]
             measure = data["measure"]
             meal_id = data["meal_id"]
-            print("2")
+            # print("2")
             # OLD QUERY
             # query = """
             #         INSERT INTO recipes (
@@ -9424,7 +9423,7 @@ class create_recipe(Resource):
 
             #print(query)
             items = execute(query, 'post', conn)
-            print(items)
+            # print(items)
             if items['code'] == 281:
                 items['message'] = 'recipe updated successfully'
                 print(items['code'])
@@ -9608,7 +9607,7 @@ class get_orders(Resource):
         #print("meal_id: ", meal_id)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     SELECT 
                         lplpibr_customer_uid,
@@ -9631,12 +9630,12 @@ class get_orders(Resource):
                     where lplpibr_jt_business_uid = "200-000002";
                     """
             items = execute(query, 'get', conn)
-            print(items["code"])
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Orders Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return response, 200
             else:
                 items['message'] = "Fail to load"
@@ -9660,7 +9659,7 @@ class get_supplys_by_date(Resource):
         #print("meal_id: ", meal_id)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     SELECT 
                         #lplpibr_items,
@@ -9684,12 +9683,12 @@ class get_supplys_by_date(Resource):
                     order by lplpibr_jt_business_uid, lplpibr_jt_item_uid;
                     """
             items = execute(query, 'get', conn)
-            print(items["code"])
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Supply Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return response, 200
             else:
                 items['message'] = "Fail to load"
@@ -9750,7 +9749,7 @@ class get_item_revenue(Resource):
         #print("meal_id: ", meal_id)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     SELECT 
                         #lplpibr_items,
@@ -9772,12 +9771,12 @@ class get_item_revenue(Resource):
                     order by lplpibr_jt_business_uid, lplpibr_jt_item_uid;
                     """
             items = execute(query, 'get', conn)
-            print(items["code"])
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Item Revenue Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return response, 200
             else:
                 items['message'] = "Fail to load"
@@ -9801,7 +9800,7 @@ class get_total_revenue(Resource):
         #print("meal_id: ", meal_id)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     SELECT lplpibr_jt_business_uid, round(SUM(tcalc.sumCol),2) as total
                     FROM (
@@ -9817,12 +9816,12 @@ class get_total_revenue(Resource):
                     GROUP BY lplpibr_jt_business_uid;
                     """
             items = execute(query, 'get', conn)
-            print(items["code"])
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Total Revenue Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return response, 200
             else:
                 items['message'] = "Fail to load"
@@ -9843,10 +9842,10 @@ class get_delivery_info(Resource):
     def get(self, purchase_id):
         response = {}
         items = {}
-        print("purchase_id: ", purchase_id)
+        # print("purchase_id: ", purchase_id)
         try:
             conn = connect()
-            print("1")
+            # print("1")
             query = """
                     select order_instructions, delivery_instructions, 
                             delivery_first_name,
@@ -9859,13 +9858,13 @@ class get_delivery_info(Resource):
                     where purchase_uid=\'""" + purchase_id + """\';
                     """
             items = execute(query, 'get', conn)
-            print(items)
-            print(items["code"])
+            # print(items)
+            # print(items["code"])
             if items['code']==280:
                 response['message'] = 'Info Loaded successful'
                 response['result'] = items
                 #response['code'] = 200
-                print("2")
+                # print("2")
                 return items, 200
             else:
                 items['message'] = "Date doesn't exists"
@@ -10025,11 +10024,11 @@ class business_details_update(Resource):
                             business_uid = \'""" + data["business_uid"] + """\' ;
                     """
 
-                    print("1")
-                    print(query)
+                    # print("1")
+                    # print(query)
                     item = execute(query, 'post', conn)
-                    print("2")
-                    print(item)
+                    # print("2")
+                    # print(item)
                     if item['code'] == 281:
                         item['code'] = 200
                         item['message'] = 'Business info updated'
@@ -10053,7 +10052,7 @@ class business_details_update_brandon(Resource):
 
                 if action == 'Get':
                     # query = "SELECT * FROM M4ME.businesses WHERE business_uid = \'" + data['business_uid'] + "\';"
-                    print('(bdub) get')
+                    # print('(bdub) get')
                     query = """
                         SELECT 
                             business_uid, 
@@ -10100,27 +10099,27 @@ class business_details_update_brandon(Resource):
                         item['message'] = 'check sql query'
                         item['code'] = 490
                     return item
-                else:
-                    print("IN ELSE")
-                    print(data)
-                    print('IN')
+                # else:
+                #     print("IN ELSE")
+                #     print(data)
+                #     print('IN')
 
 
                     # business_association = str(data['business_association'])
                     # business_association = "'" + business_association.replace("'", "\"") + "'"
                     # business_hours = str(data['business_hours'])
                     # business_hours = "'" + business_hours.replace("'", "\"") + "'"
-                    print("(bdub) -3")
+                    # print("(bdub) -3")
 
                     business_accepting_hours = str(data['business_accepting_hours'])
-                    print("(bdub) -2")
+                    # print("(bdub) -2")
                     business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
-                    print("(bdub) -1")
+                    # print("(bdub) -1")
                     # business_accepting_hours = data['business_accepting_hours']
 
                     # business_delivery_hours = str(data['business_delivery_hours'])
                     # business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
-                    print("(bdub) 0")
+                    # print("(bdub) 0")
                     # query = """
                     #     UPDATE 
                     #         M4ME.businesses
@@ -10176,11 +10175,11 @@ class business_details_update_brandon(Resource):
                             business_uid = \'""" + data["business_uid"] + """\' ;
                     """
                     
-                    print("(bdub) 1")
-                    print(query)
+                    # print("(bdub) 1")
+                    # print(query)
                     item = execute(query, 'post', conn)
-                    print("(bdub) 2")
-                    print(item)
+                    # print("(bdub) 2")
+                    # print(item)
                     if item['code'] == 281:
                         item['code'] = 200
                         item['message'] = 'Business info updated'
@@ -10425,13 +10424,13 @@ class business_details_update_brandon_v2(Resource):
                     WHERE 
                         business_uid = \'""" + business_uid + """\' ;
                 """
-                print("(bdub) 0.3")
+            #     print("(bdub) 0.3")
 
-            print("(bdub) 1")
-            print(query)
+            # print("(bdub) 1")
+            # print(query)
             item = execute(query, 'post', conn)
-            print("(bdub) 2")
-            print(item)
+            # print("(bdub) 2")
+            # print(item)
             if item['code'] == 281:
                 item['code'] = 200
                 item['message'] = 'Business info updated'
@@ -11023,8 +11022,8 @@ class get_Fee_Tax(Resource):
                     WHERE zone_uid = \'""" + z_id + """\' AND z_delivery_day = \'""" + day + """\';
                     """
             items = execute(query, 'get', conn)
-            print("1")
-            print(items)
+            # print("1")
+            # print(items)
             if items['code'] != 280:
                 items['message'] = 'Check sql query'
                 return items
@@ -11035,7 +11034,7 @@ class get_Fee_Tax(Resource):
                 raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-            print('process completed')
+            # print('process completed')
 
 
 class Update_Fee_Tax (Resource):
@@ -11122,7 +11121,7 @@ class Update_Zone (Resource):
             RB_long= data['RB_long']
             RB_lat= data['RB_lat']
             
-            print("1")
+            # print("1")
             query = """
                     update zones
                     set
@@ -11426,9 +11425,9 @@ class find_next_sat (Resource):
     def get(self):
         try:
             #conn = connect()
-            print("1")
+            # print("1")
             d = date.today() # Monday
-            print("2")
+            # print("2")
             t = timedelta((12 - d.weekday()) % 7)
             d + t
             datetime.datetime(2013, 6, 1, 0, 0)
@@ -11436,9 +11435,9 @@ class find_next_sat (Resource):
             return date
         except:
             print("error")
-        finally:
+        # finally:
             #disconnect(conn)
-            print("done")
+            # print("done")
 
 
 ## ADD SURPRISE USED IN MOBILE (8/13/21)
@@ -11464,44 +11463,44 @@ class add_surprise (Resource):
                     FROM purchases WHERE purchase_uid = \'""" + p_uid + """\';
                     """
             items = execute(query, 'get', conn)
-            print(items)
+            # print(items)
             if items['code'] != 280:
                 items['message'] = 'Check sql query'
                 return items
             #items['result'] = items['result'][0]
             #print(int(items["result"][0]["num_issues"]))
-            print("1")
+            # print("1")
             query1 ="""
                         select purchase_id
                         from purchases
                         where purchase_uid = \'""" + p_uid + """\';
                     """
-            print("1.5")
+            # print("1.5")
             p_id = execute(query1, 'get', conn)
-            print("1.7")
+            # print("1.7")
             tempstring = items["result"][0]["qty"].strip('\"')
             inty=int(tempstring)
-            print(inty)
+            # print(inty)
             intx=0
 
-            print("2")
+            # print("2")
             query3 ="""
                         select distinct menu_date
                         from menu
                         where menu_date > now()
                         order by menu_date asc;
                     """
-            print("3")
+            # print("3")
             menu_date = execute(query3, 'get', conn)
             intx=0
-            print(menu_date['result'][intx]['menu_date'])
+            # print(menu_date['result'][intx]['menu_date'])
             for intx in range(0,inty):
                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
-                print("4")
-                print(intx)
+                # print("4")
+                # print(intx)
                 #temparr= str(menu_date['result'][intx]['menu_date'])
                 #print(temparr)
-                print(p_id)
+                # print(p_id)
                 query2 ="""
                             insert into meals_selected (selection_uid, sel_purchase_id, selection_time, sel_menu_date, meal_selection, delivery_day)
                             values(
@@ -11518,10 +11517,10 @@ class add_surprise (Resource):
                                 "SUNDAY"
                             );
                         """
-                print("5")
+                # print("5")
                 sur_item = execute(query2, 'post', conn)
-                print(sur_item)
-                print("6")
+                # print(sur_item)
+                # print("6")
                 # query3= """
                 #             update meals_selected
                 #             set
@@ -11529,14 +11528,14 @@ class add_surprise (Resource):
                 #             where selection_uid = \'""" + res['result'][0]['new_id'] + """\';
                 #         """
                 # udate = execute(query3, 'post', conn)
-                print("7")
+                # print("7")
             return sur_item
         except:
-                print("Error happened while getting payment info")
+                # print("Error happened while getting payment info")
                 raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-            print('process completed')
+            # print('process completed')
 
 
 # check this
@@ -11551,18 +11550,18 @@ class discount_percentage (Resource): #edit to take in purchase_uid
                     WHERE num_deliveries = \'""" + n_delivery + """\';
                     """
             items = execute(query, 'get', conn)
-            print(items)
+            # print(items)
             if items['code'] != 280:
                 items['message'] = 'Check sql query'
                 return items
             #items['result'] = items['result'][0]
             return items
         except:
-                print("Error happened while getting discount info")
+                # print("Error happened while getting discount info")
                 raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-            print('process completed')
+            # print('process completed')
 
 
 
@@ -11595,36 +11594,36 @@ def sendAutopayEmails(email, start_delivery_date, id):
 # delete if checkautopay deleted
 def couponsLogic(id, email, amount_due):
     try:
-        print('in coupons logic')
+        # print('in coupons logic')
         conn2 = connect()
         query = """
                 SELECT * FROM M4ME.coupons;
                 """
-        print(query)
+        # print(query)
         items = execute(query, 'get', conn2)
-        print(items['code'], type(items['code']))
+        # print(items['code'], type(items['code']))
         
         coupons = {}
-        print('after coupons')
-        print(items['result'])
+        # print('after coupons')
+        # print(items['result'])
         for vals in items['result']:
             if vals['email_id'] == 'delivery_email' or vals['email_id'] == '' or vals['email_id'] == None:
-                print('1')
-                print(float(vals['threshold']), float(amount_due))
+                # print('1')
+                # print(float(vals['threshold']), float(amount_due))
                 if float(vals['threshold']) <= float(amount_due):
-                    print('2')
+                    # print('2')
                     if vals['recurring'] == 'T' :
-                        print('3')
+                        # print('3')
                         if vals['limits'] != vals['num_used']:
-                            print('4')
-                            print(vals['expire_date'])
-                            print(datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S"))
-                            print(datetime.now())
+                            # print('4')
+                            # print(vals['expire_date'])
+                            # print(datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S"))
+                            # print(datetime.now())
                             if datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S") >= datetime.now():
-                                print('5')
+                                # print('5')
                                 coupons[vals['coupon_uid']] = [vals['discount_percent'],vals['discount_amount'],vals['discount_shipping']]
 
-        print('coupons', coupons)
+        # print('coupons', coupons)
         
         min_amt = amount_due
         min_amt_cp = ''
@@ -11644,7 +11643,7 @@ def couponsLogic(id, email, amount_due):
                 min_amt_cp = key
                 min_amt = tmp
     
-        print(min_amt, min_amt_cp)
+        # print(min_amt, min_amt_cp)
         if min_amt_cp != '':
             coupon_query = """UPDATE coupons SET num_used = num_used + 1
                                 WHERE coupon_id =  """ + min_amt_cp + ";"
@@ -11729,8 +11728,8 @@ def createNewPurchase(id, start_delivery_date):
         coupon_id = rt[1]
         amount_due = rt[0]
         amount_must_paid = float(amount_due)
-        print(amount_must_paid)
-        print('coupon done')
+        # print(amount_must_paid)
+        # print('coupon done')
         
         
         ###### create a token for stripe
@@ -11738,7 +11737,7 @@ def createNewPurchase(id, start_delivery_date):
         stripe_charge = {}
         try:
             card_token = stripe.Token.create(card=card_dict)
-            print("2")
+            # print("2")
             if int(amount_must_paid) > 0:
                 stripe_charge = stripe.Charge.create(
                     amount=int(round(amount_must_paid*100, 0)),
@@ -11855,13 +11854,13 @@ class test_cal(Resource):
                             AND pur.purchase_uid = '""" + purchaseID + """'
                             AND pur.purchase_status='ACTIVE';  
                         """
-        print("info_query", info_query)
+        # print("info_query", info_query)
         info_res = simple_get_execute(info_query, 'GET INFO FOR CHANGING PURCHASE', conn)
-        print(info_res)
+        # print(info_res)
         if info_res[1] != 200:
             return {"message": "Internal Server Error"}, 500
         # Calculate refund
-        print("1.9")
+        # print("1.9")
         refund_info = self.new_refund_calculator(info_res[0]['result'][0], conn)
 
         return refund_info
@@ -11870,8 +11869,8 @@ class test_cal(Resource):
 
     def new_refund_calculator(self, info_res,  conn):
 
-        print("In test_cal class")
-        print("in refund calculator")
+        # print("In test_cal class")
+        # print("in refund calculator")
         
         # checking skips new
 
@@ -11893,25 +11892,25 @@ class test_cal(Resource):
                         AND delivery_day != 'SKIP'
                     ORDER BY S.sel_menu_date;
                     """
-        print(all_deliveries)
+        # print(all_deliveries)
         delivered_num = execute(all_deliveries, "get", conn)
-        print(delivered_num)
+        # print(delivered_num)
         if delivered_num['code'] != 280:
             return delivered_num
         delivered_num = int(delivered_num['result'][0].get('delivery_count')) if delivered_num['result'][0].get('delivery_count') else 0
-        print("delivered_num :", delivered_num)
+        # print("delivered_num :", delivered_num)
 
 
         # get number of meals from item name
         num_meals = int(json.loads(info_res['items'])[0].get('name')[0])
-        print("meals :",num_meals)
+        # print("meals :",num_meals)
         # get number of days
         num_days = int(json.loads(info_res['items'])[0].get('qty'))
         
-        print("days :", num_days)
+        # print("days :", num_days)
         # get remaining days
         remaining_delivery_days = num_days - delivered_num 
-        print("days reamin :",remaining_delivery_days)
+        # print("days reamin :",remaining_delivery_days)
 
         return remaining_delivery_days
         # if weeks remaining are 0 return 
@@ -11921,7 +11920,7 @@ class test_cal(Resource):
 
         # if remaining days are negative then it means there is some error 
         if remaining_delivery_days < 0:
-            print("There is something wrong with the query to get info for the requested purchase.")
+            # print("There is something wrong with the query to get info for the requested purchase.")
             response = {'message': "Internal Server Error."}
             return response, 500
         
@@ -12433,41 +12432,41 @@ class calculator(Resource):
             # )
 
             # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
-            print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
+            # print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
             deliveries_made = calculator().deliveries_made(pur_uid)
-            print("\nReturned from deliveries_made: ", deliveries_made)
+            # print("\nReturned from deliveries_made: ", deliveries_made)
 
             completed_deliveries = deliveries_made['result']
-            print("1 Num of Completed Deliveries: ", completed_deliveries)
+            # print("1 Num of Completed Deliveries: ", completed_deliveries)
             completed_deliveries = deliveries_made['result'][0]
-            print("2 Num of Completed Deliveries: ", completed_deliveries)
+            # print("2 Num of Completed Deliveries: ", completed_deliveries)
             completed_deliveries = deliveries_made['result'][0]['num_deliveries']
-            print("Num of Completed Deliveries: ", completed_deliveries)
+            # print("Num of Completed Deliveries: ", completed_deliveries)
 
 
             # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
-            print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
+            # print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
             if completed_deliveries is None:
                 completed_deliveries = 0
                 total_used = 0
-                print("completed_deliveries: ", completed_deliveries)
-                print(total_used)
+                # print("completed_deliveries: ", completed_deliveries)
+                # print(total_used)
             else:
                 used = calculator().billing(items_uid, completed_deliveries)
-                print("\nConsumed Subscription: ", used)
+                # print("\nConsumed Subscription: ", used)
 
                 item_price = used['result'][0]['item_price']
                 delivery_discount = used['result'][0]['delivery_discount']
                 total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
-                print("\ntotal_used: ", total_used, " = (", item_price, " * ", completed_deliveries, ") * (", 1 - (delivery_discount/100), ")")
+                # print("\ntotal_used: ", total_used, " = (", item_price, " * ", completed_deliveries, ") * (", 1 - (delivery_discount/100), ")")
 
-                print("Used Price: ", item_price)
-                print("Used delivery_discount: ", delivery_discount)
-                print("Total Used: ", total_used)
+                # print("Used Price: ", item_price)
+                # print("Used delivery_discount: ", delivery_discount)
+                # print("Total Used: ", total_used)
 
 
             # CALCULATE REFUND AMOUNT  -  NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
-            print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
+            # print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
 
             # Refund Logic
             # IF Nothing comsume REFUND EVERYTHING
@@ -14510,7 +14509,7 @@ class brandAmbassador(Resource):
                         (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
                         VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '20', '0', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
                         """
-                print(query)
+                # print(query)
                 items = execute(query, 'post', conn)
                 if items['code'] != 281:
                     items['message'] = "check sql query"
@@ -14626,7 +14625,7 @@ class brandAmbassador(Resource):
                     return retu
 
                 elif type_code == 'Discount':
-                    print('in discount')
+                    # print('in discount')
                     
                     if num_used == limits:
                         return {"message":'Limit exceeded cannot use this coupon',"code":507,"discount":"","uids":""}
@@ -14635,7 +14634,7 @@ class brandAmbassador(Resource):
                                  SELECT * FROM coupons
                                  WHERE email_id = \'""" + info + """\' AND notes = \'""" + code + """\'
                                 """
-                    print(query_dis)
+                    # print(query_dis)
                     items_dis = execute(query_dis, 'get', conn)
                     if items_dis['code'] != 280:
                         items_dis['message'] = 'Check sql query'
@@ -14643,7 +14642,7 @@ class brandAmbassador(Resource):
                     
                     if not items_dis['result']:
                         # create row
-                        print('in first if')
+                        # print('in first if')
                         query = ["CALL new_coupons_uid;"]
                         couponIDresponse = execute(query[0], 'get', conn)
                         couponID = couponIDresponse['result'][0]['new_id']
@@ -15237,7 +15236,7 @@ class try_catch_storage(Resource):
             files = data['files']
             line_number = data['line_number']
             types = data['types']
-            print("1")
+            # print("1")
             new_problem_uid = "CALL new_try_catch_id();"
             problem_id = execute(new_problem_uid, 'get', conn)
             #print(problem_id["result"][0]["new_id"])
@@ -15267,7 +15266,7 @@ class try_catch_storage(Resource):
                     line_number = '""" + line_number + """',
                     types = '""" + types + """';
             """
-            print("3")
+            # print("3")
             items = execute(query, 'post', conn)
 
             if items['code'] != 281:
@@ -15307,7 +15306,7 @@ class future_potential_customer(Resource):
                     """
             #print("2")
             items = execute(query, 'post', conn)
-            print(items)
+            # print(items)
             if items['code'] != 281:
                 items['message'] = 'Check sql query'
             return items
@@ -15626,7 +15625,7 @@ class purchase_Data_SF(Resource):
                                     
                                 """]
 
-                print(query_insert)
+                # print(query_insert)
                 item = execute(query_insert[0], 'post', conn)
 
                 if item['code'] == 281:
