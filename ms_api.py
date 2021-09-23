@@ -605,25 +605,25 @@ class stripe_transaction(Resource):
 class test_stripe_amount(Resource):
 
     amount = 319.53
-    print("\n(TSA) amount 1: ", amount)
+    # print("\n(TSA) amount 1: ", amount)
 
     amount = amount * 100
-    print("(TSA) amount 2: ", amount)
+    # print("(TSA) amount 2: ", amount)
 
     amount = int(amount)
-    print("(TSA) amount 3: ", amount)
+    # print("(TSA) amount 3: ", amount)
 
     amount = 319.53
     print("\n(TSA) amount 1 (fixed): ", amount)
 
     amount = amount * 100
-    print("(TSA) amount 2 (fixed): ", amount)
+    # print("(TSA) amount 2 (fixed): ", amount)
 
     amount = round(amount,2)
-    print("(TSA) amount 3 (fixed): ", amount)
+    # print("(TSA) amount 3 (fixed): ", amount)
 
     amount = int(amount)
-    print("(TSA) amount 4 (fixed): ", amount)
+    # print("(TSA) amount 4 (fixed): ", amount)
     
 
 
@@ -2058,36 +2058,57 @@ class Meals_Selected_Specific(Resource):
 class Meals_Selection (Resource):
     def post(self):
         response = {}
-        print("Meals_Selection 1")
+        # print("Meals_Selection 1")
         try:
             conn = connect()
             data = request.get_json(force=True)
             purchase_id = data['purchase_id']
+
+            # ensure qty and price are integers
+            # print("(MS) items: ", data['items'])
+            qty = data['items'][0]['qty']
+            price = data['items'][0]['price']
+            try:
+                # print("(MS) int check 1")
+                qty = int(qty)
+            except ValueError:
+                # print("(MS) int check 2")
+                qty = 0
+            try:
+                # print("(MS) int check 3")
+                price = int(price)
+            except ValueError:
+                # print("(MS) int check 4")
+                price = 16
+            data['items'][0]['qty'] = qty
+            data['items'][0]['price'] = price
+
             items_selected = "'[" + ", ".join([str(item).replace("'", "\"") for item in data['items']]) + "]'"
+            # print("(MS) items_selected: ", items_selected)
             delivery_day = data['delivery_day']
             sel_menu_date = data['menu_date']
 
-            print("Meals_Selection 2")
+            # print("Meals_Selection 2")
 
             if data['is_addon']:
-                print("Meals_Selection 2A1")
+                # print("Meals_Selection 2A1")
                 res = execute("CALL new_addons_selected_uid();", 'get', conn)
-                print("Meals_Selection 2A2")
+                # print("Meals_Selection 2A2")
             else:
-                print("Meals_Selection 2B1")
+                # print("Meals_Selection 2B1")
                 res = execute("CALL new_meals_selected_uid();", 'get', conn)
-                print("Meals_Selection 2B2")
+                # print("Meals_Selection 2B2")
 
             if res['code'] != 280:
-                print("Meals_Selection 3")
-                print("*******************************************")
-                print("* Cannot run the query to get a new \"selection_uid\" *")
-                print("*******************************************")
+                # print("Meals_Selection 3")
+                # print("*******************************************")
+                # print("* Cannot run the query to get a new \"selection_uid\" *")
+                # print("*******************************************")
 
                 response['message'] = 'Internal Server Error.'
                 return response, 500
 
-            print("Meals_Selection 4")
+            # print("Meals_Selection 4")
             selection_uid = res['result'][0]['new_id']
             queries = [[
                         """
@@ -2112,15 +2133,15 @@ class Meals_Selection (Resource):
                         """
                        ]]
 
-            print("Meals_Selection 5")
+            # print("Meals_Selection 5")
 
             if data['is_addon'] == True:
-                print("Meals_Selection 5A1")
+                # print("Meals_Selection 5A1")
                 # write to addons selected table
                 # need a stored function to get the new selection
                 response = simple_post_execute(queries[0], ["ADDONS_SELECTED"], conn)
             else:
-                print("Meals_Selection 5B1")
+                # print("Meals_Selection 5B1")
                 response = simple_post_execute(queries[1], ["MEALS_SELECTED"], conn)
 
             if response[1] == 201:
@@ -2151,7 +2172,7 @@ class Get_Upcoming_Menu(Resource):
                     """
 
             items = execute(query, 'get', conn)
-            print(items)
+            # print(items)
             if items['code']!=280:
                 items['message'] = "Failed"
                 items['code'] = 404
@@ -2807,64 +2828,48 @@ class Checkout2(Resource):
             conn = connect()
             data = request.get_json(force=True)
             # print("(checkout) json data: ", data)
-            print("(checkout2) 1")
 
             customer_uid = data['customer_uid']
             business_uid = data['business_uid'] if data.get('business_uid') is not None else 'NULL'
-            # print("Delivery Info")
             delivery_first_name = data['delivery_first_name']
             delivery_last_name = data['delivery_last_name']
             delivery_email = data['delivery_email']
             delivery_phone = data['delivery_phone']
             delivery_address = data['delivery_address']
             delivery_unit = data['delivery_unit'] if data.get('delivery_unit') is not None else 'NULL'
-            # print("Delivery unit: ", delivery_unit)
             delivery_city = data['delivery_city']
             delivery_state = data['delivery_state']
             delivery_zip = data['delivery_zip']
             delivery_instructions = "'" + data['delivery_instructions'] + "'" if data.get('delivery_instructions') else 'NULL'
             delivery_longitude = data['delivery_longitude']
             delivery_latitude = data['delivery_latitude']
-            # print("Item Info")
-
-            print("(checkout2) 2")
 
             items = "'[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]'"
             order_instructions = "'" + data['order_instructions'] + "'" if data.get('order_instructions') is not None else 'NULL'
             purchase_notes = "'" + data['purchase_notes'] + "'" if data.get('purchase_notes') is not None else 'NULL'
-            # print("Payment Info")
 
-            print("(checkout2) 2.1")
             
             amount_due = data['amount_due']
             amount_discount = data['amount_discount']
             amount_paid = data['amount_paid']
-
-            print("(checkout2) 2.2")
 
             amb_code = data['ambassador_code']
             # print("amount due: ", amount_due)
             # print("amount paid: ", amount_paid)
             # print("amount discount: ", amount_discount)
 
-            print("(checkout2) 3")
-
             # print("Credit Card Info")
             cc_num = data['cc_num']
-            # print(cc_num)
             if cc_num != "NULL":    
                 cc_exp_date = data['cc_exp_year'] + data['cc_exp_month'] + "01"
             else:
                 cc_exp_date = "0000-00-00 00:00:00"
-            # print("CC Expiration Date: ", cc_exp_date)
             cc_cvv = data['cc_cvv']
             cc_zip = data['cc_zip']
 
-            print("(checkout2) 4")
 
             charge_id = data['charge_id']
             payment_type = data['payment_type']
-            # amb = data['amb'] if data.get('amb') is not None else '0'
             amb_discount = data['ambassador_discount'] if data.get('ambassador_discount') is not None else '0'
             taxes = data['tax']
             tip = data['tip']
@@ -2872,7 +2877,6 @@ class Checkout2(Resource):
             delivery_fee = data['delivery_fee']
             subtotal = data['subtotal']
 
-            print("(checkout2) 5")
 
             amount_must_paid = float(amount_due) - float(amount_paid) - float(amount_discount)
             
@@ -2880,26 +2884,20 @@ class Checkout2(Resource):
             # must pass these check first
             if items == "'[]'":
                 raise BadRequest()
-
-            print("(checkout2) 6")
             
             purchaseId = get_new_purchaseID(conn)
-            # print(purchaseId)
             if purchaseId[1] == 500:
-                print(purchaseId[0])
                 response['message'] = "Internal Server Error."
                 return response, 500
+
             paymentId = get_new_paymentID(conn)
-            # print(paymentId)
             if paymentId[1] == 500:
-                print(paymentId[0])
                 response['message'] = "Internal Server Error."
                 return response, 500
 
             try:
                 
                 # ENTER COUPON ID.  SET TO NULL UNTIL WE IMPLEMENT COUPONS
-                print("I don't think coupons is used")
                 coupon_id = 'NULL'
 
                 date_query = '''
@@ -2912,35 +2910,31 @@ class Checkout2(Resource):
                 
                 # RESPONSE PARSING EXAMPLES
                 start_delivery_date = response
-                print("start_delivery_date: ", start_delivery_date)
+                # print("start_delivery_date: ", start_delivery_date)
                 start_delivery_date = response[0]['result'][0]['menu_date']
-                print("start_delivery_date: ", start_delivery_date)
+                # print("start_delivery_date: ", start_delivery_date)
 
-                # ============== START AMBASSADOR STUFF ==============
-                print("(checkout) ============== START AMBASSADOR STUFF ==============")
-                if amb_code == "":
-                    print("(checkout) amb code EMPTY")
-                else:
-                    print("(checkout) amb code NOT EMPTY")
+                # print("(checkout) ============== START AMBASSADOR STUFF ==============")
+                # if amb_code == "":
+                #     print("(checkout) amb code EMPTY")
+                # else:
+                if amb_code != "":
+                    # print("(checkout) amb code NOT EMPTY")
 
                     # 1.) Get coupon based on code
-                    print("(checkout) amb test 1")
-                    print("(checkout) amb_code: ", amb_code)
+                    # print("(checkout) amb test 1")
+                    # print("(checkout) amb_code: ", amb_code)
                     query_amb = """
                             SELECT * FROM coupons
                             WHERE email_id = \'""" + amb_code + """\';
                             """
                     items_amb = execute(query_amb, 'get', conn)
-                    print("(checkout) items_amb: ", items_amb)
-
-                    print("(checkout) amb stuff 1")
 
                     # 2.) Handle errors with query
                     if items_amb['code'] != 280:
                         items_amb['message'] = 'check sql query'
                         return items_amb
 
-                    print("(checkout) amb stuff 2")
 
                     # 3.) Check if coupon with code exists
                     if not items_amb['result']:
@@ -2962,37 +2956,25 @@ class Checkout2(Resource):
                             limits = vals['limits']
                             final_res = vals
 
-                    print("(checkout) amb stuff 4")
                         
                     if type_code not in ['Discount','Ambassador']:
                         return {"message":'Got a different kind of discount please check code',"code":502,"discount":"","uids":""}
                     
-                    print("(checkout) amb stuff 5")
 
                     cust_email = data['delivery_email']
-                    print("(checkout) cust_email: ", cust_email)
-                    print("(checkout) amb_code: ", amb_code)
-
-                    print("(checkout) amb stuff 6")
                     
                     if type_code == 'Ambassador':
-                        print("(checkout) type_code == Ambassador")
                         query_cust = """
                             SELECT * FROM coupons
                             WHERE email_id = \'""" + cust_email + """\';
                             """
                         items_cust = execute(query_cust, 'get', conn)
-                        print("items_cust", items_cust)
                         for vals in items_cust['result']:
                             if vals['coupon_id'] == 'Ambassador':
                                 return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
                         
 
                         # customer can be referred only once so check that
-
-                        print("(checkout) check referral")
-                        print("(checkout) items_cust[result]: ", items_cust['result'])
-                        print("(checkout) items_cust[result] len: ", len(items_cust['result']))
 
                         code_exists = False
                         for vals in items_cust['result']:
@@ -3003,11 +2985,11 @@ class Checkout2(Resource):
                                 # Need to update brandAmbassador to check if referral exists and is valid,
                                 # then this case will not be necessary
                                 if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == amb_code:
-                                    print("(referral -- query) coupon_id: ", vals['coupon_id'])
-                                    print("(referral -- query) num_used: ", vals['num_used'])
-                                    print("(referral -- query) notes: ", vals['notes'])
-                                    print("(referral -- json) amb_code: ", amb_code)
-                                    print("(checkout) coupon exists but uses have been exceeded")
+                                    # print("(referral -- query) coupon_id: ", vals['coupon_id'])
+                                    # print("(referral -- query) num_used: ", vals['num_used'])
+                                    # print("(referral -- query) notes: ", vals['notes'])
+                                    # print("(referral -- json) amb_code: ", amb_code)
+                                    # print("(checkout) coupon exists but uses have been exceeded")
                                     return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
 
                                 elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
@@ -3022,31 +3004,26 @@ class Checkout2(Resource):
                                             AND email_id = \'""" + cust_email + """\'
                                             AND notes = \'""" + amb_code + """\'
                                             """
-                                    print("(checkout) valid coupon 1")
                                     items_up_amb = execute(use_referral_query, 'post', conn)
                                     print("(checkout) valid coupon 2")
                                     if items_up_amb['code'] != 281:
                                         print("(checkout) ERROR with use_referral_query")
                                         items_up_amb['message'] = "check sql query"
                                         # return items_up_amb
-                                    print("(checkout) valid coupon 3")
 
-                        print("(checkout) creating new coupon if none found")
+                        # print("(checkout) creating new coupon if none found")
                         # if len(items_cust['result']) == 0:
                         if code_exists == False:
-                            print("(checkout) coupon does not exist, creating new one...")
+                            # print("(checkout) coupon does not exist, creating new one...")
 
-                            print("(checkout) coupon creation 1")
                             new_coupon_id_query = ["CALL new_coupons_uid;"]
                             couponIDresponse = execute(new_coupon_id_query[0], 'get', conn)
                             couponID = couponIDresponse['result'][0]['new_id']
-                            print("(checkout) coupon creation 2")
 
                             dateObject = datetime.now()
                             exp_date = dateObject.replace(year=dateObject.year + 1)
                             exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                            print("(checkout) coupon creation 3")
-                            print("(checkout) final_res:", final_res)
+                            # print("(checkout) final_res:", final_res)
 
                             query = """
                             INSERT INTO coupons 
@@ -3066,27 +3043,25 @@ class Checkout2(Resource):
                                 cup_business_uid = \'""" + final_res['cup_business_uid'] + """\',
                                 threshold = \'""" + str(final_res['threshold']) + """\';
                             """
-                            print("(checkout) coupon creation 4")
                             coupon_items = execute(query, 'post', conn)
-                            print("(checkout) coupon creation 5")
                             if coupon_items['code'] != 281:
-                                print("(checkout) ERROR with query")
+                                # print("(checkout) ERROR with query")
                                 coupon_items['message'] = "check sql query"
 
-                            print("(checkout) new coupon created")
+                #             print("(checkout) new coupon created")
                             
-                        print("(checkout) after referral")
+                #         print("(checkout) after referral")
 
-                    print("(checkout) ============== END AMBASSADOR STUFF ==============")
+                #     print("(checkout) ============== END AMBASSADOR STUFF ==============")
 
-                print("(checkout) before queries")
-                print("tip before: ", tip, type(tip))
-                print("amb_code before: ", amb_code, type(amb_code))
+                # print("(checkout) before queries")
+                # print("tip before: ", tip, type(tip))
+                # print("amb_code before: ", amb_code, type(amb_code))
                 # tip = '12.4'
                 # amb_code = '46.7'
                 # print("tip after: ", tip, type(tip))
-                print("amb_code after: ", amb_code, type(amb_code))
-                print("amb_discount after: ", amb_discount, type(amb_discount))
+                # print("amb_code after: ", amb_code, type(amb_code))
+                # print("amb_discount after: ", amb_discount, type(amb_discount))
                 queries = [
                             '''
                             INSERT INTO M4ME.payments
@@ -3140,11 +3115,9 @@ class Checkout2(Resource):
                                 purchase_notes = ''' + purchase_notes + ''';
                             '''
                             ]
-                print("(checkout) Before queries execution")
                 # print("(checkout) queries: ", queries)
                 response = simple_post_execute(queries, ["PAYMENTS", "PURCHASES"], conn)
-                print("(checkout) After queries execution")
-                print("Insert Response: ", response)
+                # print("Insert Response: ", response)
                 if response[1] == 201:
                     response[0]['payment_id'] = paymentId
                     response[0]['purchase_id'] = purchaseId
@@ -3184,9 +3157,9 @@ class Refund(Resource): #add column called ref_payment_id
 
             NewRefundIDresponse = execute(query[0], 'get', conn)
             NewRefundID = NewRefundIDresponse['result'][0]['new_id']
-            print('INN')
+            # print('INN')
             customer_phone = execute("""SELECT customer_phone_num FROM M4ME.customers WHERE customer_email = \'""" + email + "\';", 'get', conn)
-            print('customer_phone---', customer_phone, '--dd')
+            # print('customer_phone---', customer_phone, '--dd')
             if not customer_phone['result']:
 
                 items['result'] = email
@@ -3198,9 +3171,9 @@ class Refund(Resource): #add column called ref_payment_id
             ## add photo
 
             key = "REFUND" + "_" + NewRefundID
-            print(key)
+            # print(key)
             item_photo_url = helper_upload_meal_img(item_photo, key)
-            print(item_photo_url)
+            # print(item_photo_url)
 
             phone = customer_phone['result'][0]['customer_phone_num']
             query_email = ["SELECT customer_email FROM M4ME.customers WHERE customer_email = \'" + email + "\';"]
@@ -3238,9 +3211,9 @@ class Refund(Resource): #add column called ref_payment_id
             """]
 
             emailExists = execute(query_email[0], 'get', conn)
-            print('email_exists', emailExists)
+            # print('email_exists', emailExists)
             items = execute(query_insert[0], 'post', conn)
-            print(items)
+            # print(items)
             if items['code'] != 281:
                 items['message'] = 'check sql query and input'
                 return items
@@ -3806,17 +3779,17 @@ class checkAutoPay(Resource):
             items['message'] = 'check sql query for purchases'
             return items
         
-        print("(cAutoPay -- GET) 4")
+        # print("(cAutoPay -- GET) 4")
 
         send_emails = []
 
         for vals in items['result']:
-            print("(cAutoPay -- GET) 4.1")
+            # print("(cAutoPay -- GET) 4.1")
 
             #------------------########
             cust_email = vals['delivery_email']
 
-            print("(cAutoPay -- GET) 4.2")
+            # print("(cAutoPay -- GET) 4.2")
 
             # if vals['purchase_uid'] != '400-000095':
             #     continue
@@ -3932,9 +3905,9 @@ class checkAutoPay(Resource):
         if len(fat_res) == 0:
             fat_res = 'No Errors'
 
-        print("(cAutoPay -- GET) 10")
-        print("(cAutoPay -- GET) send_emails: ", send_emails)
-        print("(cAutoPay -- GET) 10.1")
+        # print("(cAutoPay -- GET) 10")
+        # print("(cAutoPay -- GET) send_emails: ", send_emails)
+        # print("(cAutoPay -- GET) 10.1")
         
         email_er = ''
         for vals in send_emails:
@@ -3944,7 +3917,7 @@ class checkAutoPay(Resource):
         if len(email_er) == 0:
             email_er = 'No Errors'
 
-        print("(cAutoPay -- GET) 11")
+        # print("(cAutoPay -- GET) 11")
         
         # send email
         # msg = Message("Errors in Cron job", sender='support@mealsfor.me', recipients=['parva.shah808@gmail.com'])
@@ -4117,7 +4090,7 @@ class make_purchase (Resource):
         return new_billing
 
     def calculator(self, data):
-        print("(mp) data: ", data)
+        # print("(mp) data: ", data)
         ambassador_coupon = data['ambassador_coupon'] if data.get('ambassador_coupon') is not None else 'NULL'
         
         # CALCULATE AMBASSADOR DISCOUNT
@@ -4129,7 +4102,7 @@ class make_purchase (Resource):
         amb_coupon_uid = None
         # IF AMBASSADOR INFO IS PASSED IN JSON OBJECT
         if type(ambassador_coupon) is dict:
-            print("(cb) in amb code conditional")
+            # print("(cb) in amb code conditional")
             amb_coupon_uid = ambassador_coupon['coupon_uid']
             amb_discount_amount = ambassador_coupon['discount_amount']
             amb_discount_percent = ambassador_coupon['discount_percent']
@@ -4183,7 +4156,7 @@ class make_purchase (Resource):
 
             # calculate shipping discount if it exists
             amb_delivery_fee = delivery_fee - amb_discount_shipping
-            print(amb_delivery_fee, " = ", delivery_fee, " - ", amb_discount_shipping)
+            # print(amb_delivery_fee, " = ", delivery_fee, " - ", amb_discount_shipping)
             if amb_delivery_fee < 0:
                 amb_delivery_fee = 0
 
@@ -4210,12 +4183,12 @@ class make_purchase (Resource):
             # print("amount_should_charge: ", amount_should_charge, " = ", new_meal_charge, " - ", new_discount, " - ", amb_discount, " + ", new_tax, " + ", service_fee, " + ", delivery_fee, " + ", new_driver_tip)
 
             new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": charge_without_amb,"charge_with_amb": charge_with_amb,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
-            print("(mp) new_billing 1: ", new_billing)
+            # print("(mp) new_billing 1: ", new_billing)
             return new_billing
         else:
             
             new_billing = {"new_meal_charge": new_meal_charge, "new_discount": new_discount, "new_driver_tip": new_driver_tip, "tax_rate": tax_rate, "new_tax": new_tax, "service_fee": service_fee, "delivery_fee": delivery_fee,"charge_without_amb": None,"charge_with_amb": None,"ambassador_discount": amb_discount,"amount_should_charge": amount_should_charge}
-            print("(mp) new_billing 2: ", new_billing)
+            # print("(mp) new_billing 2: ", new_billing)
             return new_billing
         
         
@@ -4490,17 +4463,17 @@ class change_purchase (Resource):
                 stripe_refunded = refundable_info['amount_refunded']/100
                 refundable_amount = stripe_captured - stripe_refunded
                 # print("\nRefundable Amount: ", refundable_info)
-                print("\nAmount Captured: ", stripe_captured)
-                print("Amount Refunded: ", stripe_refunded)
-                print("Refundable Amount: ", refundable_amount)
-                print("Amount to be Refunded 2: ", amount_should_refund)
+                # print("\nAmount Captured: ", stripe_captured)
+                # print("Amount Refunded: ", stripe_refunded)
+                # print("Refundable Amount: ", refundable_amount)
+                # print("Amount to be Refunded 2: ", amount_should_refund)
 
                 if refundable_amount == 0:
                     num_transactions = num_transactions - 1
                     n = n + 1
                     continue
 
-                print("831 debug refund 1")
+                # print("831 debug refund 1")
 
                 if refundable_amount >= amount_should_refund:
                     # refund it right away => amount should be refund is equal refunded_amount
@@ -4899,17 +4872,17 @@ class change_purchase_2 (Resource):
                 stripe_refunded = refundable_info['amount_refunded']/100
                 refundable_amount = stripe_captured - stripe_refunded
                 # print("\nRefundable Amount: ", refundable_info)
-                print("\nAmount Captured: ", stripe_captured)
-                print("Amount Refunded: ", stripe_refunded)
-                print("Refundable Amount: ", refundable_amount)
-                print("Amount to be Refunded 2: ", amount_should_refund)
+                # print("\nAmount Captured: ", stripe_captured)
+                # print("Amount Refunded: ", stripe_refunded)
+                # print("Refundable Amount: ", refundable_amount)
+                # print("Amount to be Refunded 2: ", amount_should_refund)
 
                 if refundable_amount == 0:
                     num_transactions = num_transactions - 1
                     n = n + 1
                     continue
 
-                print("831 debug refund 1")
+                # print("831 debug refund 1")
 
                 if refundable_amount >= amount_should_refund:
                     # refund it right away => amount should be refund is equal refunded_amount
@@ -5064,7 +5037,7 @@ class change_purchase_2 (Resource):
 class change_purchase_3 (Resource):
     
     def put(self):
-        print("******************************| (CP3) START |******************************")
+        # print("******************************| (CP3) START |******************************")
         
         # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
         conn = connect()
@@ -5093,7 +5066,7 @@ class change_purchase_3 (Resource):
         # print("\n=========================| START refund_brandon |=========================")
         refund = calculator().refund_brandon(pur_uid)
         # print("\n=========================|  END refund_brandon  |=========================")
-        print("\n(CP3) refund calculator: ", refund)
+        # print("\n(CP3) refund calculator: ", refund)
 
         amount_should_refund = round(refund['amount_due'],2)
         # print("\nold plan refund: ", amount_should_refund)
@@ -5183,7 +5156,7 @@ class change_purchase_3 (Resource):
         # delta = round(new_meal_charge  - new_discount + refund['service_fee'] + refund['delivery_fee'] + new_driver_tip + new_tax,2)
         # print("New Meal Plan Charges: ", delta)
         delta = new_purchase['amount_should_charge']
-        print("(CP3) calced amount_should_charge: ", delta)
+        # print("(CP3) calced amount_should_charge: ", delta)
 
         # print("test")
         # return "test"
@@ -5191,7 +5164,7 @@ class change_purchase_3 (Resource):
         # Updates amount_should_refund to reflect delta charge.  If + then refund if - then charge
         old_asr = amount_should_refund
         amount_should_refund = round(amount_should_refund - delta,2)
-        print("(CP3) amount_should_refund 1: ", amount_should_refund, " = ", old_asr, " - ", delta)
+        # print("(CP3) amount_should_refund 1: ", amount_should_refund, " = ", old_asr, " - ", delta)
         # print("Additional Charge/Refund after discount: ", amount_should_refund, type(amount_should_refund))
           
         # STEP 3 PROCESS STRIPE
@@ -5235,7 +5208,7 @@ class change_purchase_3 (Resource):
             # charge_id = response.json()
 
             # print("(cp3) Stripe Transaction Inputs: ", refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
-            print("(CP3) amount_should_refund before purchase: ", amount_should_refund)
+            # print("(CP3) amount_should_refund before purchase: ", amount_should_refund)
             charge_id = stripe_transaction().purchase(refund['customer_uid'], refund['delivery_instructions'], amount_should_refund)
             # print("Return from Stripe Charge Transaction: ", charge_id)
 
@@ -5270,7 +5243,7 @@ class change_purchase_3 (Resource):
                         '''
             response = simple_get_execute(date_query, "Next Delivery Date", conn)
             start_delivery_date = response[0]['result'][0]['menu_date']
-            print("start_delivery_date: ", start_delivery_date)
+            # print("start_delivery_date: ", start_delivery_date)
         
             # UPDATE PAYMENT TABLE
             query = """
@@ -5324,7 +5297,7 @@ class change_purchase_3 (Resource):
                     
                             
             response = execute(query, 'post', conn)
-            print("Payments Update db response: ", response)
+            # print("Payments Update db response: ", response)
             
             if response['code'] != 281:
                 return {"message": "Payment Insert Error"}, 500
@@ -5336,7 +5309,7 @@ class change_purchase_3 (Resource):
                     where purchase_uid = '""" + pur_uid + """';
                     """
             update_response = execute(query, 'post', conn)
-            print("Purchases Update db response: ", update_response)
+            # print("Purchases Update db response: ", update_response)
             if update_response['code'] != 281:
                 return {"message": "Purchase Insert Error"}, 500
 
@@ -5350,11 +5323,11 @@ class change_purchase_3 (Resource):
             response = execute(query, 'get', conn)
             if response['code'] != 280:
                 return {"message": "Purchase Table Lookup Error"}, 500
-            print("Get Purchase UID response: ", response)
+            # print("Get Purchase UID response: ", response)
 
             # INSERT INTO PURCHASE TABLE
             items = "[" + ", ".join([str(item).replace("'", "\"") if item else "NULL" for item in data['items']]) + "]"
-            print(items)
+            # print(items)
 
             query = """
                     INSERT INTO M4ME.purchases
@@ -5406,7 +5379,7 @@ class change_purchase_3 (Resource):
             # print("\nInside Systematically Stepping Through Transactions")
             n = 0
             # print("num_transactions: ", num_transactions)
-            print("(CP3) amount_should_refund before while loop: ", amount_should_refund)
+            # print("(CP3) amount_should_refund before while loop: ", amount_should_refund)
             while num_transactions > 0 and amount_should_refund > 0 :
                 # print("Number of Transactions: ", num_transactions)
                 # print("Amount to Refund: ",amount_should_refund)
@@ -5419,15 +5392,15 @@ class change_purchase_3 (Resource):
                     # print("Update Purchase ID: ", stripe_process_id)
                 refundable_info = stripe.Charge.retrieve(stripe_process_id,)
 
-                print("(CP3) amount_captured 1: ", refundable_info['amount_captured'])
-                print("(CP3) amount_refunded 1: ", refundable_info['amount_refunded'])
+                # print("(CP3) amount_captured 1: ", refundable_info['amount_captured'])
+                # print("(CP3) amount_refunded 1: ", refundable_info['amount_refunded'])
                 stripe_captured = refundable_info['amount_captured']/100
                 stripe_refunded = refundable_info['amount_refunded']/100
                 refundable_amount = stripe_captured - stripe_refunded
                 # print("\nRefundable Amount: ", refundable_info)
-                print("(CP3) amount_captured 2: ", stripe_captured)
-                print("(CP3) amount_refunded 2: ", stripe_refunded)
-                print("(CP3) refundable_amount: ", refundable_amount, " = ", stripe_captured, " - ", stripe_refunded)
+                # print("(CP3) amount_captured 2: ", stripe_captured)
+                # print("(CP3) amount_refunded 2: ", stripe_refunded)
+                # print("(CP3) refundable_amount: ", refundable_amount, " = ", stripe_captured, " - ", stripe_refunded)
                 # print("Amount to be Refunded 2: ", amount_should_refund)
 
                 if refundable_amount == 0:
@@ -5440,21 +5413,21 @@ class change_purchase_3 (Resource):
                     # print("In If Statement")
 
                     # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-                    print("\n(CP3) amount_should_refund before refund 1; ", amount_should_refund)
+                    # print("\n(CP3) amount_should_refund before refund 1; ", amount_should_refund)
                     refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
                     purchase_status = 'ACTIVE'
                     stripe_refund = amount_should_refund
                     amount_should_refund = 0
-                    print("(CP3) amount_should_refund after refund 1; ", amount_should_refund)
+                    # print("(CP3) amount_should_refund after refund 1; ", amount_should_refund)
                     # print("Refund id: ", refund_id['id'])
                 else:
                     # print("In Else Statement")
-                    print("(CP3) amount_should_refund before refund 2: ", amount_should_refund)
+                    # print("(CP3) amount_should_refund before refund 2: ", amount_should_refund)
                     refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
                     purchase_status = 'PARTIAL REFUND'
                     stripe_refund = refundable_amount
                     amount_should_refund = round(amount_should_refund - refundable_amount,2)
-                    print("(CP3) amount_should_refund after refund 2: ", amount_should_refund)
+                    # print("(CP3) amount_should_refund after refund 2: ", amount_should_refund)
                     # print("Refund id: ", refund_id['id'])
 
                 num_transactions = num_transactions - 1
@@ -5621,35 +5594,35 @@ class cancel_purchase (Resource):
          # STEP 1 GET INPUT INFO (WHAT ARE THEY CHANGING FROM AND TO)
         conn = connect()
         data = request.get_json(force=True)
-        print("\nSTEP 1:  In CANCEL PURCHASE\n", data)
+        # print("\nSTEP 1:  In CANCEL PURCHASE\n", data)
         # print("hello")
         # print(data['purchase_uid'])
         # print("goodbye")
         
         # WHAT THEY HAD
         pur_uid = data["purchase_uid"]
-        print("What they have (CURRENT Purchase ID): ", pur_uid)
+        # print("What they have (CURRENT Purchase ID): ", pur_uid)
 
         # STEP 2 CALCULATE REFUND
-        print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
-        print("Call Refund Calculator")
+        # print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
+        # print("Call Refund Calculator")
         refund = calculator().refund(pur_uid)
-        print("\nRefund Calculator Return: ", refund)
+        # print("\nRefund Calculator Return: ", refund)
         amount_should_refund = round(refund['amount_due'],2)
-        print("Amount to be Refunded 3: ", amount_should_refund)
+        # print("Amount to be Refunded 3: ", amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
-        print("\nSTEP 3:  PROCESS STRIPE")
+        # print("\nSTEP 3:  PROCESS STRIPE")
         # GET STRIPE KEY TO BE ABLE TO CALL STRIPE
-        print("\nSTEP 3A:  Get Stripe Key") 
+        # print("\nSTEP 3A:  Get Stripe Key") 
         delivery_instructions = refund['delivery_instructions']
-        print(delivery_instructions)
+        # print(delivery_instructions)
         stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-        print("Stripe Key: ", stripe.api_key)
-        print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLM...4h7TZhdu000mBRlnir9")
+        # print("Stripe Key: ", stripe.api_key)
+        # print ("For Reference, M4ME Stripe Key: sk_test_51HyqrgLM...4h7TZhdu000mBRlnir9")
 
         # GET ALL TRANSACTIONS ASSOCIATED WITH THE PURCHASE UID
-        print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
+        # print("\nSTEP 3B REFUND STRIPE: Get All Transactions", pur_uid)
         query = """ 
                 SELECT charge_id 
                 FROM M4ME.payments
@@ -5660,40 +5633,39 @@ class cancel_purchase (Resource):
         chargeIDresponse = execute(query, 'get', conn)
         if chargeIDresponse['code'] != 280:
             return {"message": "Related Transaction Error"}, 500
-        print("Related Puchase IDs: ", chargeIDresponse['result'])
+        # print("Related Puchase IDs: ", chargeIDresponse['result'])
         num_transactions = len(chargeIDresponse['result'])
-        print("Number of Related Puchase IDs: ", num_transactions)
+        # print("Number of Related Puchase IDs: ", num_transactions)
 
         # PROCESS REFUND SYSTEMATICALLY THROUGH STRIPE
-        print("\nSTEP 3C: Systematically Step Through Transactions")
+        # print("\nSTEP 3C: Systematically Step Through Transactions")
         n = 0
-        print("Number of Transactions: ", num_transactions)
-        print("Amount to Refund: ",amount_should_refund)
+        # print("Number of Transactions: ", num_transactions)
+        # print("Amount to Refund: ",amount_should_refund)
         if amount_should_refund <= 0:
             # return ("Amount Should Refund less than zero! ", amount_should_refund)
-            print("Amount Should Refund less than zero! ", amount_should_refund)
+            # print("Amount Should Refund less than zero! ", amount_should_refund)
             return {"message": "Amount Should Refund less than zero!"}
         while num_transactions > 0 and amount_should_refund > 0 :
-            print("Number of Transactions: ", num_transactions)
-            print("Amount to Refund: ",amount_should_refund)
-            print("Counter is at: ", n)
+            # print("Number of Transactions: ", num_transactions)
+            # print("Amount to Refund: ",amount_should_refund)
+            # print("Counter is at: ", n)
             stripe_process_id = chargeIDresponse['result'][n]['charge_id']
-            print("Stripe Purchase ID: ", stripe_process_id)
+            # print("Stripe Purchase ID: ", stripe_process_id)
 
             if stripe_process_id[:2] == "pi":
                 stripe_process_id = stripe.PaymentIntent.retrieve(stripe_process_id).get("charges").get("data")[0].get("id")
-                print("Update Purchase ID: ", stripe_process_id)
+                # print("Update Purchase ID: ", stripe_process_id)
             refundable_info = stripe.Charge.retrieve(stripe_process_id,)
-            print("refundable_info 2: ", refundable_info)
+            # print("refundable_info 2: ", refundable_info)
 
             stripe_captured = refundable_info['amount_captured']/100
             stripe_refunded = refundable_info['amount_refunded']/100
             refundable_amount = stripe_captured - stripe_refunded
-            # print("\nRefundable Amount: ", refundable_info)
-            print("\nAmount Captured: ", stripe_captured)
-            print("Amount Refunded: ", stripe_refunded)
-            print("Refundable Amount: ", refundable_amount)
-            print("Amount to be Refunded 2: ", amount_should_refund)
+            # print("\nAmount Captured: ", stripe_captured)
+            # print("Amount Refunded: ", stripe_refunded)
+            # print("Refundable Amount: ", refundable_amount)
+            # print("Amount to be Refunded 2: ", amount_should_refund)
 
 
  
@@ -5705,43 +5677,41 @@ class cancel_purchase (Resource):
 
             if refundable_amount >= amount_should_refund:
                 # refund it right away => amount should be refund is equal refunded_amount
-                print("In If Statement")
 
                 # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
                 refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
                 stripe_refund = amount_should_refund
                 amount_should_refund = 0
-                print("Refund id: ", refund_id['id'])
+                # print("Refund id: ", refund_id['id'])
             else:
-                print("In Else Statement")
                 refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
                 stripe_refund = refundable_amount
                 amount_should_refund = round(amount_should_refund - refundable_amount,2)
-                print("Refund id: ", refund_id['id'])
+                # print("Refund id: ", refund_id['id'])
 
             num_transactions = num_transactions - 1
             n = n + 1
             print (num_transactions, n)
 
             # STEP 4 WRITE TO DATABASE
-            print("\nSTEP 4:  WRITE TO DATABASE")
+            # print("\nSTEP 4:  WRITE TO DATABASE")
             # new_pur_id = get_new_purchaseID(conn) - DON'T NEED NEW PURCHASE UID FOR CANCEL
             new_pay_id = get_new_paymentID(conn)
 
             # UPDATE PAYMENT TABLE
             # INSERT NEW ROW WITH REFUND AMOUNT AND SAME PAYMENT ID
-            print(new_pay_id)
-            print(refund['payment_id'])
-            print(pur_uid)
-            print(refund['purchase_id'])
-            print(str(getNow()))
-            print(str(refund['meal_refund']))
-            print(str(refund['service_fee']))
-            print(str(refund['delivery_fee']))
-            print(str(refund['driver_tip']))
-            print(str(refund['taxes']))
-            print(str(refund['ambassador_code']))
-            print("refund_res: ", refund_id['id'])
+            # print(new_pay_id)
+            # print(refund['payment_id'])
+            # print(pur_uid)
+            # print(refund['purchase_id'])
+            # print(str(getNow()))
+            # print(str(refund['meal_refund']))
+            # print(str(refund['service_fee']))
+            # print(str(refund['delivery_fee']))
+            # print(str(refund['driver_tip']))
+            # print(str(refund['taxes']))
+            # print(str(refund['ambassador_code']))
+            # print("refund_res: ", refund_id['id'])
 
             # UPDATE PAYMENT TABLE
             query = """
@@ -5764,7 +5734,7 @@ class cancel_purchase (Resource):
                     """        
                             
             response = execute(query, 'post', conn)
-            print("Payments Update db response: ", response)
+            # print("Payments Update db response: ", response)
             
             if response['code'] != 281:
                 return {"message": "Payment Insert Error"}, 500
@@ -5776,7 +5746,7 @@ class cancel_purchase (Resource):
                     where purchase_uid = '""" + pur_uid + """';
                     """
             cancel_response = execute(query, 'post', conn)
-            print("Purchases Update db response: ", cancel_response)
+            # print("Purchases Update db response: ", cancel_response)
             if cancel_response['code'] != 281:
                 return {"message": "Purchase Insert Error"}, 500
 
@@ -5804,9 +5774,9 @@ class cancel_purchase_2 (Resource):
         # print("\nSTEP 2 PART A:  Inside Calculate Refund", pur_uid)
         # print("Call Refund Calculator")
         refund = calculator().refund_brandon(pur_uid)
-        print("\n(CP2) refund calculator: ", refund)
+        # print("\n(CP2) refund calculator: ", refund)
         amount_should_refund = round(refund['amount_due'],2)
-        print("(CP2) amount_should_refund 1: ", amount_should_refund)
+        # print("(CP2) amount_should_refund 1: ", amount_should_refund)
 
         # STEP 3 PROCESS STRIPE
         # print("\nSTEP 3:  PROCESS STRIPE")
@@ -5842,7 +5812,7 @@ class cancel_purchase_2 (Resource):
         # print("Amount to Refund: ",amount_should_refund)
         if amount_should_refund <= 0:
             # return ("Amount Should Refund less than zero! ", amount_should_refund)
-            print("Amount Should Refund less than zero! ", amount_should_refund)
+            # print("Amount Should Refund less than zero! ", amount_should_refund)
             return {"message": "Amount Should Refund less than zero!"}
         while num_transactions > 0 and amount_should_refund > 0 :
             # print("Number of Transactions: ", num_transactions)
@@ -5866,15 +5836,15 @@ class cancel_purchase_2 (Resource):
             # print("(cp2) Amount Refunded: ", stripe_refunded)
             # print("(cp2) Refundable Amount: ", refundable_amount)
             # print("(cp2) Amount to be Refunded 1: ", amount_should_refund)
-            print("(CP2) amount_captured 1: ", refundable_info['amount_captured'])
-            print("(CP2) amount_refunded 1: ", refundable_info['amount_refunded'])
+            # print("(CP2) amount_captured 1: ", refundable_info['amount_captured'])
+            # print("(CP2) amount_refunded 1: ", refundable_info['amount_refunded'])
             stripe_captured = refundable_info['amount_captured']/100
             stripe_refunded = refundable_info['amount_refunded']/100
             refundable_amount = stripe_captured - stripe_refunded
             # print("\nRefundable Amount: ", refundable_info)
-            print("(CP2) amount_captured 2: ", stripe_captured)
-            print("(CP2) amount_refunded 2: ", stripe_refunded)
-            print("(CP2) refundable_amount: ", refundable_amount, " = ", stripe_captured, " - ", stripe_refunded)
+            # print("(CP2) amount_captured 2: ", stripe_captured)
+            # print("(CP2) amount_refunded 2: ", stripe_refunded)
+            # print("(CP2) refundable_amount: ", refundable_amount, " = ", stripe_captured, " - ", stripe_refunded)
             # print("Amount to be Refunded 2: ", amount_should_refund)
 
 
@@ -5890,27 +5860,27 @@ class cancel_purchase_2 (Resource):
                 # print("(cp2)In If Statement")
 
                 # reference:  stripe.api_key = get_stripe_key().get_key(delivery_instructions)
-                print("(CP2) amount_should_refund before refund 1: ", amount_should_refund)
+                # print("(CP2) amount_should_refund before refund 1: ", amount_should_refund)
                 # print("(before stripe_transaction 1) refundable_amount: ", amount_should_refund)
                 refund_id = stripe_transaction().refund(amount_should_refund,stripe_process_id)
                 stripe_refund = amount_should_refund
                 amount_should_refund = 0
-                print("(CP2) amount_should_refund after refund 1: ", amount_should_refund)
+                # print("(CP2) amount_should_refund after refund 1: ", amount_should_refund)
                 # print("Refund id: ", refund_id['id'])
             else:
                 # print("(cp2) In Else Statement")
 
-                print("(CP2) amount_should_refund before refund 2: ", amount_should_refund)
+                # print("(CP2) amount_should_refund before refund 2: ", amount_should_refund)
                 # print("(before stripe_transaction 2) refundable_amount: ", amount_should_refund)
                 refund_id = stripe_transaction().refund(refundable_amount,stripe_process_id)
                 stripe_refund = refundable_amount
                 amount_should_refund = round(amount_should_refund - refundable_amount,2)
-                print("(CP2) amount_should_refund after refund 2: ", amount_should_refund)
+                # print("(CP2) amount_should_refund after refund 2: ", amount_should_refund)
                 # print("Refund id: ", refund_id['id'])
 
             num_transactions = num_transactions - 1
             n = n + 1
-            print (num_transactions, n)
+            # print (num_transactions, n)
 
             # STEP 4 WRITE TO DATABASE
             # print("\nSTEP 4:  WRITE TO DATABASE")
@@ -5973,7 +5943,7 @@ class cancel_purchase_2 (Resource):
                         """   
                             
             response = execute(query, 'post', conn)
-            print("Payments Update db response: ", response)
+            # print("Payments Update db response: ", response)
             
             if response['code'] != 281:
                 return {"message": "Payment Insert Error"}, 500
@@ -5985,20 +5955,20 @@ class cancel_purchase_2 (Resource):
                     where purchase_uid = '""" + pur_uid + """';
                     """
             cancel_response = execute(query, 'post', conn)
-            print("Purchases Update db response: ", cancel_response)
+            # print("Purchases Update db response: ", cancel_response)
             if cancel_response['code'] != 281:
                 return {"message": "Purchase Insert Error"}, 500
 
             continue
-        print("=========================|  STEP 3C END  |=========================")
+        # print("=========================|  STEP 3C END  |=========================")
         
         # return { 
         #         "refund_id": refund_id['id'],
         #         "amount_refunded": 
         #        }
-        print("(cp2) amount_due: ", refund['amount_due'])
-        print("(cp2) refundable_amount: ", refundable_amount)
-        print("(cp2) amount_should_refund: ", amount_should_refund)
+        # print("(cp2) amount_due: ", refund['amount_due'])
+        # print("(cp2) refundable_amount: ", refundable_amount)
+        # print("(cp2) amount_should_refund: ", amount_should_refund)
         return {"refund_id": refund_id['id'], "refund_amount": refund['amount_due']}
 
 # PRASHANT NEXT BILLING DATE
@@ -6008,7 +5978,7 @@ class predict_next_billing_date(Resource):
 
         try:
             conn = connect()
-            print("Inside predict class", id)
+            # print("Inside predict class", id)
 
             # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
             query = """
@@ -6107,7 +6077,7 @@ class predict_next_billing_date(Resource):
             """
 
             next_billing_date = execute(query, 'get', conn)
-            print("Next Billing Date: ", next_billing_date)
+            # print("Next Billing Date: ", next_billing_date)
 
             return next_billing_date
 
@@ -6123,7 +6093,7 @@ class predict_next_billing_amount(Resource):
 
         try:
             conn = connect()
-            print("Inside predict class", id)
+            # print("Inside predict class", id)
 
             # CUSTOMER QUERY 2B: LAST DELIVERY DATE WITH NEXT DELIVERY DATE CALCULATION - FOR A SPECIFIC PURCHASE ID WITH NEXT MEAL SELECTION
             # query = """
@@ -6510,12 +6480,12 @@ class predict_next_billing_amount(Resource):
 class reissue_coupon(Resource):
 
     def put(self):
-        print("(RC) 0")
+        # print("(RC) 0")
         try:
             conn = connect()
             data = request.get_json(force=True)
 
-            print("(RC) 1")
+            # print("(RC) 1")
 
             if data.get('coupon_uid') is not None:
 
@@ -6528,7 +6498,7 @@ class reissue_coupon(Resource):
                 message = 'Reissued 1 coupon at coupon_uid ' + data['coupon_uid']
 
             else:
-                print("(RC) 2")
+                # print("(RC) 2")
 
                 get_query = """
                     SELECT * FROM coupons
@@ -6537,7 +6507,7 @@ class reissue_coupon(Resource):
                 """
                 items = execute(get_query, 'get', conn)
 
-                print("(rc) items: ", items)
+                # print("(rc) items: ", items)
     
                 query = """
                     UPDATE coupons
@@ -6546,10 +6516,10 @@ class reissue_coupon(Resource):
                 """
 
                 message = 'Reissued 1 coupon at coupon_uid ' + items['result'][0]['coupon_uid'] 
-                print("(RC) 3")
+                # print("(RC) 3")
 
             response = simple_post_execute([query], [__class__.__name__], conn)
-            print("(reissue_coupon) response")
+            # print("(reissue_coupon) response")
 
             if response[1] != 201:
                 return response
@@ -6666,13 +6636,13 @@ class Plans(Resource):
         try:
             conn = connect()
             #business_uid = request.args['business_uid']
-            print("1")
+            # print("1")
             query = """
                     select * from subscription_items 
                     join discounts
                     where itm_business_uid = "200-000002";
                     """
-            print("2")
+            # print("2")
             return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -12000,7 +11970,7 @@ class subscription_history(Resource):
 
         try:
             conn = connect()
-            print("Inside subscription history", cust_uid)
+            # print("Inside subscription history", cust_uid)
 
             # CUSTOMER QUERY ?: SUBSCRIPTION HISTORY (BILLING AND MEAL SELECTION)
             # STEP 4 FIND MEAL IMAGES
@@ -12101,7 +12071,7 @@ class subscription_history(Resource):
             """
 
             subscription_history = execute(query, 'get', conn)
-            print("Next Billing Date: ", subscription_history)
+            # print("Next Billing Date: ", subscription_history)
 
             return subscription_history
 
@@ -12750,13 +12720,13 @@ class calculator(Resource):
 
         try:
             conn = connect()
-            print("\nREFUND PART 1:  CALL CALCULATOR", pur_uid)
+            # print("\nREFUND PART 1:  CALL CALCULATOR", pur_uid)
             # print("Item_UID: ", items_uid)
             # print("Number of Deliveries: ", qty)
 
             # GET CURRENT PURCHASE INFO - SEE WHAT THEY PAID (PURCHASE ENGINE)
             pur_details = calculator().purchase_engine(pur_uid)
-            print("\nPurchase_details from purchase_engine: ", pur_details)
+            # print("\nPurchase_details from purchase_engine: ", pur_details)
 
             items_uid               = json.loads(pur_details['result'][0]['items'])[0].get('item_uid')
             num_deliveries          = json.loads(pur_details['result'][0]['items'])[0].get('qty')
@@ -12781,58 +12751,58 @@ class calculator(Resource):
             delivery_instructions   = pur_details['result'][0]['delivery_instructions']
             delivery_email   = pur_details['result'][0]['delivery_email']
 
-            print("\nItem_UID: ", items_uid)
-            print("Number of Deliveries: ", num_deliveries)
-            print("Payment_id: ", payment_id)
+            # print("\nItem_UID: ", items_uid)
+            # print("Number of Deliveries: ", num_deliveries)
+            # print("Payment_id: ", payment_id)
 
-            print("\nCustomer Subtotal: ", subtotal)
-            print("Customer amount_discount: ", amount_discount)
-            print("Customer service_fee: ", service_fee)
-            print("Customer delivery_fee: ", delivery_fee)
-            print("Customer driver_tip: ", driver_tip)
-            print("Customer taxes ", taxes)
-            print("Customer ambassador_code: ", ambassador_code)
-            print("Customer ambassador_discount: ", ambassador_discount)
-            print("Customer amount_due: ", amount_due)
-            print("Customer amount_paid: ", amount_paid)
-            print("Customer charge_id: ", charge_id)
-            print("Customer delivery_instructions: ", delivery_instructions)
-            print("Customer email: ", delivery_email)
+            # print("\nCustomer Subtotal: ", subtotal)
+            # print("Customer amount_discount: ", amount_discount)
+            # print("Customer service_fee: ", service_fee)
+            # print("Customer delivery_fee: ", delivery_fee)
+            # print("Customer driver_tip: ", driver_tip)
+            # print("Customer taxes ", taxes)
+            # print("Customer ambassador_code: ", ambassador_code)
+            # print("Customer ambassador_discount: ", ambassador_discount)
+            # print("Customer amount_due: ", amount_due)
+            # print("Customer amount_paid: ", amount_paid)
+            # print("Customer charge_id: ", charge_id)
+            # print("Customer delivery_instructions: ", delivery_instructions)
+            # print("Customer email: ", delivery_email)
 
 
             # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
-            print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
+            # print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
             deliveries_made = calculator().deliveries_made(pur_uid)
-            print("\nReturned from deliveries_made: ", deliveries_made)
+            # print("\nReturned from deliveries_made: ", deliveries_made)
 
             completed_deliveries = deliveries_made['result'][0]['num_deliveries']
-            print("Num of Completed Deliveries: ", completed_deliveries)
+            # print("Num of Completed Deliveries: ", completed_deliveries)
 
 
             # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
-            print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
+            # print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
             if completed_deliveries is None:
                 completed_deliveries = 0
                 total_used = 0
-                print("completed_deliveries: ", completed_deliveries)
-                print(total_used)
+                # print("completed_deliveries: ", completed_deliveries)
+                # print(total_used)
             else:
                 # completed_deliveries > 0:
                 # print("true")
                 used = calculator().billing(items_uid, completed_deliveries)
-                print("\nConsumed Subscription: ", used)
+                # print("\nConsumed Subscription: ", used)
 
                 item_price = used['result'][0]['item_price']
                 delivery_discount = used['result'][0]['delivery_discount']
                 total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
 
-                print("\nUsed Price: ", item_price)
-                print("Used delivery_discount: ", delivery_discount)
-                print("Total Used: ", total_used)
+                # print("\nUsed Price: ", item_price)
+                # print("Used delivery_discount: ", delivery_discount)
+                # print("Total Used: ", total_used)
 
 
             # CALCULATE REFUND AMOUNT  -  NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
-            print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
+            # print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
 
             # Refund Logic
             # IF Nothing comsume REFUND EVERYTHING
@@ -12844,20 +12814,21 @@ class calculator(Resource):
             #   Keep service fee (no tax implication)
             #   Recalculate Taxes 
 
-            if completed_deliveries == 0:
-                print("No Meals Consumed")
+            # if completed_deliveries == 0:
+            #     print("No Meals Consumed")
 
-            else: 
+            # else: 
+            if completed_deliveries != 0:
                 valueOfMealsPurchased   = round(subtotal - amount_discount,2)
                 valueOfMealsConsumed    = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
                 remainingRatio          = round((int(num_deliveries) - int(completed_deliveries))/int(num_deliveries),2)
                 taxRate                 = .0925
-                print("\n(rb) valueOfMealsPurchased: ", valueOfMealsPurchased, " = ", subtotal, " - ", amount_discount)
-                print("(rb) valueOfMealsConsumed: ", valueOfMealsConsumed, " = (", item_price, " * ", completed_deliveries, ") * ", (1 - (delivery_discount/100)))
-                print("(rb) remainingRatio: ", remainingRatio, " = (", num_deliveries, " - ", completed_deliveries, ") / ", num_deliveries)
+                # print("\n(rb) valueOfMealsPurchased: ", valueOfMealsPurchased, " = ", subtotal, " - ", amount_discount)
+                # print("(rb) valueOfMealsConsumed: ", valueOfMealsConsumed, " = (", item_price, " * ", completed_deliveries, ") * ", (1 - (delivery_discount/100)))
+                # print("(rb) remainingRatio: ", remainingRatio, " = (", num_deliveries, " - ", completed_deliveries, ") / ", num_deliveries)
                     
                 subtotal = valueOfMealsPurchased - valueOfMealsConsumed
-                print("\n(rb) new_subtotal: ", subtotal, " = ", valueOfMealsPurchased, " - ", valueOfMealsConsumed)
+                # print("\n(rb) new_subtotal: ", subtotal, " = ", valueOfMealsPurchased, " - ", valueOfMealsConsumed)
 
                 # not included in refund
                 amount_discount         = 0
@@ -12866,17 +12837,17 @@ class calculator(Resource):
 
                 old_driver_tip = driver_tip # just for debugging
                 driver_tip              = round(remainingRatio * driver_tip, 2)
-                print("(rb) driver_tip: ", driver_tip, " = ", remainingRatio, " * ", old_driver_tip)
+                # print("(rb) driver_tip: ", driver_tip, " = ", remainingRatio, " * ", old_driver_tip)
                 
                 old_amb_discount = ambassador_discount # just for debugging
                 ambassador_discount         = round(remainingRatio * ambassador_discount, 2)
-                print("(rb) ambassador_discount: ", ambassador_discount, " = ", remainingRatio, " * ", old_amb_discount)
+                # print("(rb) ambassador_discount: ", ambassador_discount, " = ", remainingRatio, " * ", old_amb_discount)
 
                 taxes                   = round((subtotal + delivery_fee) * taxRate,2)
-                print("(rb) new_taxes: ", taxes, " = (", subtotal, " + ", delivery_fee, ") * ", taxRate)
+                # print("(rb) new_taxes: ", taxes, " = (", subtotal, " + ", delivery_fee, ") * ", taxRate)
 
                 amount_due              = round(subtotal + service_fee + delivery_fee + driver_tip  - ambassador_discount + taxes,2)
-                print("\n(rb) amount_due: ", amount_due, " = ", subtotal, " + ", service_fee, " + ", delivery_fee, " + ", driver_tip, " - ", ambassador_discount, " + ", taxes,"\n")
+                # print("\n(rb) amount_due: ", amount_due, " = ", subtotal, " + ", service_fee, " + ", delivery_fee, " + ", driver_tip, " - ", ambassador_discount, " + ", taxes,"\n")
                 
                 # print("""
                 #     ((4 * 5 * 16) - (4 * 5 * 16 * 0.05)) - ((2 * 5 * 16) - (2 * 5 * 16 * 0.01)) 
@@ -12903,7 +12874,7 @@ class calculator(Resource):
                              "cc_zip"                :  cc_zip,
                              "charge_id"             :  charge_id,
                              "delivery_instructions" :  delivery_instructions}
-            print("\n(rb) refund_object: ", refund_object)
+            # print("\n(rb) refund_object: ", refund_object)
             return refund_object
 
         except:
@@ -12918,7 +12889,7 @@ class calculator(Resource):
 
         try:
             conn = connect()
-            print("\nREFUND PART 1:  CALL CALCULATOR", pur_uid)
+            # print("\nREFUND PART 1:  CALL CALCULATOR", pur_uid)
             # print("Item_UID: ", items_uid)
             # print("Number of Deliveries: ", qty)
 
@@ -12946,55 +12917,55 @@ class calculator(Resource):
             charge_id               = pur_details['result'][0]['charge_id']
             delivery_instructions   = pur_details['result'][0]['delivery_instructions']
 
-            print("Item_UID: ", items_uid)
-            print("Number of Deliveries: ", num_deliveries)
-            print("Payment_id: ", payment_id)
-            print("Customer Subtotal: ", subtotal)
-            print("Customer amount_discount: ", amount_discount)
-            print("Customer service_fee: ", service_fee)
-            print("Customer delivery_fee: ", delivery_fee)
-            print("Customer driver_tip: ", driver_tip)
-            print("Customer taxes ", taxes)
-            print("Customer ambassador_code: ", ambassador_code)
-            print("Customer amount_due: ", amount_due)
-            print("Customer amount_paid: ", amount_paid)
-            print("Customer charge_id: ", charge_id)
-            print("Customer delivery_instructions: ", delivery_instructions)
+            # print("Item_UID: ", items_uid)
+            # print("Number of Deliveries: ", num_deliveries)
+            # print("Payment_id: ", payment_id)
+            # print("Customer Subtotal: ", subtotal)
+            # print("Customer amount_discount: ", amount_discount)
+            # print("Customer service_fee: ", service_fee)
+            # print("Customer delivery_fee: ", delivery_fee)
+            # print("Customer driver_tip: ", driver_tip)
+            # print("Customer taxes ", taxes)
+            # print("Customer ambassador_code: ", ambassador_code)
+            # print("Customer amount_due: ", amount_due)
+            # print("Customer amount_paid: ", amount_paid)
+            # print("Customer charge_id: ", charge_id)
+            # print("Customer delivery_instructions: ", delivery_instructions)
 
 
             # CALCULATE NUMBER OF DELIVERIES ALREADY MADE (DELIVERIES MADE)
-            print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
+            # print("\nREFUND PART 2:  DETERMINE NUMBER OF DELIVERIES MADE", pur_uid)
             deliveries_made = calculator().deliveries_made(pur_uid)
-            print("\nReturned from deliveries_made: ", deliveries_made)
+            # print("\nReturned from deliveries_made: ", deliveries_made)
 
             completed_deliveries = deliveries_made['result'][0]['num_deliveries']
-            print("3 Num of Completed Deliveries: ", completed_deliveries)
+            # print("3 Num of Completed Deliveries: ", completed_deliveries)
 
 
             # CALCULATE HOW MUCH OF THE PLAN SOMEONE ACTUALLY CONSUMED (BILLING)
-            print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
+            # print("\nREFUND PART 3:  CALCULATE VALUE OF MEALS CONSUMED", pur_uid)
             if completed_deliveries is None:
                 completed_deliveries = 0
                 total_used = 0
-                print("completed_deliveries: ", completed_deliveries)
-                print(total_used)
+                # print("completed_deliveries: ", completed_deliveries)
+                # print(total_used)
             else:
                 # completed_deliveries > 0:
                 # print("true")
                 used = calculator().billing(items_uid, completed_deliveries)
-                print("\nConsumed Subscription: ", used)
+                # print("\nConsumed Subscription: ", used)
 
                 item_price = used['result'][0]['item_price']
                 delivery_discount = used['result'][0]['delivery_discount']
                 total_used = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
 
-                print("Used Price: ", item_price)
-                print("Used delivery_discount: ", delivery_discount)
-                print("Total Used: ", total_used)
+                # print("Used Price: ", item_price)
+                # print("Used delivery_discount: ", delivery_discount)
+                # print("Total Used: ", total_used)
 
 
             # CALCULATE REFUND AMOUNT  -  NEGATIVE AMOUNT IS HOW MUCH TO CHARGE
-            print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
+            # print("\nREFUND PART 4:  CALCULATE REFUND AMOUNT", pur_uid)
 
             # Refund Logic
             # IF Nothing comsume REFUND EVERYTHING
@@ -13006,10 +12977,11 @@ class calculator(Resource):
             #   Keep service fee (no tax implication)
             #   Recalculate Taxes 
 
-            if completed_deliveries == 0:
-                print("No Meals Consumed")
+            # if completed_deliveries == 0:
+            #     print("No Meals Consumed")
 
-            else: 
+            # else: 
+            if completed_deliveries != 0:
                 valueOfMealsPurchased   = round(subtotal - amount_discount,2)
                 valueOfMealsConsumed    = round((item_price * completed_deliveries) * (1 - (delivery_discount/100)),2)
                 remainingRatio          = round((int(num_deliveries) - int(completed_deliveries))/int(num_deliveries),2)
@@ -14726,7 +14698,7 @@ class brandAmbassador2(Resource):
 
     def post(self, action):
         try:
-            print("in brandAmbassador2")
+            # print("in brandAmbassador2")
 
             data = request.get_json(force=True)
             conn = connect()
@@ -14743,7 +14715,7 @@ class brandAmbassador2(Resource):
                     WHERE email_id = \'""" + code + """\';
                     """
             items_amb = execute(query_amb, 'get', conn)
-            print("items_amb: ", items_amb)
+            # print("items_amb: ", items_amb)
             
             # 3.) Handle errors with query
             if items_amb['code'] != 280:
@@ -14760,12 +14732,12 @@ class brandAmbassador2(Resource):
                         return 'Customer already an Ambassador'
                 
                 # all check done, now make the custoamer a ambassador and issue them a coupon
-                print("first")
+                # print("first")
                 query = ["CALL new_coupons_uid;"]
                 
                 couponIDresponse = execute(query[0], 'get', conn)
                 couponID = couponIDresponse['result'][0]['new_id']
-                print('all checks done')
+                # print('all checks done')
                 dateObject = datetime.now()
 
                 exp_date = dateObject.replace(year=dateObject.year + 1)
@@ -14820,7 +14792,7 @@ class brandAmbassador2(Resource):
                             threshold = '10';
                         """
 
-                print(query)
+                # print(query)
                 items = execute(query, 'post', conn)
                 if items['code'] != 281:
                     items['message'] = "check sql query"
@@ -14834,7 +14806,7 @@ class brandAmbassador2(Resource):
 
             # 4b.) Check for discount
             elif action == 'discount_checker':
-                print("(brandAmbassador/discount_checker) start")
+                # print("(brandAmbassador/discount_checker) start")
 
                 # 5b.) Check if coupon with code exists
                 if not items_amb['result']:
@@ -14868,7 +14840,7 @@ class brandAmbassador2(Resource):
                     return {"message":'Please login',"code":504,"discount":"","uids":""}
                 
                 if type_code == 'Ambassador':
-                    print("(brandAmbassador/discount_checker) type_code == Ambassador")
+                    # print("(brandAmbassador/discount_checker) type_code == Ambassador")
                     # print("Ambassador")
                     # check if customer is already a ambassador because ambassador cannot refer himself or get referred
                     query_cust = """
@@ -14876,7 +14848,7 @@ class brandAmbassador2(Resource):
                         WHERE email_id = \'""" + info + """\';
                         """
                     items_cust = execute(query_cust, 'get', conn)
-                    print("items_cust", items_cust)
+                    # print("items_cust", items_cust)
                     for vals in items_cust['result']:
                         if vals['coupon_id'] == 'Ambassador':
                             return {"message":'Customer himself is an Ambassador',"code":505,"discount":"","uids":""}
@@ -14885,9 +14857,9 @@ class brandAmbassador2(Resource):
 
                     # customer can be referred only once so check that
 
-                    print("(brandAmbassador/discount_checker) check referral")
-                    print("(brandAmbassador/discount_checker) items_cust: ", items_cust)
-                    print("(brandAmbassador/discount_checker) input data: ", data)
+                    # print("(brandAmbassador/discount_checker) check referral")
+                    # print("(brandAmbassador/discount_checker) items_cust: ", items_cust)
+                    # print("(brandAmbassador/discount_checker) input data: ", data)
 
                     for vals in items_cust['result']:
                         if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == code:
@@ -14901,7 +14873,7 @@ class brandAmbassador2(Resource):
                     #         print("(brandAmbassador/discount_checker) let use referral")
                     #         return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
                         
-                    print("(brandAmbassador/discount_checker) after referral")
+                    # print("(brandAmbassador/discount_checker) after referral")
 
                     # generate coupon for referred customer
 
@@ -14914,16 +14886,16 @@ class brandAmbassador2(Resource):
                     exp_date = dateObject.replace(year=dateObject.year + 1)
                     exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
 
-                    print("(brandAmbassador/discount_checker) exp_date: ", exp_date)
+                    # print("(brandAmbassador/discount_checker) exp_date: ", exp_date)
                     
-                    print("(brandAmbassador/discount_checker) before qq")
+                    # print("(brandAmbassador/discount_checker) before qq")
 
                     qq = """
                         SELECT * FROM coupons WHERE coupon_id = 'Ambassador' AND email_id = \'""" + code + """\'
                         """
                     qq_ex = execute(qq,'get',conn)
 
-                    print("(brandAmbassador/discount_checker) qq_ex result: ", qq_ex)
+                    # print("(brandAmbassador/discount_checker) qq_ex result: ", qq_ex)
 
                     retu = {}
                     # retu['message'] = 'customer and ambassador coupons generated'
@@ -14933,20 +14905,20 @@ class brandAmbassador2(Resource):
                     # retu['uids'] = [couponID]
                     retu['sub'] = qq_ex['result'][0]
 
-                    print("\n(brandAmbassador/discount_checker) retu: ", retu)
+                    # print("\n(brandAmbassador/discount_checker) retu: ", retu)
                     purchase_data = data['purchase_data']
                     purchase_data['ambassador_coupon'] = retu['sub']
-                    print("\n(brandAmbassador/discount_checker) purchase_data: ", purchase_data)
+                    # print("\n(brandAmbassador/discount_checker) purchase_data: ", purchase_data)
                     # billing_info = make_purchase().put()
                     billing_info = make_purchase().calculator(purchase_data)
-                    print("\n(brandAmbassador/discount_checker) billing_info: ", billing_info)
+                    # print("\n(brandAmbassador/discount_checker) billing_info: ", billing_info)
 
                     retu['new_billing'] = billing_info
 
                     return retu
 
                 elif type_code == 'Discount':
-                    print('in discount')
+                    # print('in discount')
                     
                     if num_used == limits:
                         return {"message":'Limit exceeded cannot use this coupon',"code":507,"discount":"","uids":""}
@@ -14955,7 +14927,7 @@ class brandAmbassador2(Resource):
                                  SELECT * FROM coupons
                                  WHERE email_id = \'""" + info + """\' AND notes = \'""" + code + """\'
                                 """
-                    print(query_dis)
+                    # print(query_dis)
                     items_dis = execute(query_dis, 'get', conn)
                     if items_dis['code'] != 280:
                         items_dis['message'] = 'Check sql query'
@@ -14963,7 +14935,7 @@ class brandAmbassador2(Resource):
                     
                     if not items_dis['result']:
                         # create row
-                        print('in first if')
+                        # print('in first if')
                         query = ["CALL new_coupons_uid;"]
                         couponIDresponse = execute(query[0], 'get', conn)
                         couponID = couponIDresponse['result'][0]['new_id']
@@ -16747,10 +16719,10 @@ if __name__ == '__main__':
     # print("billing (4m, 3d): ", calculator().billing('320-000054','3'))
     # print("\n")
 
-    print("\n")
-    print("==========| test_stripe_amount |==========")
-    test_stripe_amount()
-    print("\n")
+    # print("\n")
+    # print("==========| test_stripe_amount |==========")
+    # test_stripe_amount()
+    # print("\n")
 
     app.run(host='127.0.0.1', port=2000)
     #app.run(host='0.0.0.0', port=2000)
