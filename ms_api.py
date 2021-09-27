@@ -3035,7 +3035,7 @@ class Checkout2(Resource):
                                 discount_amount = \'""" + str(final_res['discount_amount']) + """\',
                                 discount_shipping = \'""" + str(final_res['discount_shipping']) + """\',
                                 expire_date = \'""" + exp_date + """\',
-                                limits = '2',
+                                limits = '1',
                                 notes = \'""" + amb_code + """\',
                                 num_used = '1',
                                 recurring = \'""" + final_res['recurring'] + """\',
@@ -6357,7 +6357,7 @@ class predict_next_billing_amount(Resource):
                                     LEFT JOIN M4ME.latest_combined_meal lcm
                                     ON lplp.purchase_id = lcm.sel_purchase_id AND
                                             md.menu_date = lcm.sel_menu_date
-                                    WHERE pur_customer_uid = '""" + id + """'
+                                    WHERE pur_customer_uid = '""" + id + """' 
                                             AND purchase_status = "ACTIVE"
                                             AND menu_date >= start_delivery_date)
                                     AS B
@@ -6393,7 +6393,7 @@ class predict_next_billing_amount(Resource):
                                     (
                                     SELECT purchase_uid, purchase_id -- *
                                     FROM M4ME.lplp
-                                    WHERE lplp.pur_customer_uid = '""" + id + """') as pur
+                                    WHERE lplp.pur_customer_uid = '""" + id + """'  ) as pur
                                 ) AS nmdpur
                             LEFT JOIN (
                             -- PART B
@@ -6411,13 +6411,26 @@ class predict_next_billing_amount(Resource):
                         ON nbd.purchase_uid = nms.purchase_uid
                     ) AS no_amb_discount
                     LEFT JOIN(
-                        SELECT 
-                            amb_code,
-                            MAX(payment_uid),
-                            pay_purchase_id,
-                            pay_purchase_uid
-                        FROM M4ME.payments
-                        GROUP BY pay_purchase_id
+                        SELECT
+                            row_amb.pay_purchase_uid,
+                            row_amb.payment_uid,
+                            amb_code
+                        FROM (
+                            SELECT
+                                pay_purchase_uid,
+                                MAX(payment_uid) as payment_uid
+                            FROM M4ME.payments
+                            GROUP BY pay_purchase_uid
+                        ) AS row_id
+                        LEFT JOIN (
+                            SELECT
+                                pay_purchase_uid,
+                                payment_uid,
+                                amb_code
+                            FROM M4ME.payments
+                        ) AS row_amb
+                        ON row_amb.pay_purchase_uid = row_id.pay_purchase_uid 
+                        AND row_amb.payment_uid = row_id.payment_uid
                     ) AS with_amb_discount
                     ON no_amb_discount.purchase_uid = with_amb_discount.pay_purchase_uid
                     WHERE next_delivery >= CURDATE()
@@ -14723,15 +14736,12 @@ class brandAmbassador2(Resource):
             
             # 4a.) Create new ambassador
             if action == 'create_ambassador':
-                # print("Create Ambassador")
 
                 for vals in items_amb['result']:
-                    # print(vals)
                     if vals['coupon_id'] == 'Ambassador':
                         return 'Customer already an Ambassador'
                 
                 # all check done, now make the custoamer a ambassador and issue them a coupon
-                # print("first")
                 query = ["CALL new_coupons_uid;"]
                 
                 couponIDresponse = execute(query[0], 'get', conn)
@@ -14741,35 +14751,6 @@ class brandAmbassador2(Resource):
 
                 exp_date = dateObject.replace(year=dateObject.year + 1)
                 exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                # query = """
-                #         INSERT INTO coupons 
-                #         (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                #         VALUES ( \'""" + couponID + """\', 'Ambassador', 'TRUE', '20', '0', '0', \'""" + exp_date + """\', '0', 'Ambassador', '0', 'F', \'""" + code + """\', 'null', '10');
-                #         """
-
-                # '''
-                #     UPDATE M4ME.customers 
-                #     SET 
-                #     customer_created_at = \'''' + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + '''\',
-                #     customer_first_name = \'''' + firstName + '''\',
-                #     customer_last_name = \'''' + lastName + '''\',
-                #     customer_phone_num = \'''' + phone + '''\',
-                #     customer_address = \'''' + address + '''\',
-                #     customer_unit = \'''' + unit + '''\',
-                #     customer_city = \'''' + city + '''\',
-                #     customer_state = \'''' + state + '''\',
-                #     customer_zip = \'''' + zip_code + '''\',
-                #     customer_lat = \'''' + latitude + '''\',
-                #     customer_long = \'''' + longitude + '''\',
-                #     password_salt = \'''' + salt + '''\',
-                #     password_hashed = \'''' + password + '''\',
-                #     password_algorithm = \'''' + algorithm + '''\',
-                #     referral_source = \'''' + referral + '''\',
-                #     role = \'''' + role + '''\',
-                #     user_social_media = \'''' + user_social_signup + '''\',
-                #     social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
-                #     WHERE customer_uid = \'''' + cust_id + '''\';
-                # '''
 
                 query = """
                         INSERT INTO 
@@ -14855,39 +14836,13 @@ class brandAmbassador2(Resource):
                     cust_email = info
 
                     # customer can be referred only once so check that
-
-                    # print("(brandAmbassador/discount_checker) check referral")
-                    # print("(brandAmbassador/discount_checker) items_cust: ", items_cust)
-                    # print("(brandAmbassador/discount_checker) input data: ", data)
-
                     for vals in items_cust['result']:
                         if vals['coupon_id'] == 'Referral' and vals['num_used'] == vals['limits'] and vals['notes'] == code:
-                            # print("(referral -- query) coupon_id: ", vals['coupon_id'])
-                            # print("(referral -- query) num_used: ", vals['num_used'])
-                            # print("(referral -- query) notes: ", vals['notes'])
-                            # print("(referral -- json) code: ", code)
                             return {"message":'Customer has exceeded their uses for this coupon',"code":506,"discount":"","uids":""}
-                            # return {"message":'Customer has already been refered in past',"code":506,"discount":"","uids":""}
-                    #     elif vals['coupon_id'] == 'Referral' and vals['num_used'] != vals['limits']:
-                    #         print("(brandAmbassador/discount_checker) let use referral")
-                    #         return {"message":'Let the customer use the referral', "code": 200, "discount":vals['discount_amount'],"uids":[vals['coupon_uid']],"sub":vals}
-                        
-                    # print("(brandAmbassador/discount_checker) after referral")
-
-                    # generate coupon for referred customer
-
-                    # query = ["CALL new_coupons_uid;"]
-                    # couponIDresponse = execute(query[0], 'get', conn)
-                    # couponID = couponIDresponse['result'][0]['new_id']
-                    # print("(brandAmbassador/discount_checker) couponID: ", couponID)
                     
                     dateObject = datetime.now()
                     exp_date = dateObject.replace(year=dateObject.year + 1)
                     exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-
-                    # print("(brandAmbassador/discount_checker) exp_date: ", exp_date)
-                    
-                    # print("(brandAmbassador/discount_checker) before qq")
 
                     qq = """
                         SELECT * FROM coupons WHERE coupon_id = 'Ambassador' AND email_id = \'""" + code + """\'
@@ -14897,20 +14852,13 @@ class brandAmbassador2(Resource):
                     # print("(brandAmbassador/discount_checker) qq_ex result: ", qq_ex)
 
                     retu = {}
-                    # retu['message'] = 'customer and ambassador coupons generated'
                     retu['message'] = 'customer and ambassador coupons returned'
                     retu['code'] = 200
-                    # retu['discount'] = 10
-                    # retu['uids'] = [couponID]
                     retu['sub'] = qq_ex['result'][0]
 
-                    # print("\n(brandAmbassador/discount_checker) retu: ", retu)
                     purchase_data = data['purchase_data']
                     purchase_data['ambassador_coupon'] = retu['sub']
-                    # print("\n(brandAmbassador/discount_checker) purchase_data: ", purchase_data)
-                    # billing_info = make_purchase().put()
                     billing_info = make_purchase().calculator(purchase_data)
-                    # print("\n(brandAmbassador/discount_checker) billing_info: ", billing_info)
 
                     retu['new_billing'] = billing_info
 
@@ -14926,26 +14874,21 @@ class brandAmbassador2(Resource):
                                  SELECT * FROM coupons
                                  WHERE email_id = \'""" + info + """\' AND notes = \'""" + code + """\'
                                 """
-                    # print(query_dis)
                     items_dis = execute(query_dis, 'get', conn)
+
                     if items_dis['code'] != 280:
                         items_dis['message'] = 'Check sql query'
                         return items_dis
                     
                     if not items_dis['result']:
-                        # create row
-                        # print('in first if')
+
                         query = ["CALL new_coupons_uid;"]
                         couponIDresponse = execute(query[0], 'get', conn)
                         couponID = couponIDresponse['result'][0]['new_id']
                         dateObject = datetime.now()
                         exp_date = dateObject.replace(year=dateObject.year + 1)
                         exp_date = datetime.strftime(exp_date,"%Y-%m-%d %H:%M:%S")
-                        # query = """
-                        # INSERT INTO coupons 
-                        # (coupon_uid, coupon_id, valid, discount_percent, discount_amount, discount_shipping, expire_date, limits, notes, num_used, recurring, email_id, cup_business_uid, threshold) 
-                        # VALUES ( \'""" + couponID + """\', 'Discount', \'""" + final_res['valid'] + """\', \'""" + str(final_res['discount_percent']) + """\', \'""" + str(final_res['discount_amount']) + """\', \'""" + str(final_res['discount_shipping']) + """\', \'""" + exp_date + """\', '2', \'""" + code + """\', '0', \'""" + final_res['recurring'] + """\', \'""" + info + """\', \'""" + final_res['cup_business_uid'] + """\', \'""" + str(final_res['threshold']) + """\');
-                        # """
+
                         query = """
                             INSERT INTO 
                                 coupons 
