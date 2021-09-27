@@ -7874,6 +7874,7 @@ class Edit_Menu(Resource):
 
 
 class Edit_Meal(Resource):
+    # print("in Edit_meal")
     def get(self):
         response = {}
         items = {}
@@ -7972,7 +7973,7 @@ class Edit_Meal(Resource):
 
 
 class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECATED
-    print("Meal Creation Endpoint (why is this running automatically??)")
+    # print("Meal Creation Endpoint (why is this running automatically??)")
     def listIngredients(self, result):
         response = {}
         # print("1")
