@@ -7874,7 +7874,6 @@ class Edit_Menu(Resource):
 
 
 class Edit_Meal(Resource):
-    # print("in Edit_meal")
     def get(self):
         response = {}
         items = {}
@@ -7973,7 +7972,6 @@ class Edit_Meal(Resource):
 
 
 class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECATED
-    # print("Meal Creation Endpoint (why is this running automatically??)")
     def listIngredients(self, result):
         response = {}
         # print("1")
@@ -8242,6 +8240,75 @@ class Profile(Resource):
         finally:
             disconnect(conn)
 
+class Profile2(Resource):
+    # Fetches ALL DETAILS FOR A SPECIFIC USER
+
+    def get(self):
+    #def get(self):
+        response = {}
+        items = {}
+
+        customer_uid = request.args.get('customer_uid')
+        customer_email = request.args.get('customer_email')
+        print("(P2) customer_uid: ", customer_uid)
+        print("(P2) customer_email: ", customer_email)
+
+        # print("user_id: ", id)
+        if customer_uid != None:
+            try:
+                conn = connect()
+                query = """
+                        SELECT *
+                        FROM M4ME.customers c
+                        WHERE customer_uid = \'""" + customer_uid + """\'
+                        """
+                items = execute(query, 'get', conn)
+                if items['result']:
+
+                    items['message'] = 'Profile Loaded successful'
+                    items['result'] = items['result']
+                    items['code'] = 200
+                    return items
+                else:
+                    items['message'] = "Customer UID doesn't exists"
+                    items['result'] = items['result']
+                    items['code'] = 404
+                    return items
+
+            except:
+                raise BadRequest('Request failed, please try again later.')
+            finally:
+                disconnect(conn)
+
+        elif customer_email != None:
+            try:
+                conn = connect()
+                query = """
+                        SELECT *
+                        FROM M4ME.customers c
+                        WHERE customer_email = \'""" + customer_email + """\'
+                        """
+                items = execute(query, 'get', conn)
+                if items['result']:
+
+                    items['message'] = 'Profile Loaded successful'
+                    items['result'] = items['result']
+                    items['code'] = 200
+                    return items
+                else:
+                    items['message'] = "Customer UID doesn't exists"
+                    items['result'] = items['result']
+                    items['code'] = 404
+                    return items
+
+            except:
+                raise BadRequest('Request failed, please try again later.')
+            finally:
+                disconnect(conn)
+
+        else:
+            return "Please pass in a customer_uid or customer_email"
+            
 
 
 class UpdateProfile(Resource):
@@ -16376,6 +16443,7 @@ api.add_resource(Edit_Recipe, '/api/v2/Edit_Recipe')
 api.add_resource(Add_New_Ingredient, '/api/v2/Add_New_Ingredient')
 
 api.add_resource(Profile, '/api/v2/Profile/<string:id>')
+api.add_resource(Profile2, '/api/v2/Profile')
 
 api.add_resource(Meals_Selected_Specific, '/api/v2/meals_selected_specific')
 
