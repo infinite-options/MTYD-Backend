@@ -882,7 +882,9 @@ class createAccount(Resource):
     def post(self):
         response = {}
         items = []
+        # print("CAC 1")
         try:
+            # print("CAC 1 1")
             conn = connect()
             data = request.get_json(force=True)
             # print(data)
@@ -893,20 +895,26 @@ class createAccount(Resource):
             address = data['address']
             unit = data['unit'] if data.get('unit') is not None else 'NULL'
             social_id = data['social_id'] if data.get('social_id') is not None else 'NULL'
+            # print("CAC 1 2")
             city = data['city']
             state = data['state']
+            # print("CAC 1 2 1")
             zip_code = data['zip_code']
+            # print("CAC 1 2 2")
             latitude = data['latitude']
             longitude = data['longitude']
             referral = data['referral_source']
             role = data['role']
+            # print("CAC 1 2 3")
             cust_id = data['cust_id'] if data.get('cust_id') is not None else 'NULL'
+            # print("CAC 1 3")
 
             if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False or data.get('social') == 'NULL':
                 social_signup = False
             else:
                 social_signup = True
 
+            # print("CAC 2")
             # print(social_signup)
             get_user_id_query = "CALL new_customer_uid();"
             NewUserIDresponse = execute(get_user_id_query, 'get', conn)
@@ -919,6 +927,8 @@ class createAccount(Resource):
                 response['message'] = "Internal Server Error."
                 return response, 500
             NewUserID = NewUserIDresponse['result'][0]['new_id']
+
+            # print("CAC 3")
 
             if social_signup == False:
 
@@ -944,6 +954,7 @@ class createAccount(Resource):
                 user_social_signup = data['social']
 
                 print('ELSE- OUT')
+            # print("CAC 4")
 
             if cust_id != 'NULL' and cust_id:
 
@@ -1049,6 +1060,7 @@ class createAccount(Resource):
                                             
             print(customer_insert_query[0])
             items = execute(customer_insert_query[0], 'post', conn)
+            # print("CAC 5")
 
             if items['code'] != 281:
                 items['result'] = ""
@@ -1352,6 +1364,8 @@ class email_verification(Resource):
             data = request.get_json(force=True)
             # print(data)
             email = data['email']
+
+            print("EV 1")
             query = """
                     SELECT password_hashed
                     FROM M4ME.customers c
@@ -1359,18 +1373,22 @@ class email_verification(Resource):
                     """
             items = execute(query, 'get', conn)
             # print(items)
+            print("EV 2")
             if not items['result']:
-
+                print("EV 2.1")
                 items['message'] = "Customer email doesn't exists"
                 items['code'] = 404
                 return items
             if items['result'][0]['password_hashed'] == '':
+                print("EV 2.2")
                 items['message'] = "Customer password doesn't exists"
                 items['code'] = 405
                 return items
 
+            print("EV 3")
             token = s.dumps(email)
             # print(token)
+            print("EV 4")
             password = items['result'][0]['password_hashed']
             # print(password)
             # msg = Message("Test email", sender='support@mealsfor.me', recipients=["pmarathay@gmail.com"]) 
@@ -1381,6 +1399,7 @@ class email_verification(Resource):
             # print('msg-bd----', msg.body) 
             # print('msg-') 
             # mail.send(msg)
+            print("EV 5")
             msg = Message("Email Verification", sender='support@mealsfor.me', recipients=[email])
 
             print('MESSAGE----', msg)
@@ -1392,6 +1411,89 @@ class email_verification(Resource):
             msg.body = "Click on the link {} to verify your email address.".format(link)
             print('msg-bd----', msg.body)
             mail.send(msg)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+# ensures newly created accounts with invalid emails are deleted from
+# database since email_verification should run after createAccount
+class email_verification_brandon(Resource):
+    def post(self):
+
+        try:
+            conn = connect()
+
+            data = request.get_json(force=True)
+            # print(data)
+            email = data['email']
+
+            print("EV 1")
+            query = """
+                    SELECT password_hashed, customer_uid
+                    FROM M4ME.customers c
+                    WHERE customer_email = \'""" + email + """\'
+                    """
+            items = execute(query, 'get', conn)
+            print("EV items: ", items)
+            print("EV 2")
+            if not items['result']:
+                print("EV 2.1")
+                items['message'] = "Customer email doesn't exists"
+                items['code'] = 404
+                return items
+            if items['result'][0]['password_hashed'] == '':
+                print("EV 2.2")
+                items['message'] = "Customer password doesn't exists"
+                items['code'] = 405
+                return items
+            print("EV 3")
+            cust_uid = items['result'][0]['customer_uid']
+
+            print("EV 4")
+            token = s.dumps(email)
+            # print(token)
+            print("EV 5")
+            password = items['result'][0]['password_hashed']
+            # print(password)
+            # msg = Message("Test email", sender='support@mealsfor.me', recipients=["pmarathay@gmail.com"]) 
+            # msg.body = "Hi !\n\n"\
+            # "We are excited to send you your Summary report for delivery date. Please find the report in the attachment. \n"\
+            # "Email support@servingfresh.me if you run into any problems or have any questions.\n" \
+            # "Thx - The Serving Fresh Team\n\n" 
+            # print('msg-bd----', msg.body) 
+            # print('msg-') 
+            # mail.send(msg)
+            print("EV 6")
+            msg = Message("Email Verification", sender='support@mealsfor.me', recipients=[email])
+
+            print('MESSAGE----', msg)
+            print('message complete')
+            # print("1")
+            link = url_for('confirm', token=token, hashed=password, _external=True)
+            # print("2")
+            print('link---', link)
+            msg.body = "Click on the link {} to verify your email address.".format(link)
+            print('msg-bd----', msg.body)
+            try:
+                mail.send(msg)
+                return {
+                    'message': 'Email valid -- verification sent.',
+                    'code': 200
+                }
+            except:
+                # account in database was created with an invalid email; delete it
+                print("(EV) invalid email")
+                query = """
+                    DELETE FROM M4ME.customers
+                    WHERE customer_uid = \'""" + cust_uid + """\'
+                    """
+                items = execute(query, 'post', conn)
+                print("(EV) deleted invalid account/email")
+                return {
+                    'message': 'Email invalid -- verification not sent.',
+                    'code': 400
+                }
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -16528,7 +16630,8 @@ api.add_resource(createAccount, '/api/v2/createAccount')
 # delete account endpoint
 api.add_resource(deleteAccount, '/api/v2/deleteAccount')
 
-api.add_resource(email_verification, '/api/v2/email_verification')
+# api.add_resource(email_verification, '/api/v2/email_verification')
+api.add_resource(email_verification_brandon, '/api/v2/email_verification')
 
 # api.add_resource(all_businesses, '/api/v2/all_businesses')
 # api.add_resource(all_businesses_brandon, '/api/v2/all_businesses_brandon')
